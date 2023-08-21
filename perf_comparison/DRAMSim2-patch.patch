@@ -1,0 +1,67 @@
+diff --git a/TraceBasedSim.cpp b/TraceBasedSim.cpp
+index 8907f70..2c8537d 100644
+--- a/TraceBasedSim.cpp
++++ b/TraceBasedSim.cpp
+@@ -584,6 +584,9 @@ int main(int argc, char **argv)
+ 			else
+ 			{
+ 				//we're out of trace, set pending=false and let the thing spin without adding transactions
++
++				(*memorySystem).update();
++				break;
+ 				pendingTrans = false; 
+ 			}
+ 		}
+diff --git a/ini/DDR3_micron_32M_8B_x8_sg15.ini b/ini/DDR3_micron_32M_8B_x8_sg15.ini
+index 5386afb..f71d8ba 100644
+--- a/ini/DDR3_micron_32M_8B_x8_sg15.ini
++++ b/ini/DDR3_micron_32M_8B_x8_sg15.ini
+@@ -1,33 +1,33 @@
+ NUM_BANKS=8
+-NUM_ROWS=32768
+-NUM_COLS=1024
++NUM_ROWS=65536
++NUM_COLS=2048
+ DEVICE_WIDTH=8
+ 
+ ;in nanoseconds
+ ;#define REFRESH_PERIOD 7800
+ REFRESH_PERIOD=7800
+-tCK=1.5 ;*
++tCK=1.25 ;*
+ 
+-CL=10 ;*
++CL=11 ;*
+ AL=0 ;*
+ ;AL=3; needs to be tRCD-1 or 0
+ ;RL=(CL+AL)
+ ;WL=(RL-1)
+ BL=8 ;*
+-tRAS=24;* 
+-tRCD=10 ;*
+-tRRD=4 ;*
+-tRC=34 ;*
+-tRP=10  ;*
++tRAS=28;* 
++tRCD=11 ;*
++tRRD=6 ;*
++tRC=39 ;* 
++tRP=11  ;*
+ tCCD=4 ;*
+-tRTP=5 ;*
+-tWTR=5 ;*
+-tWR=10 ;*
++tRTP=6 ;*
++tWTR=6 ;*
++tWR=12 ;*
+ tRTRS=1; -- RANK PARAMETER, TODO 
+-tRFC=107;*
+-tFAW=20;*
++tRFC=280;*
++tFAW=32;*
+ tCKE=4 ;*
+-tXP=4 ;*
++tXP=5 ;*
+ 
+ tCMD=1 ;*
+ 

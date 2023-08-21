@@ -1,0 +1,134 @@
+diff --git a/configs/DDR3_8Gb_x8_1600.ini b/configs/DDR3_8Gb_x8_1600.ini
+index fc0faf5..3e8c608 100644
+--- a/configs/DDR3_8Gb_x8_1600.ini
++++ b/configs/DDR3_8Gb_x8_1600.ini
+@@ -55,10 +55,10 @@ channel_size = 16384
+ channels = 1
+ bus_width = 64
+ address_mapping = rochrababgco
+-queue_structure = PER_BANK
++queue_structure = PER_RANK
+ refresh_policy = RANK_LEVEL_STAGGERED
+ row_buf_policy = OPEN_PAGE
+-cmd_queue_size = 8
++cmd_queue_size = 32
+ trans_queue_size = 32
+ 
+ [other]
+diff --git a/src/cpu.cc b/src/cpu.cc
+index 175955f..15f77d0 100644
+--- a/src/cpu.cc
++++ b/src/cpu.cc
+@@ -2,7 +2,7 @@
+ 
+ namespace dramsim3 {
+ 
+-void RandomCPU::ClockTick() {
++bool RandomCPU::ClockTick() {
+     // Create random CPU requests at full speed
+     // this is useful to exploit the parallelism of a DRAM protocol
+     // and is also immune to address mapping and scheduling policies
+@@ -16,10 +16,10 @@ void RandomCPU::ClockTick() {
+         memory_system_.AddTransaction(last_addr_, last_write_);
+     }
+     clk_++;
+-    return;
++    return true;
+ }
+ 
+-void StreamCPU::ClockTick() {
++bool StreamCPU::ClockTick() {
+     // stream-add, read 2 arrays, add them up to the third array
+     // this is a very simple approximate but should be able to produce
+     // enough buffer hits
+@@ -56,7 +56,7 @@ void StreamCPU::ClockTick() {
+         inserted_c_ = false;
+     }
+     clk_++;
+-    return;
++    return true;
+ }
+ 
+ TraceBasedCPU::TraceBasedCPU(const std::string& config_file,
+@@ -70,7 +70,7 @@ TraceBasedCPU::TraceBasedCPU(const std::string& config_file,
+     }
+ }
+ 
+-void TraceBasedCPU::ClockTick() {
++bool TraceBasedCPU::ClockTick() {
+     memory_system_.ClockTick();
+     if (!trace_file_.eof()) {
+         if (get_next_) {
+@@ -84,9 +84,14 @@ void TraceBasedCPU::ClockTick() {
+                 memory_system_.AddTransaction(trans_.addr, trans_.is_write);
+             }
+         }
+-    }
+     clk_++;
+-    return;
++    return true;
++    }
++    else 
++    {  
++        clk_++;
++        return false;
++    }
+ }
+ 
+ }  // namespace dramsim3
+diff --git a/src/cpu.h b/src/cpu.h
+index 9ec28e7..c07400b 100644
+--- a/src/cpu.h
++++ b/src/cpu.h
+@@ -17,7 +17,7 @@ class CPU {
+               std::bind(&CPU::ReadCallBack, this, std::placeholders::_1),
+               std::bind(&CPU::WriteCallBack, this, std::placeholders::_1)),
+           clk_(0) {}
+-    virtual void ClockTick() = 0;
++    virtual bool ClockTick() = 0;
+     void ReadCallBack(uint64_t addr) { return; }
+     void WriteCallBack(uint64_t addr) { return; }
+     void PrintStats() { memory_system_.PrintStats(); }
+@@ -30,7 +30,7 @@ class CPU {
+ class RandomCPU : public CPU {
+    public:
+     using CPU::CPU;
+-    void ClockTick() override;
++    bool ClockTick() override;
+ 
+    private:
+     uint64_t last_addr_;
+@@ -42,7 +42,7 @@ class RandomCPU : public CPU {
+ class StreamCPU : public CPU {
+    public:
+     using CPU::CPU;
+-    void ClockTick() override;
++    bool ClockTick() override;
+ 
+    private:
+     uint64_t addr_a_, addr_b_, addr_c_, offset_ = 0;
+@@ -59,7 +59,7 @@ class TraceBasedCPU : public CPU {
+     TraceBasedCPU(const std::string& config_file, const std::string& output_dir,
+                   const std::string& trace_file);
+     ~TraceBasedCPU() { trace_file_.close(); }
+-    void ClockTick() override;
++    bool ClockTick() override;
+ 
+    private:
+     std::ifstream trace_file_;
+diff --git a/src/main.cc b/src/main.cc
+index 9ca252e..084d819 100644
+--- a/src/main.cc
++++ b/src/main.cc
+@@ -62,7 +62,10 @@ int main(int argc, const char **argv) {
+     }
+ 
+     for (uint64_t clk = 0; clk < cycles; clk++) {
+-        cpu->ClockTick();
++        bool done = cpu->ClockTick();
++        if (!done) {
++            break;
++        }
+     }
+     cpu->PrintStats();
+ 

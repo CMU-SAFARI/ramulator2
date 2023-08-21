@@ -315,17 +315,27 @@ mv ramulator ramulatorv1
 git clone https://github.com/CMU-SAFARI/ramulator2.git  # Ramulator 2.0
 mv ramulator2 ramulatorv2
 ```
-2. Build all simulators
+2. Apply patches to DRAMSim2, DRAMSim3, and USIMM to remove some of their hardcoded system configurations and unify the termination criteria of all simulators for a fair comparison. We do *not* change the core modeling and simulation code of these simulators.
+```bash
+cd DRAMSim2
+git apply ../DRAMSim2-patch.patch
+cd ..
+cd DRAMsim3
+git apply ../DRAMsim3-patch.patch
+cd ..
+```
+
+3. Build all simulators
 ```bash
 cd ..
 ./build_simulators.sh
 ```
-3. Generate traces
+4. Generate traces
 ```bash
 cd traces
 ./gen_all_traces.sh
 ```
-4. Run the simulators with comparable system and DRAM configurations at `perf_comparison/configs/` and record runtimes
+5. Run the simulators with comparable system and DRAM configurations at `perf_comparison/configs/` and record runtimes
 ```bash
 python3 perf_comparison.py
 ```
