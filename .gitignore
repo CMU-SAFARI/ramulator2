@@ -1,0 +1,5 @@
+build/
+.vscode
+ext/
+ramulator2
+*.so

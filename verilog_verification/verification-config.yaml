@@ -1,0 +1,37 @@
+Frontend:
+  impl: SimpleO3
+  clock_ratio: 8
+  num_expected_insts: 300000
+  traces: 
+    - <SPECIFY YOUR TRACE FILE>
+
+  Translation:
+    impl: RandomTranslation
+    max_addr: 2147483648
+
+MemorySystem:
+  impl: GenericDRAM
+  clock_ratio: 3
+
+  DRAM:
+    impl: DDR4
+    org:
+      preset: DDR4_8Gb_x8
+      channel: 1
+      rank: 2
+    timing:
+      preset: DDR4_2400R 
+
+  Controller:
+    impl: Generic
+    Scheduler:
+      impl: FRFCFS
+    RefreshManager:
+      impl: AllBank
+    plugins:
+      - ControllerPlugin:
+          impl: TraceRecorder
+          path: <SPECIFY THE FILENAME FOR THE RECORDED DRAM COMMAND TRACE>
+
+  AddrMapper:
+    impl: RoBaRaCoCh

@@ -1,0 +1,42 @@
+Frontend:
+  impl: SimpleO3
+  llc_capacity_per_core: 2MB
+  llc_num_mshr_per_core: 16
+  num_expected_insts: 100000000
+  traces: 
+    - test.trace1
+
+  Translation:
+    impl: RandomTranslation
+    max_addr: 17179869184
+              
+
+MemorySystem:
+  impl: GenericDRAM
+
+  DRAM:
+    impl: DDR4-VRR
+    org:
+      preset: DDR4_8Gb_x8
+      channel: 1
+      rank: 2
+    timing:
+      preset: DDR4_2400R
+
+  Controller:
+    impl: Generic
+    Scheduler:
+      impl: FRFCFS
+    RefreshManager:
+      impl: AllBank
+    plugins:
+      - ControllerPlugin:
+          impl: CommandCounter
+          path: ./test.cmds1
+          commands_to_count:
+            - ACT
+            - PRE
+            - VRR
+
+  AddrMapper:
+    impl: RoBaRaCoCh_with_rit

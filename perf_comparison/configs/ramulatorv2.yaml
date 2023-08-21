@@ -1,0 +1,32 @@
+Frontend:
+  impl: LoadStoreTrace
+  path: ./traces/stream_5M_R8W2_ramulatorv2.trace
+  clock_ratio: 1
+
+  Translation:
+    impl: NoTranslation
+    max_addr: 2147483648
+              
+
+MemorySystem:
+  impl: GenericDRAM
+  clock_ratio: 1
+  DRAM:
+    impl: DDR3
+    org:
+      preset: DDR3_4Gb_x8
+      channel: 1
+      rank: 1
+    timing:
+      preset: DDR3_1600K  
+
+  Controller:
+    impl: Generic
+    Scheduler:
+      impl: FRFCFS
+    RefreshManager:
+      impl: AllBank
+    plugins:
+
+  AddrMapper:
+    impl: RoBaRaCoCh
