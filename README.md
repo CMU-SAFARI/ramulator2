@@ -53,7 +53,7 @@ Configure the project and build the executable
   $ cp ./ramulator2 ../ramulator2
   $ cd ..
 ```
-This should produce a `ramulator2` executable that you can execute standalone and a `libramulaor.so` dynamic library that can be used as a memory system library by other simulators.
+This should produce a `ramulator2` executable that you can execute standalone and a `libramulator.so` dynamic library that can be used as a memory system library by other simulators.
 ### Running Ramulator 2.0 in Standalone Mode
 Ramulator 2.0 comes with two independent trace-driven simulation frontends: A memory-trace parser and a simplistic out-of-order core model that can accept instruction traces. To start a simulation with these frontends, just run the Ramulator 2.0 executable with the path to the configuration file specified through the `-f` argument
 ```bash
@@ -132,7 +132,7 @@ We describe the key steps and cover the key interfaces involved in using Ramulat
 - `ramulator2/src/frontend/frontend.h`
 - `ramulator2/src/memory_system/memory_system.h`
 
-2. Parse the YAML configuration for Ramulator 2.0 and instaniate the interfaces of the two top-level components, e.g.,
+2. Parse the YAML configuration for Ramulator 2.0 and instantiate the interfaces of the two top-level components, e.g.,
 ```c++
 // MyWrapper.h
 std::string config_path;
