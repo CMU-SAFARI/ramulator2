@@ -1,10 +1,9 @@
 Frontend:
   impl: SimpleO3
   clock_ratio: 8
-  # num_expected_insts: 287680
   num_expected_insts: 300000
   traces: 
-    - traces/random4-100K.trace
+    - example_inst.trace
 
   Translation:
     impl: RandomTranslation
