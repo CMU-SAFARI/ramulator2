@@ -28,7 +28,7 @@ The initial release of Ramulator 2.0 is described in the following [paper](https
 
 If you use Ramulator 2.0 in your work, please use the following citation:
 ```
-@misc{luo2023modern,
+@misc{luo2023ramulator2,
   title={{Ramulator 2.0: A Modern, Modular, and Extensible DRAM Simulator}}, 
   author={Haocong Luo and Yahya Can Tu\u{g}rul and F. Nisa Bostancı and Ataberk Olgun and A. Giray Ya\u{g}l{\i}k\c{c}{\i} and and Onur Mutlu},
   year={2023},
