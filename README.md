@@ -318,10 +318,10 @@ mv ramulator2 ramulatorv2
 2. Apply patches to DRAMSim2, DRAMSim3, and USIMM to remove some of their hardcoded system configurations and unify the termination criteria of all simulators for a fair comparison. We do *not* change the core modeling and simulation code of these simulators.
 ```bash
 cd DRAMSim2
-git apply ../DRAMSim2-patch.patch
+git apply ../../DRAMSim2-patch.patch
 cd ..
 cd DRAMsim3
-git apply ../DRAMsim3-patch.patch
+git apply ../../DRAMsim3-patch.patch
 cd ..
 ```
 
