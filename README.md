@@ -16,22 +16,22 @@ Ramulator 2.0 also provides implementations for the following RowHammer mitigati
 - Randomized Row Swap (RRS) [[Saileshwar+, ASPLOS'22]](https://gururaj-s.github.io/assets/pdf/ASPLOS22_Saileshwar.pdf)
 - An "Oracle" Refresh Mitigation [[Kim+, ISCA'20]](https://people.inf.ethz.ch/omutlu/pub/Revisiting-RowHammer_isca20-FINAL-DO-NOT_DISTRIBUTE.pdf)
 
-A quick glance of Ramulator 2.0's other key features:
-- Modular and extensible software architecture. Explicit separation of implementations from interfaces, don't hardcode your ideas!
-- Self-registrying factory for interface and implementation classes. Ramulator 2.0 automatically constructs the correct class of objects by their names as you specify in the configuration. Don't worry about boilerplate code!
-- YAML-based configuration file. Both human-readable and machine-friendly. Easily sweep parameters as if you are manipulating a python dictionary!
+A quick glance at Ramulator 2.0's other key features:
+- Modular and extensible software architecture: Ramulator 2.0 provides an explicit separation of implementations from interfaces. Therefore new ideas can be implemented without intrusive changes.
+- Self-registering factory for interface and implementation classes: Ramulator 2.0 automatically constructs the correct class of objects by their names as you specify in the configuration. Do *not* worry about boilerplate code!
+- YAML-based configuration file: Ramulator 2.0 is configured via human-readable and machine-friendly configuration files. Sweeping parameters is as easy as editing a Python dictionary!
 
 The initial release of Ramulator 2.0 is described in the following paper:
 > Haocong Luo, Yahya Can Tugrul, F. Nisa Bostancı, Ataberk Olgun, A. Giray Yaglıkcı, and Onur Mutlu,
 > "Ramulator 2.0: A Modern, Modular, and Extensible DRAM Simulator,"
 > HOW_PUBLISHED_PLACEHOLDER
 
-If you use Ramulator 2.0 in your work, please using the following citation:
+If you use Ramulator 2.0 in your work, please use the following citation:
 > PLACEHOLDER
 
 ## Using Ramulator 2.0
 ### Dependencies
-Ramulator utilizes some C++20 features to achieve both high runtime performance and modularity and extensibility. Therefore, a C++20 capable compiler is needed to build Ramulator 2.0. We have tested Ramulator 2.0 with the following compilers:
+Ramulator utilizes some C++20 features to achieve both high runtime performance and modularity and extensibility. Therefore, a C++20-capable compiler is needed to build Ramulator 2.0. We have tested Ramulator 2.0 with the following compilers:
 - `g++-12`
 - `clang++-15`
 
@@ -240,7 +240,7 @@ class ExampleImpl : public ExampleIfce, public Implementation  {
 }      // namespace Ramulator
 ```
 
-### Adding an Implementaton to an Existing Interface
+### Adding an Implementation to an Existing Interface
 Let us consider an example of adding an implementation "MyImpl" for the interface "MyIfce", defined in `my_ifce.h`, that belongs to a component "my_comp".
 1. Create a new `.cpp` file under `my_comp/impl/` that contains the source code for the implementation. Say this file is "my_impl.cpp". The directory structure for `my_comp` will look like this:
 ```
@@ -252,7 +252,7 @@ my_comp
 ```
 2. Provide the concrete class definition for `MyImpl` in `my_impl.cpp`, following the structure explained above. It is important to do the following two things when defining your class:
     * Make sure you inherit from *both* the interface class that you are implementing and the `Implementation` base class
-    * Make sure to include the macro `RAMULATOR_REGISTER_IMPLEMENTATION(...)` *inside* your implementation class definition. You should always specify which interface class is your class implementing, and what is the stringified name of your implementation class in the macro.
+    * Make sure to include the macro `RAMULATOR_REGISTER_IMPLEMENTATION(...)` *inside* your implementation class definition. You should always specify which interface class your class is implementing and the stringified name of your implementation class in the macro.
 Assume you have the following registration macro for the interface class
 ```c++
 class MyIfce {
@@ -274,12 +274,12 @@ MyInterfaceName:
 3. Finally, add `impl/my_impl.cpp` to `target_sources` in `CMakeList.txt` so that CMake knows about the newly added source file.
 
 ### Adding a New Interface (or New Component)
-The process is similar to that of adding a new implementation, but you will need to create the interface and add them to `CMakeList.txt` under the corresponding component directory. If you add a new component (i.e., creates a new directory under `src/`) you will need to add this new directory to the `CMakeList.txt` file under `src/`, i.e.,
+The process is similar to that of adding a new implementation, but you will need to create the interface and add them to `CMakeList.txt` under the corresponding component directory. If you add a new component (i.e., create a new directory under `src/`) you will need to add this new directory to the `CMakeList.txt` file under `src/`, i.e.,
 ```cmake
 add_subdirectory(my_comp)
 ```
 ## Verifying Ramulator 2.0's Memory Controller and DRAM Model
-We use the [Verilog model from Micron](https://www.micron.com/products/dram/ddr4-sdram/part-catalog/mt40a2g4trf-093e) to verify that the DRAM commands issued by Ramulator 2.0 does not timing or state transition violations.
+We use the [Verilog model from Micron](https://www.micron.com/products/dram/ddr4-sdram/part-catalog/mt40a2g4trf-093e) to verify that the DRAM commands issued by Ramulator 2.0 do not cause timing or state transition violations.
 1. Generate the instruction traces
 ```bash
 cd verilog_verification
@@ -298,7 +298,7 @@ cd ..
 4. Convert the DRAM Command Trace to fit the testbench of the Verilog model. We provide a script `verilog_verification/trace_converter.py` to do so. Then you can just start your Verilog simulator (e.g., ModelSim) and check for violations.
 
 ## Reproducing the Results in our Ramulator 2.0 paper
-### Simulation Performance Comparison with other Simulator
+### Simulation Performance Comparison with Other Simulators
 We put all scripts and configurations in `perf_comparison/`
 
 1. Get simulators from their respective sources and put their source code at `perf_comparison/simulators/`
@@ -347,7 +347,7 @@ cd rh_study
 wget <download_link>  # Please visit 
 tar xvzf ./cputraces.tar.gz
 ```
-2. Generate workloads from combination of traces
+2. Generate workloads from trace combinations
 ```bash
 python3 get_trace_combinations.py
 ```
@@ -356,6 +356,6 @@ python3 get_trace_combinations.py
 python3 run_singlecore.py
 python3 run_multicore.py
 ```
-4. Excute the notebook `plot.ipynb` to plot the results
+4. Execute the notebook `plot.ipynb` to plot the results
 
 
