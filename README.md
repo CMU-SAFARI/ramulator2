@@ -21,7 +21,7 @@ A quick glance at Ramulator 2.0's other key features:
 - Self-registering factory for interface and implementation classes: Ramulator 2.0 automatically constructs the correct class of objects by their names as you specify in the configuration. Do *not* worry about boilerplate code!
 - YAML-based configuration file: Ramulator 2.0 is configured via human-readable and machine-friendly configuration files. Sweeping parameters is as easy as editing a Python dictionary!
 
-The initial release of Ramulator 2.0 is described in the following paper (soon to appear on arXiv):
+The initial release of Ramulator 2.0 is described in the following [paper](https://people.inf.ethz.ch/omutlu/pub/Ramulator2_arxiv23.pdf):
 > Haocong Luo, Yahya Can Tugrul, F. Nisa Bostancı, Ataberk Olgun, A. Giray Yaglıkcı, and Onur Mutlu,
 > "Ramulator 2.0: A Modern, Modular, and Extensible DRAM Simulator,"
 > arXiv
