@@ -6,6 +6,16 @@ project(
   LANGUAGES CXX
 )
 
+#### Run conan setup ####
+include(conan.cmake)
+conan_cmake_run(CONANFILE conanfile.py  # or relative build/conanfile.txt
+                BASIC_SETUP CMAKE_TARGETS
+                BUILD missing
+                BUILD_TYPE Release
+                )
+include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
+conan_basic_setup()
+
 #### Prompt the build type ####
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE "Release" CACHE STRING "" FORCE)
