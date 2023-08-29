@@ -6,7 +6,7 @@
 #include <functional>
 
 #include "base/type.h"
-#include "ramulator/base/request.h"
+#include "ramulator/request.h"
 #include "translation/translation.h"
 
 namespace Ramulator {

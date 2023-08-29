@@ -93,7 +93,5 @@ set_target_properties(
 
 add_subdirectory(src)
 
-install(DIRECTORY include/ramulator/base DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
-install(DIRECTORY include/ramulator/frontend DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
-install(DIRECTORY include/ramulator/memory_system DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+install(DIRECTORY include/ramulator DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 

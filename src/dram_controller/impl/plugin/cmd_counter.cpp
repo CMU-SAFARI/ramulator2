@@ -5,7 +5,7 @@
 #include <filesystem>
 #include <fstream>
 
-#include "ramulator/base/base.h"
+#include "ramulator/base.h"
 #include "dram_controller/controller.h"
 #include "dram_controller/plugin.h"
 

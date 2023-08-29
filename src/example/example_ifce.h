@@ -1,7 +1,7 @@
 #ifndef     RAMULATOR_EXAMPLE_EXAMPLE_H
 #define     RAMULATOR_EXAMPLE_EXAMPLE_H
 
-#include "ramulator/base/base.h"
+#include "ramulator/base.h"
 
 
 namespace Ramulator {

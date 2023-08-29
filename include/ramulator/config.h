@@ -5,10 +5,10 @@
 #include <iostream>
 #include <regex>
 
-#include <spdlog/spdlog.h>
-#include <yaml-cpp/yaml.h>
+#include "spdlog/spdlog.h"
+#include "yaml-cpp/yaml.h"
 
-#include "ramulator/base/base.h"
+#include "ramulator/base.h"
 
 
 namespace Ramulator {

@@ -4,10 +4,10 @@
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
 
-#include "ramulator/base/base.h"
-#include "ramulator/base/config.h"
-#include "ramulator/frontend/frontend.h"
-#include "ramulator/memory_system/memory_system.h"
+#include "ramulator/base.h"
+#include "ramulator/config.h"
+#include "ramulator/frontend.h"
+#include "ramulator/memory_system.h"
 #include "example/example_ifce.h"
 
 int main(int argc, char* argv[]) {
