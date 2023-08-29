@@ -1,4 +1,5 @@
 add_library(ramulator-controller OBJECT)
+target_include_directories(ramulator-controller PUBLIC ../../include)
 
 target_sources(
   ramulator-controller PRIVATE

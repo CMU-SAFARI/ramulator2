@@ -1,8 +1,8 @@
 add_library(ramulator-base OBJECT)
+target_include_directories(ramulator-base PUBLIC ../../include)
 
 target_sources(
   ramulator-base PRIVATE
-  base.h      
   factory.h   factory.cpp
   type.h
   exception.h
@@ -10,10 +10,10 @@ target_sources(
   debug.h
   param.h 
   utils.h     utils.cpp
-  config.h    config.cpp
+  config.cpp
   clocked.h
   stats.h     stats.cpp
-  request.h   request.cpp
+  request.cpp
   serialization.h
 )
 

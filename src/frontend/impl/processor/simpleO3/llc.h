@@ -10,8 +10,8 @@
 #include "base/clocked.h"
 #include "base/debug.h"
 #include "base/type.h"
-#include "base/request.h"
-#include "memory_system/memory_system.h"
+#include "ramulator/base/request.h"
+#include "ramulator/memory_system/memory_system.h"
 
 namespace Ramulator {
 

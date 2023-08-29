@@ -1,4 +1,5 @@
 add_library(ramulator-addrmapper OBJECT)
+target_include_directories(ramulator-addrmapper PUBLIC ../../include)
 
 target_sources(
   ramulator-addrmapper PRIVATE

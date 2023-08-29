@@ -1,4 +1,4 @@
-#include "base/config.h"
+#include "ramulator/base/config.h"
 
 
 namespace Ramulator {

@@ -77,6 +77,7 @@ target_link_libraries(
 )
 
 add_executable(ramulator-exe)
+target_include_directories(ramulator-exe PUBLIC include)
 target_link_libraries(
   ramulator-exe 
   # PRIVATE -Wl,--whole-archive ramulator -Wl,--no-whole-archive 
@@ -91,3 +92,8 @@ set_target_properties(
 )
 
 add_subdirectory(src)
+
+install(DIRECTORY include/ramulator/base DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+install(DIRECTORY include/ramulator/frontend DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+install(DIRECTORY include/ramulator/memory_system DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+
