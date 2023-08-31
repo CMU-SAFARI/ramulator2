@@ -2,9 +2,9 @@
 #include <vector>
 #include <random>
 
-#include "ramulator/base.h"
+#include "ramulator/base/base.h"
 #include "translation/translation.h"
-#include "ramulator/frontend.h"
+#include "ramulator/frontend/frontend.h"
 
 
 namespace Ramulator {

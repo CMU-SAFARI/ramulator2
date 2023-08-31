@@ -2,8 +2,8 @@
 #include <iostream>
 #include <fstream>
 
-#include "ramulator/frontend.h"
-#include "base/exception.h"
+#include "ramulator/frontend/frontend.h"
+#include "ramulator/base/exception.h"
 
 namespace Ramulator {
 

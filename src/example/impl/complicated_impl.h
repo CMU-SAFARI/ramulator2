@@ -4,7 +4,7 @@
 #include <list>
 
 #include "example/example_ifce.h"
-#include "base/serialization.h"
+#include "ramulator/base/serialization.h"
 
 namespace Ramulator {
 

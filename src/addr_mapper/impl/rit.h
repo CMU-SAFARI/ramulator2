@@ -1,10 +1,10 @@
 #include <vector>
 #include <unordered_map>
 
-#include "ramulator/base.h"
+#include "ramulator/base/base.h"
 #include "dram/dram.h"
 #include "addr_mapper/addr_mapper.h"
-#include "ramulator/memory_system.h"
+#include "ramulator/memory_system/memory_system.h"
 
 namespace Ramulator {
 

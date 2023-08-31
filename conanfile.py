@@ -14,22 +14,27 @@ class RamulatorConan(ConanFile):
     generators = "cmake"
 
     requires = (
+        "argparse/2.9",
+        "fmt/10.1.0",
+        "spdlog/1.12.0",
+        "yaml-cpp/0.8.0",
     )
 
     exports_sources = (
-        "include/*",
-        "src/*",
-        "test/*",
         "CMakeLists.txt",
+        "LICENSE",
+        "README.md",
         "compose-dev.yaml",
+        "conan.cmake",
         "example_config.yaml",
         "example_inst.trace",
         "ext/*",
+        "include/*",
         "perf_comparison",
         "rh_study",
+        "src/*",
+        "test/*",
         "verilog_verification",
-        "LICENSE",
-        "README.md",
     )
     no_copy_source = True
     generators = "cmake", "cmake_find_package"

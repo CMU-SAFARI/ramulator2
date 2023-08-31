@@ -6,7 +6,7 @@
 #include <map>
 #include <functional>
 
-#include "ramulator/base.h"
+#include "ramulator/base/base.h"
 #include "dram/spec.h"
 #include "dram/node.h"
 

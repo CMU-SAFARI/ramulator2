@@ -5,7 +5,7 @@
 #include <string>
 #include <string_view>
 
-#include <spdlog/spdlog.h>
+#include "spdlog/spdlog.h"
 
 namespace Ramulator {
 

@@ -1,6 +1,6 @@
 #include <vector>
 
-#include "ramulator/base.h"
+#include "ramulator/base/base.h"
 #include "dram_controller/controller.h"
 #include "dram_controller/refresh.h"
 

@@ -1,7 +1,7 @@
 #ifndef     RAMULATOR_TEST_TEST_IFCE_H
 #define     RAMULATOR_TEST_TEST_IFCE_H
 
-#include "ramulator/base.h"
+#include "ramulator/base/base.h"
 
 
 namespace Ramulator {

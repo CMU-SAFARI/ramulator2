@@ -5,11 +5,11 @@
 #include <string>
 #include <variant>
 
-#include <spdlog/spdlog.h>
-#include <yaml-cpp/yaml.h>
+#include "spdlog/spdlog.h"
+#include "yaml-cpp/yaml.h"
 
-#include "base/type.h"
-#include "base/exception.h"
+#include "type.h"
+#include "exception.h"
 
 
 namespace Ramulator {

@@ -3,18 +3,18 @@ target_include_directories(ramulator-base PUBLIC ../../include)
 
 target_sources(
   ramulator-base PRIVATE
-  factory.h   factory.cpp
-  type.h
-  exception.h
-  logging.h   logging.cpp
-  debug.h
-  param.h 
-  utils.h     utils.cpp
+        ../../include/ramulator/base/factory.h factory.cpp
+        ../../include/ramulator/base/type.h
+        ../../include/ramulator/base/exception.h
+        ../../include/ramulator/base/logging.h logging.cpp
+        ../../include/ramulator/base/debug.h
+        ../../include/ramulator/base/param.h
+        ../../include/ramulator/base/utils.h utils.cpp
   config.cpp
-  clocked.h
-  stats.h     stats.cpp
+        ../../include/ramulator/base/clocked.h
+        ../../include/ramulator/base/stats.h stats.cpp
   request.cpp
-  serialization.h
+        ../../include/ramulator/base/serialization.h
 )
 
 target_link_libraries(

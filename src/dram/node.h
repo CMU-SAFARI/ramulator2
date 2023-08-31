@@ -7,7 +7,7 @@
 #include <functional>
 #include <concepts>
 
-#include "base/type.h"
+#include "ramulator/base/type.h"
 #include "dram/spec.h"
 
 namespace Ramulator {

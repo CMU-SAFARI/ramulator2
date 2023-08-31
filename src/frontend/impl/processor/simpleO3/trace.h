@@ -3,7 +3,7 @@
 
 #include <vector>
 
-#include "base/type.h"
+#include "ramulator/base/type.h"
 
 namespace Ramulator {
 

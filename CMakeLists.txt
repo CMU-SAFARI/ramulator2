@@ -16,6 +16,9 @@ conan_cmake_run(CONANFILE conanfile.py  # or relative build/conanfile.txt
 include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
 conan_basic_setup()
 
+set(CMAKE_MODULE_PATH ${CMAKE_BINARY_DIR} ${CMAKE_MODULE_PATH})
+set(CMAKE_PREFIX_PATH ${CMAKE_BINARY_DIR} ${CMAKE_PREFIX_PATH})
+
 #### Prompt the build type ####
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE "Release" CACHE STRING "" FORCE)
@@ -34,45 +37,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 #### External libraries ####
-include(FetchContent)
-set(FETCHCONTENT_UPDATES_DISCONNECTED ON CACHE BOOL "Skip updating the external dependencies after populating them for the first time")
-
-message("Configuring yaml-cpp...")
-option(YAML_CPP_BUILD_CONTRIB "Enable yaml-cpp contrib in library" OFF)
-option(YAML_CPP_BUILD_TOOLS "Enable parse tools" OFF)
-option(YAML_BUILD_SHARED_LIBS "Build yaml-cpp as a shared library" OFF)
-FetchContent_Declare(
-  yaml-cpp                             
-  GIT_REPOSITORY https://github.com/jbeder/yaml-cpp.git
-  GIT_TAG        yaml-cpp-0.7.0                        
-  SOURCE_DIR     ${CMAKE_SOURCE_DIR}/ext/yaml-cpp
-)
-FetchContent_MakeAvailable(yaml-cpp)
-include_directories(${yaml-cpp_SOURCE_DIR}/include)
-message("Done configuring yaml-cpp.")
-
-message("Configuring spdlog...")
-FetchContent_Declare(
-  spdlog                             
-  GIT_REPOSITORY https://github.com/gabime/spdlog.git
-  GIT_TAG        v1.11.0     
-  SOURCE_DIR     ${CMAKE_SOURCE_DIR}/ext/spdlog
-)
-FetchContent_MakeAvailable(spdlog)
-include_directories(${spdlog_SOURCE_DIR}/include)
-message("Done configuring spdlog.")
-
-message("Configuring argparse...")
-FetchContent_Declare(
-    argparse
-    GIT_REPOSITORY https://github.com/p-ranav/argparse.git
-    GIT_TAG        v2.9     
-    SOURCE_DIR     ${CMAKE_SOURCE_DIR}/ext/argparse
-)
-FetchContent_MakeAvailable(argparse)
-include_directories(${argparse_SOURCE_DIR}/include)
-message("Done configuring argparse.")
-##################################
+find_package(yaml-cpp REQUIRED)
+find_package(spdlog REQUIRED)
+find_package(argparse REQUIRED)
 
 include_directories(${CMAKE_SOURCE_DIR}/src)
 
@@ -84,6 +51,7 @@ target_link_libraries(
   ramulator 
   PUBLIC yaml-cpp
   PUBLIC spdlog
+  PRIVATE fmt::fmt
 )
 
 add_executable(ramulator-exe)
@@ -92,7 +60,7 @@ target_link_libraries(
   ramulator-exe 
   # PRIVATE -Wl,--whole-archive ramulator -Wl,--no-whole-archive 
   PRIVATE ramulator
-  PRIVATE argparse
+  PRIVATE argparse::argparse
 )
 
 set_target_properties(
@@ -103,5 +71,8 @@ set_target_properties(
 
 add_subdirectory(src)
 
-install(DIRECTORY include/ramulator DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+#install(TARGETS ramulator TYPE LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}")
+#if (DEFINED ${CMAKE_INSTALL_INCLUDEDIR})
+  install(DIRECTORY include/ramulator DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+  #endif()
 
