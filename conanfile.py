@@ -11,7 +11,7 @@ class RamulatorConan(ConanFile):
     settings = "os", "compiler", "build_type", "arch"
     options = {"shared": [True, False], "fPIC": [True, False]}
     default_options = {"shared": False, "fPIC": True}
-    generators = "cmake"
+    generators = "cmake", "cmake_find_package"
 
     requires = (
         "argparse/2.9",
@@ -37,7 +37,6 @@ class RamulatorConan(ConanFile):
         "verilog_verification",
     )
     no_copy_source = True
-    generators = "cmake", "cmake_find_package"
 
     __cmake = None
 
@@ -48,6 +47,7 @@ class RamulatorConan(ConanFile):
         return self.__cmake
 
     def build(self):
+        self._cmake.generator="Ninja"
         self._cmake.configure(source_dir=self.source_folder)
         self._cmake.build()
 
@@ -56,6 +56,10 @@ class RamulatorConan(ConanFile):
 
     def package_id(self):
         self.info.shared_library_package_id()
+
+    def package_info(self):
+        self.cpp_info.set_property("cmake_find_mode", "both")
+        self.cpp_info.set_property("cmake_file_name", "ramulator")
 
     def package_info(self):
         self.cpp_info.names["cmake_find_package"] = "ramulator"

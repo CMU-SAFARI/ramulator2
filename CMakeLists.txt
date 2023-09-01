@@ -71,8 +71,8 @@ set_target_properties(
 
 add_subdirectory(src)
 
-#install(TARGETS ramulator TYPE LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}")
-#if (DEFINED ${CMAKE_INSTALL_INCLUDEDIR})
+if (DEFINED CMAKE_INSTALL_INCLUDEDIR)
+  install(TARGETS ramulator TYPE LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}")
   install(DIRECTORY include/ramulator DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
-  #endif()
+endif()
 
