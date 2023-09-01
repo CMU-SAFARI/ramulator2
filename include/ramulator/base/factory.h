@@ -6,8 +6,8 @@
 #include <unordered_map>
 #include <functional>
 
-#include "spdlog/spdlog.h"
-#include "yaml-cpp/yaml.h"
+#include <spdlog/spdlog.h>
+#include <yaml-cpp/yaml.h>
 
 #include "type.h"
 #include "logging.h"

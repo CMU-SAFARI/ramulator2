@@ -1,9 +1,9 @@
 #ifndef     RAMULATOR_BASE_LOGGING_H
 #define     RAMULATOR_BASE_LOGGING_H
 
-#include "spdlog/spdlog.h"
-#include "spdlog/sinks/stdout_color_sinks.h"
-#include "yaml-cpp/yaml.h"
+#include <spdlog/spdlog.h>
+#include <spdlog/sinks/stdout_color_sinks.h>
+#include <yaml-cpp/yaml.h>
 
 #include <vector>
 #include <string>

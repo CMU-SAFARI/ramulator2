@@ -7,8 +7,8 @@
 #include <optional>
 #include <type_traits>
 
-#include "spdlog/spdlog.h"
-#include "yaml-cpp/yaml.h"
+#include <spdlog/spdlog.h>
+#include <yaml-cpp/yaml.h>
 
 #include "exception.h"
 

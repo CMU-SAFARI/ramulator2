@@ -5,8 +5,8 @@
 #include <string>
 #include <variant>
 
-#include "spdlog/spdlog.h"
-#include "yaml-cpp/yaml.h"
+#include <spdlog/spdlog.h>
+#include <yaml-cpp/yaml.h>
 
 #include "type.h"
 #include "exception.h"

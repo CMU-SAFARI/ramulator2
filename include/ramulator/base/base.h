@@ -8,8 +8,8 @@
 #include <functional>
 #include <iostream>
 
-#include "spdlog/spdlog.h"
-#include "yaml-cpp/yaml.h"
+#include <spdlog/spdlog.h>
+#include <yaml-cpp/yaml.h>
 
 #include "type.h"
 #include "factory.h"
