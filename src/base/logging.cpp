@@ -1,4 +1,4 @@
-#include "base/logging.h"
+#include "ramulator/base/logging.h"
 
 
 namespace Ramulator {

@@ -1,4 +1,5 @@
 add_library(ramulator-translation OBJECT)
+target_include_directories(ramulator-translation PUBLIC ../../include)
 
 target_sources(
   ramulator-translation PRIVATE

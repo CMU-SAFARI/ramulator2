@@ -7,11 +7,11 @@
 #include <iostream>
 #include <fstream>
 
-#include "base/clocked.h"
-#include "base/debug.h"
-#include "base/type.h"
-#include "base/request.h"
-#include "memory_system/memory_system.h"
+#include "ramulator/base/clocked.h"
+#include "ramulator/base/debug.h"
+#include "ramulator/base/type.h"
+#include "ramulator/base/request.h"
+#include "ramulator/memory_system/memory_system.h"
 
 namespace Ramulator {
 

@@ -1,4 +1,4 @@
-#include "memory_system/memory_system.h"
+#include "ramulator/memory_system/memory_system.h"
 #include "translation/translation.h"
 #include "dram_controller/controller.h"
 #include "addr_mapper/addr_mapper.h"

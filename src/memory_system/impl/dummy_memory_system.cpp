@@ -1,4 +1,4 @@
-#include "memory_system/memory_system.h"
+#include "ramulator/memory_system/memory_system.h"
 
 namespace Ramulator {
 

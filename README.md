@@ -43,11 +43,15 @@ Ramulator uses some C++20 features to achieve both high runtime performance and 
 - `g++-12`
 - `clang++-15`
 
-Ramulator 2.0 uses the following external libraries. The build system (CMake) will automatically download and configure these dependencies.
+Ramulator 2.0 uses the following external libraries. The package manager system (Conan) will automatically download and configure these dependencies.
 - [argparse](https://github.com/p-ranav/argparse)
 - [spdlog](https://github.com/gabime/spdlog)
 - [yaml-cpp](https://github.com/jbeder/yaml-cpp)
 ### Getting Started
+Install conan, if necessary
+```bash
+  $ pip install conan==1.60.2
+```
 Clone the repository
 ```bash
   $ git clone https://github.com/CMU-SAFARI/ramulator2
@@ -61,6 +65,21 @@ Configure the project and build the executable
   $ cp ./ramulator2 ../ramulator2
   $ cd ..
 ```
+Alternate Conan build flow
+```bash
+  $ mkdir build
+  $ cd build
+  $ conan install .. --build=missing
+  $ conan build ..
+  $ cp ./ramulator2 ../ramulator2
+  $ cd ..
+```
+Package as a Conan library
+```bash
+  $ cd <ramulator2 base directory>
+  $ conan create .
+```
+
 This should produce a `ramulator2` executable that you can execute standalone and a `libramulator.so` dynamic library that can be used as a memory system library by other simulators.
 ### Running Ramulator 2.0 in Standalone Mode
 Ramulator 2.0 comes with two independent simulation frontends: A memory-trace parser and a simplistic out-of-order core model that can accept instruction traces. To start a simulation with these frontends, just run the Ramulator 2.0 executable with the path to the configuration file specified through the `-f` argument
@@ -140,20 +159,20 @@ We describe the key steps and cover the key interfaces involved in using Ramulat
 - `ramulator2/src/frontend/frontend.h`
 - `ramulator2/src/memory_system/memory_system.h`
 
-2. Parse the YAML configuration for Ramulator 2.0 and instantiate the interfaces of the two top-level components, e.g.,
+2. Parse the YAML configuration for Ramulator 2.0 and instantiate the interfaces of the two top-level components using GEM5 as Frontend impl.
 ```c++
 // MyWrapper.h
 std::string config_path;
-Ramulator::IFrontEnd* ramulator2_frontend;
-Ramulator::IMemorySystem* ramulator2_memorysystem;
+std::unique_ptr<Ramulator::IFrontEnd> ramulator2_frontend;
+std::unique_ptr<Ramulator::IMemorySystem> ramulator2_memorysystem;
 
 // MyWrapper.cpp
 YAML::Node config = Ramulator::Config::parse_config_file(config_path, {});
-ramulator2_frontend = Ramulator::Factory::create_frontend(config);
-ramulator2_memorysystem = Ramulator::Factory::create_memory_system(config);
+ramulator2_frontend.reset(Ramulator::Factory::create_frontend(config));
+ramulator2_memorysystem.reset(Ramulator::Factory::create_memory_system(config));
 
-ramulator2_frontend->connect_memory_system(ramulator2_memorysystem);
-ramulator2_memorysystem->connect_frontend(ramulator2_frontend);
+ramulator2_frontend->connect_memory_system(ramulator2_memorysystem.get());
+ramulator2_memorysystem->connect_frontend(ramulator2_frontend.get());
 ```
 3. Communicate the necessary memory system information from Ramulator 2.0 to your system (e.g., memory system clock):
 ```c++
@@ -175,14 +194,85 @@ if (is_read_request) {
   }
 }
 ```
-5. Find a proper time and place to call the epilogue functions of Ramulator 2.0 when your simulator has finished execution, e.g.,
+5. Tick the memory subsystem clock using your simulator's clocking
+```c++
+void cycle_advance() {
+  ramulator2_memorysystem->tick();
+}
+```
+6. Find a proper time and place to call the epilogue functions of Ramulator 2.0 when your simulator has finished execution, e.g.,
 ```c++
 void my_simulator_finish() {
   ramulator2_frontend->finalize();
   ramulator2_memorysystem->finalize();
 }
 ```
+#### Example using external SystemC and TLM2.0 bridge module
+```c++
+#include <ramulator/base/base.h>
+#include <ramulator/base/config.h>
+#include <ramulator/frontend/frontend.h>
+#include <ramulator/memory_system/memory_system.h>
+#include <tlm>
+#include <tlm_utils/simple_target_socket.h>
 
+class ExampleTarget : public sc_core::sc_module {
+public:
+    tlm_utils::simple_target_socket<ExampleTarget> target_socket;
+
+    explicit ExampleTarget(sc_core::sc_module_name name) {
+        SC_HAS_PROCESS(ExampleTarget);
+        SC_METHOD(tick);
+        sensitive << memory_clock_event;
+        target_socket.register_nb_transport_fw(this, &ExampleTarget::nb_transport_fw);
+    }
+
+    auto nb_transport_fw(tlm::tlm_generic_payload& payload, tlm::tlm_phase& phase,
+                         sc_core::sc_time& time) -> tlm::tlm_sync_enum {
+        auto enqueue_success = ramulator2_frontend->receive_external_requests(
+                                    0, payload.get_address(), 0,
+                                    [this](Ramulator::Request& req) { ExampleTarget::callback(req); });
+        if (enqueue_success)
+            // Success flow
+        else
+            // Failure flow
+        payload.acquire();
+        phase = END_REQ;
+        return tlm::TLM_ACCEPTED;
+    }
+
+    auto before_end_of_elaboration() -> void override {
+            auto config_path = "/path/to/config/file.yaml";
+            auto config      = Ramulator::Config::parse_config_file(config_path, {});
+            ramulator2_frontend.reset(Ramulator::Factory::create_frontend(config));
+            ramulator2_memorysystem.reset(Ramulator::Factory::create_memory_system(config));
+    
+            ramulator2_frontend->connect_memory_system(ramulator2_memorysystem.get());
+            ramulator2_memorysystem->connect_frontend(ramulator2_frontend.get());
+    
+            period = sc_core::sc_time{ramulator2_memorysystem->get_tCK(), sc_core::SC_NS};
+    }
+
+    auto end_of_simulation() -> void override {
+        ramulator2_frontend->finalize();
+        ramulator2_memorysystem->finalize();
+    }
+
+    auto callback(Ramulator::Request& req) -> void {
+        // Callback flow
+    }
+
+    auto tick() {
+        ramulator2_memorysystem->tick();
+        memory_clock_event.notify(period);
+    }
+private:
+      std::unique_ptr<Ramulator::IFrontEnd>     ramulator2_frontend;
+      std::unique_ptr<Ramulator::IMemorySystem> ramulator2_memorysystem;
+      sc_core::sc_event                         memory_clock_event;
+      sc_core::sc_time                          period;
+}
+```
 ## Extending Ramulator 2.0
 ### Directory Structure
 Ramulator 2.0 

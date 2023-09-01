@@ -1,4 +1,5 @@
 add_library(ramulator-dram OBJECT)
+target_include_directories(ramulator-dram PUBLIC ../../include)
 
 target_sources(
   ramulator-dram PRIVATE

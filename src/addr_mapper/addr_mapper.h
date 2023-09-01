@@ -4,7 +4,7 @@
 #include <spdlog/spdlog.h>
 #include <yaml-cpp/yaml.h>
 
-#include "base/base.h"
+#include "ramulator/base/base.h"
 #include "dram_controller/controller.h"
 
 namespace Ramulator {

@@ -4,8 +4,8 @@
 
 #include <spdlog/spdlog.h>
 
-#include "base/exception.h"
-#include "base/utils.h"
+#include "ramulator/base/exception.h"
+#include "ramulator/base/utils.h"
 #include "frontend/impl/processor/simpleO3/core.h"
 #include "frontend/impl/processor/simpleO3/llc.h"
 

@@ -11,16 +11,16 @@
 #include <spdlog/spdlog.h>
 #include <yaml-cpp/yaml.h>
 
-#include "base/type.h"
-#include "base/factory.h"
-#include "base/clocked.h"
-#include "base/param.h"
-#include "base/exception.h"
-#include "base/logging.h"
-#include "base/debug.h"
-#include "base/request.h"
-#include "base/utils.h"
-#include "base/stats.h"
+#include "type.h"
+#include "factory.h"
+#include "clocked.h"
+#include "param.h"
+#include "exception.h"
+#include "logging.h"
+#include "debug.h"
+#include "request.h"
+#include "utils.h"
+#include "stats.h"
 
 
 namespace Ramulator {

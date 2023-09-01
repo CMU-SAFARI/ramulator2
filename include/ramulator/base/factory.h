@@ -9,9 +9,9 @@
 #include <spdlog/spdlog.h>
 #include <yaml-cpp/yaml.h>
 
-#include "base/type.h"
-#include "base/logging.h"
-#include "base/debug.h"
+#include "type.h"
+#include "logging.h"
+#include "debug.h"
 
 
 namespace Ramulator {

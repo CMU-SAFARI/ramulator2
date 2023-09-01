@@ -1,7 +1,7 @@
 #include <functional>
 
-#include "base/utils.h"
-#include "frontend/frontend.h"
+#include "ramulator/base/utils.h"
+#include "ramulator/frontend/frontend.h"
 #include "translation/translation.h"
 #include "frontend/impl/processor/simpleO3/core.h"
 #include "frontend/impl/processor/simpleO3/llc.h"
