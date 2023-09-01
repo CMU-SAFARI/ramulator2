@@ -43,11 +43,15 @@ Ramulator uses some C++20 features to achieve both high runtime performance and 
 - `g++-12`
 - `clang++-15`
 
-Ramulator 2.0 uses the following external libraries. The build system (CMake) will automatically download and configure these dependencies.
+Ramulator 2.0 uses the following external libraries. The package manager system (Conan) will automatically download and configure these dependencies.
 - [argparse](https://github.com/p-ranav/argparse)
 - [spdlog](https://github.com/gabime/spdlog)
 - [yaml-cpp](https://github.com/jbeder/yaml-cpp)
 ### Getting Started
+Install conan, if necessary
+```bash
+  $ pip install conan==1.60.2
+```
 Clone the repository
 ```bash
   $ git clone https://github.com/CMU-SAFARI/ramulator2
@@ -61,6 +65,21 @@ Configure the project and build the executable
   $ cp ./ramulator2 ../ramulator2
   $ cd ..
 ```
+Alternate Conan build flow
+```bash
+  $ mkdir build
+  $ cd build
+  $ conan install .. --build=missing
+  $ conan build ..
+  $ cp ./ramulator2 ../ramulator2
+  $ cd ..
+```
+Package as a Conan library
+```bash
+  $ cd <ramulator2 base directory>
+  $ conan create .
+```
+
 This should produce a `ramulator2` executable that you can execute standalone and a `libramulator.so` dynamic library that can be used as a memory system library by other simulators.
 ### Running Ramulator 2.0 in Standalone Mode
 Ramulator 2.0 comes with two independent simulation frontends: A memory-trace parser and a simplistic out-of-order core model that can accept instruction traces. To start a simulation with these frontends, just run the Ramulator 2.0 executable with the path to the configuration file specified through the `-f` argument
