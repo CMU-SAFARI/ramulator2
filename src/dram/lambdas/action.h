@@ -94,6 +94,35 @@ namespace Rank {
   };
 
 }       // namespace Rank
+
+namespace Channel {
+  // TODO: Make these nicer...
+  template <class T>
+  void PREab(typename T::Node* node, int cmd, int target_id, Clk_t clk) {
+    if constexpr (T::m_levels["bank"] - T::m_levels["channel"] == 2) {
+      for (auto bg : node->m_child_nodes) {
+        for (auto bank : bg->m_child_nodes) {
+          bank->m_state = T::m_states["Closed"];
+          bank->m_row_state.clear();
+        }
+      }
+    } else if constexpr (T::m_levels["bank"] - T::m_levels["channel"] == 3) {
+      for (auto pc : node->m_child_nodes) {
+        for (auto bg : pc->m_child_nodes) {
+          for (auto bank : bg->m_child_nodes) {
+            bank->m_state = T::m_states["Closed"];
+            bank->m_row_state.clear();
+          }
+        }
+      }
+    } else {
+      static_assert(
+        false_v<T>, 
+        "[Action::Rank] Unsupported organization. Please write your own PREab function."
+      );
+    }
+  };
+}      // namespace Channel
 }       // namespace Action
 }       // namespace Lambdas
 };      // namespace Ramulator

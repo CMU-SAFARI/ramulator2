@@ -96,6 +96,8 @@ class SimpleO3 final : public IFrontEnd, public Implementation {
 
       // TODO: LLC latency for the core to receive the request?
       for (auto r : m_llc->m_receive_requests[req.addr]) {
+        r.arrive = req.arrive;
+        r.depart = req.depart;
         m_cores[r.source_id]->receive(r);
       }
       m_llc->m_receive_requests[req.addr].clear();

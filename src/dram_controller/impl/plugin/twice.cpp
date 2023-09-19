@@ -129,7 +129,7 @@ class TWiCeIdeal : public IControllerPlugin, public Implementation {
 
           if (m_twice_table[flat_bank_id].find(row_id) == m_twice_table[flat_bank_id].end()){
             // If row is not in the table, insert it
-            m_twice_table[flat_bank_id].insert(std::make_pair(row_id, TwiCeEntry(1, 0)));
+            m_twice_table[flat_bank_id].insert(std::make_pair(row_id, TwiCeEntry{1, 0}));
             
             if (m_is_debug) {
               std::cout << "TWiCeIdeal: Inserted row " << row_id << " into bank " << flat_bank_id << std::endl;

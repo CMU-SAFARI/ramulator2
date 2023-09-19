@@ -4,29 +4,30 @@
 namespace Ramulator {
 
 class HBM3 : public IDRAM, public Implementation {
-  RAMULATOR_REGISTER_IMPLEMENTATION(IDRAM, HBM3, "HBM3", "HBM Device Model")
+  RAMULATOR_REGISTER_IMPLEMENTATION(IDRAM, HBM3, "HBM3", "HBM3 Device Model")
 
   public:
     inline static const std::map<std::string, Organization> org_presets = {
-      //   name     density   DQ   Ch Ra Bg Ba   Ro     Co
-      {"HBM3_1Gb",   {2<<10,   4,  {1, 1, 4, 4, 1<<15, 1<<10}}},
-      {"HBM3_2Gb",   {2<<10,   8,  {1, 1, 4, 4, 1<<14, 1<<10}}},
-      {"HBM3_4Gb",   {2<<10,   16, {1, 1, 2, 4, 1<<14, 1<<10}}},
+      //   name     density   DQ    Ch Pch  Bg Ba   Ro     Co
+      {"HBM3_2Gb",   {2<<10,  128,  {1, 2,  4,  4, 1<<13, 1<<6}}},
+      {"HBM3_4Gb",   {4<<10,  128,  {1, 2,  4,  4, 1<<14, 1<<6}}},
+      {"HBM3_8Gb",   {6<<10,  128,  {1, 2,  4,  4, 1<<15, 1<<6}}},
     };
 
     inline static const std::map<std::string, std::vector<int>> timing_presets = {
-      //   name       rate   nBL  nCL  nRCD  nRP   nRAS  nRC   nWR  nRTP nCWL nCCDS nCCDL nRRDS nRRDL nWTRS nWTRL nFAW  nRFC nREFI nCS,  tCK_ps
-      {"HBM_1Gbps",  {1600,   4,  10,  10,   10,   28,   38,   12,   6,   9,    4,    5,   -1,   -1,    2,    6,   -1,  -1,  -1,   2,    1250}},
+      //   name       rate   nBL  nCL  nRCDRD  nRCDWR  nRP  nRAS  nRC  nWR  nRTPS  nRTPL  nCWL  nCCDS  nCCDL  nRRDS  nRRDL  nWTRS  nWTRL  nRTW  nFAW  nRFC  nRFCSB  nREFI  nREFISB  nRREFD  tCK_ps
+      {"HBM3_2Gbps",  {2000,   4,   7,    7,      7,     7,   17,  19,   8,    2,     3,    2,    1,      2,     2,     3,     3,     4,    3,    15,   -1,   160,   3900,     -1,      8,   1000}},
+      // TODO: Find more sources on HBM3 timings...
     };
 
 
   /************************************************
    *                Organization
    ***********************************************/   
-    const int m_internal_prefetch_size = 8;
+    const int m_internal_prefetch_size = 2;
 
     inline static constexpr ImplDef m_levels = {
-      "channel", "rank", "bankgroup", "bank", "row", "column",    
+      "channel", "pseudochannel", "bankgroup", "bank", "row", "column",    
     };
 
 
@@ -37,15 +38,17 @@ class HBM3 : public IDRAM, public Implementation {
       "ACT", 
       "PRE", "PREA",
       "RD",  "WR",  "RDA",  "WRA",
-      "REFab"
+      "REFab", "REFsb",
+      "RFMab", "RFMsb"
     };
 
     inline static const ImplLUT m_command_scopes = LUT (
       m_commands, m_levels, {
         {"ACT",   "row"},
-        {"PRE",   "bank"},   {"PREA",   "rank"},
-        {"RD",    "column"}, {"WR",     "column"}, {"RDA",   "column"}, {"WRA",   "column"},
-        {"REFab", "rank"},
+        {"PRE",   "bank"},    {"PREA",   "channel"},
+        {"RD",    "column"},  {"WR",     "column"}, {"RDA",   "column"}, {"WRA",   "column"},
+        {"REFab", "channel"}, {"REFsb",  "bank"},
+        {"RFMab", "channel"}, {"RFMsb",  "bank"},
       }
     );
 
@@ -60,16 +63,20 @@ class HBM3 : public IDRAM, public Implementation {
         {"RDA",   {false,  true,    true,    false}},
         {"WRA",   {false,  true,    true,    false}},
         {"REFab", {false,  false,   false,   true }},
+        {"REFsb", {false,  false,   false,   true }},
+        {"RFMab", {false,  false,   false,   true }},
+        {"RFMsb", {false,  false,   false,   true }},
       }
     );
 
     inline static constexpr ImplDef m_requests = {
-      "read", "write", "all-bank-refresh"
+      "read", "write", "all-bank-refresh", "per-bank-refresh", "all-bank-rfm", "per-bank-rfm"
     };
 
     inline static const ImplLUT m_request_translations = LUT (
       m_requests, m_commands, {
-        {"read", "RD"}, {"write", "WR"}, {"all-bank-refresh", "REFab"},
+        {"read", "RD"}, {"write", "WR"}, {"all-bank-refresh", "REFab"}, {"per-bank-refresh", "REFsb"}, 
+        {"all-bank-rfm", "RFMab"}, {"per-bank-rfm", "RFMsb"}, 
       }
     );
 
@@ -79,13 +86,13 @@ class HBM3 : public IDRAM, public Implementation {
    ***********************************************/
     inline static constexpr ImplDef m_timings = {
       "rate", 
-      "nBL", "nCL", "nRCD", "nRP", "nRAS", "nRC", "nWR", "nRTP", "nCWL",
+      "nBL", "nCL", "nRCDRD", "nRCDWR", "nRP", "nRAS", "nRC", "nWR", "nRTPS", "nRTPL", "nCWL",
       "nCCDS", "nCCDL",
       "nRRDS", "nRRDL",
       "nWTRS", "nWTRL",
+      "nRTW",
       "nFAW",
-      "nRFC","nREFI",
-      "nCS",
+      "nRFC", "nRFCSB", "nREFI", "nREFISB", "nRREFD",
       "tCK_ps"
     };
 
@@ -94,23 +101,23 @@ class HBM3 : public IDRAM, public Implementation {
    *                 Node States
    ***********************************************/
     inline static constexpr ImplDef m_states = {
-       "Opened", "Closed", "PowerUp", "N/A"
+       "Opened", "Closed", "N/A"
     };
 
     inline static const ImplLUT m_init_states = LUT (
       m_levels, m_states, {
-        {"channel",   "N/A"}, 
-        {"rank",      "PowerUp"},
-        {"bankgroup", "N/A"},
-        {"bank",      "Closed"},
-        {"row",       "Closed"},
-        {"column",    "N/A"},
+        {"channel",       "N/A"}, 
+        {"pseudochannel", "N/A"}, 
+        {"bankgroup",     "N/A"},
+        {"bank",          "Closed"},
+        {"row",           "Closed"},
+        {"column",        "N/A"},
       }
     );
 
   public:
-    struct Node : public DRAMNodeBase<DDR4> {
-      Node(DDR4* dram, Node* parent, int level, int id) : DRAMNodeBase<DDR4>(dram, parent, level, id) {};
+    struct Node : public DRAMNodeBase<HBM3> {
+      Node(HBM3* dram, Node* parent, int level, int id) : DRAMNodeBase<HBM3>(dram, parent, level, id) {};
     };
     std::vector<Node*> m_channels;
     
@@ -192,8 +199,9 @@ class HBM3 : public IDRAM, public Implementation {
         m_organization.density = *density;
       }
 
-      // Sanity check: is the calculated chip density the same as the provided one?
-      size_t _density = size_t(m_organization.count[m_levels["bankgroup"]]) *
+      // Sanity check: is the calculated channel density the same as the provided one?
+      size_t _density = size_t(m_organization.count[m_levels["pseudochannel"]]) *
+                        size_t(m_organization.count[m_levels["bankgroup"]]) *
                         size_t(m_organization.count[m_levels["bank"]]) *
                         size_t(m_organization.count[m_levels["row"]]) *
                         size_t(m_organization.count[m_levels["column"]]) *
@@ -201,7 +209,7 @@ class HBM3 : public IDRAM, public Implementation {
       _density >>= 20;
       if (m_organization.density != _density) {
         throw ConfigurationError(
-            "Calculated {} chip density {} Mb does not equal the provided density {} Mb!", 
+            "Calculated {} channel density {} Mb does not equal the provided density {} Mb!", 
             get_name(),
             _density, 
             m_organization.density
@@ -234,67 +242,19 @@ class HBM3 : public IDRAM, public Implementation {
       int tCK_ps = 1E6 / (m_timing_vals("rate") / 2);
       m_timing_vals("tCK_ps") = tCK_ps;
 
-      // Load the organization specific timings
-      int dq_id = [](int dq) -> int {
-        switch (dq) {
-          case 4:  return 0;
-          case 8:  return 1;
-          case 16: return 2;
-          default: return -1;
-        }
-      }(m_organization.dq);
-
-      int rate_id = [](int rate) -> int {
-        switch (rate) {
-          case 1600:  return 0;
-          case 1866:  return 1;
-          case 2133:  return 2;
-          case 2400:  return 3;
-          case 2666:  return 4;
-          case 2933:  return 5;
-          case 3200:  return 6;
-          default:    return -1;
-        }
-      }(m_timing_vals("rate"));
-
-      // Tables for secondary timings determined by the frequency, density, and DQ width.
-      // Defined in the JEDEC standard (e.g., Table 169-170, JESD79-4C).
-      constexpr int nRRDS_TABLE[3][7] = {
-      // 1600  1866  2133  2400  2666  2933  3200
-        { 4,    4,    4,    4,    4,    4,    4},   // x4
-        { 4,    4,    4,    4,    4,    4,    4},   // x8
-        { 5,    5,    6,    7,    8,    8,    9},   // x16
-      };
-      constexpr int nRRDL_TABLE[3][7] = {
-      // 1600  1866  2133  2400  2666  2933  3200
-        { 5,    5,    6,    6,    7,    8,    8 },  // x4
-        { 5,    5,    6,    6,    7,    8,    8 },  // x8
-        { 6,    6,    7,    8,    9,    10,   11},  // x16
-      };
-      constexpr int nFAW_TABLE[3][7] = {
-      // 1600  1866  2133  2400  2666  2933  3200
-        { 16,   16,   16,   16,   16,   16,   16},  // x4
-        { 20,   22,   23,   26,   28,   31,   34},  // x8
-        { 28,   28,   32,   36,   40,   44,   48},  // x16
-      };
-
-      if (dq_id != -1 && rate_id != -1) {
-        m_timing_vals("nRRDS") = nRRDS_TABLE[dq_id][rate_id];
-        m_timing_vals("nRRDL") = nRRDL_TABLE[dq_id][rate_id];
-        m_timing_vals("nFAW")  = nFAW_TABLE [dq_id][rate_id];
-      }
-
       // Refresh timings
       // tRFC table (unit is nanosecond!)
-      constexpr int tRFC_TABLE[3][4] = {
+      constexpr int tRFC_TABLE[1][4] = {
       //  2Gb   4Gb   8Gb  16Gb
-        { 160,  260,  360,  550}, // Normal refresh (tRFC1)
-        { 110,  160,  260,  350}, // FGR 2x (tRFC2)
-        { 90,   110,  160,  260}, // FGR 4x (tRFC4)
+        { 160,  260,  350,  450},
       };
 
-      // tREFI(base) table (unit is nanosecond!)
-      constexpr int tREFI_BASE = 7800;
+      // tRFC table (unit is nanosecond!)
+      constexpr int tREFISB_TABLE[1][4] = {
+      //  2Gb    4Gb    8Gb    16Gb
+        { 4875,  4875,  2438,  2438},
+      };
+
       int density_id = [](int density_Mb) -> int { 
         switch (density_Mb) {
           case 2048:  return 0;
@@ -306,7 +266,7 @@ class HBM3 : public IDRAM, public Implementation {
       }(m_organization.density);
 
       m_timing_vals("nRFC")  = JEDEC_rounding(tRFC_TABLE[0][density_id], tCK_ps);
-      m_timing_vals("nREFI") = JEDEC_rounding(tREFI_BASE, tCK_ps);
+      m_timing_vals("nREFISB")  = JEDEC_rounding(tRFC_TABLE[0][density_id], tCK_ps);
 
       // Overwrite timing parameters with any user-provided value
       // Rate and tCK should not be overwritten
@@ -336,37 +296,49 @@ class HBM3 : public IDRAM, public Implementation {
       #define V(timing) (m_timing_vals(timing))
       populate_timingcons(this, {
           /*** Channel ***/ 
+          /// 2-cycle ACT command (for row commands)
+          {.level = "channel", .preceding = {"ACT"}, .following = {"ACT", "PRE", "PREA", "REFab", "REFsb", "RFMab", "RFMsb"}, .latency = 2},
+
+          /*** Pseudo Channel (Table 3 — Array Access Timings Counted Individually Per Pseudo Channel, JESD-235C) ***/ 
+          // RAS <-> RAS
+          {.level = "pseudochannel", .preceding = {"ACT"}, .following = {"ACT"}, .latency = V("nRRDS")},
+          /// 4-activation window restriction
+          {.level = "pseudochannel", .preceding = {"ACT"}, .following = {"ACT"}, .latency = V("nFAW"), .window = 4},
+
+          /// ACT actually happens on the 2-nd cycle of ACT, so +1 cycle to nRRD
+          {.level = "pseudochannel", .preceding = {"ACT"}, .following = {"REFsb", "RFMsb"}, .latency = V("nRRDS") + 1},
+          /// nRREFD is the latency between REFsb <-> REFsb to *different* banks
+          {.level = "pseudochannel", .preceding = {"REFsb", "RFMsb"}, .following = {"REFsb", "RFMsb"}, .latency = V("nRREFD")},
+          /// nRREFD is the latency between REFsb <-> ACT to *different* banks. -1 as ACT happens on its 2nd cycle
+          {.level = "pseudochannel", .preceding = {"REFsb", "RFMsb"}, .following = {"ACT"}, .latency = V("nRREFD") - 1},
+
           // CAS <-> CAS
           /// Data bus occupancy
-          {.level = "channel", .preceding = {"RD", "RDA"}, .following = {"RD", "RDA"}, .latency = V("nBL")},
-          {.level = "channel", .preceding = {"WR", "WRA"}, .following = {"WR", "WRA"}, .latency = V("nBL")},
+          {.level = "pseudochannel", .preceding = {"RD", "RDA"}, .following = {"RD", "RDA"}, .latency = V("nBL")},
+          {.level = "pseudochannel", .preceding = {"WR", "WRA"}, .following = {"WR", "WRA"}, .latency = V("nBL")},
 
-          /*** Rank (or different BankGroup) ***/ 
           // CAS <-> CAS
           /// nCCDS is the minimal latency for column commands 
-          {.level = "rank", .preceding = {"RD", "RDA"}, .following = {"RD", "RDA"}, .latency = V("nCCDS")},
-          {.level = "rank", .preceding = {"WR", "WRA"}, .following = {"WR", "WRA"}, .latency = V("nCCDS")},
+          {.level = "pseudochannel", .preceding = {"RD", "RDA"}, .following = {"RD", "RDA"}, .latency = V("nCCDS")},
+          {.level = "pseudochannel", .preceding = {"WR", "WRA"}, .following = {"WR", "WRA"}, .latency = V("nCCDS")},
           /// RD <-> WR, Minimum Read to Write, Assuming tWPRE = 1 tCK                          
-          {.level = "rank", .preceding = {"RD", "RDA"}, .following = {"WR", "WRA"}, .latency = V("nCL") + V("nBL") + 2 - V("nCWL")},
+          {.level = "pseudochannel", .preceding = {"RD", "RDA"}, .following = {"WR", "WRA"}, .latency = V("nCL") + V("nBL") + 2 - V("nCWL")},
           /// WR <-> RD, Minimum Read after Write
-          {.level = "rank", .preceding = {"WR", "WRA"}, .following = {"RD", "RDA"}, .latency = V("nCWL") + V("nBL") + V("nWTRS")},
-          /// CAS <-> CAS between sibling ranks, nCS (rank switching) is needed for new DQS
-          {.level = "rank", .preceding = {"RD", "RDA"}, .following = {"RD", "RDA", "WR", "WRA"}, .latency = V("nBL") + V("nCS"), .is_sibling = true},
-          {.level = "rank", .preceding = {"WR", "WRA"}, .following = {"RD", "RDA"}, .latency = V("nCL")  + V("nBL") + V("nCS") - V("nCWL"), .is_sibling = true},
+          {.level = "pseudochannel", .preceding = {"WR", "WRA"}, .following = {"RD", "RDA"}, .latency = V("nCWL") + V("nBL") + V("nWTRS")},
           /// CAS <-> PREab
-          {.level = "rank", .preceding = {"RD"}, .following = {"PREA"}, .latency = V("nRTP")},
-          {.level = "rank", .preceding = {"WR"}, .following = {"PREA"}, .latency = V("nCWL") + V("nBL") + V("nWR")},          
+          {.level = "pseudochannel", .preceding = {"RD"}, .following = {"PREA"}, .latency = V("nRTPS")},
+          {.level = "pseudochannel", .preceding = {"WR"}, .following = {"PREA"}, .latency = V("nCWL") + V("nBL") + V("nWR")},          
           /// RAS <-> RAS
-          {.level = "rank", .preceding = {"ACT"}, .following = {"ACT"}, .latency = V("nRRDS")},          
-          {.level = "rank", .preceding = {"ACT"}, .following = {"ACT"}, .latency = V("nFAW"), .window = 4},          
-          {.level = "rank", .preceding = {"ACT"}, .following = {"PREA"}, .latency = V("nRAS")},          
-          {.level = "rank", .preceding = {"PREA"}, .following = {"ACT"}, .latency = V("nRP")},          
+          {.level = "pseudochannel", .preceding = {"ACT"}, .following = {"ACT"}, .latency = V("nRRDS")},          
+          {.level = "pseudochannel", .preceding = {"ACT"}, .following = {"ACT"}, .latency = V("nFAW"), .window = 4},          
+          {.level = "pseudochannel", .preceding = {"ACT"}, .following = {"PREA"}, .latency = V("nRAS")},          
+          {.level = "pseudochannel", .preceding = {"PREA"}, .following = {"ACT"}, .latency = V("nRP")},          
           /// RAS <-> REF
-          {.level = "rank", .preceding = {"ACT"}, .following = {"REFab"}, .latency = V("nRC")},          
-          {.level = "rank", .preceding = {"PRE", "PREA"}, .following = {"REFab"}, .latency = V("nRP")},          
-          {.level = "rank", .preceding = {"RDA"}, .following = {"REFab"}, .latency = V("nRP") + V("nRTP")},          
-          {.level = "rank", .preceding = {"WRA"}, .following = {"REFab"}, .latency = V("nCWL") + V("nBL") + V("nWR") + V("nRP")},          
-          {.level = "rank", .preceding = {"REFab"}, .following = {"ACT"}, .latency = V("nRFC")},          
+          {.level = "pseudochannel", .preceding = {"ACT"}, .following = {"REFab", "RFMab"}, .latency = V("nRC")},          
+          {.level = "pseudochannel", .preceding = {"PRE", "PREA"}, .following = {"REFab", "RFMab"}, .latency = V("nRP")},          
+          {.level = "pseudochannel", .preceding = {"RDA"}, .following = {"REFab", "RFMab"}, .latency = V("nRP") + V("nRTPS")},          
+          {.level = "pseudochannel", .preceding = {"WRA"}, .following = {"REFab", "RFMab"}, .latency = V("nCWL") + V("nBL") + V("nWR") + V("nRP")},          
+          {.level = "pseudochannel", .preceding = {"REFab", "RFMab"}, .following = {"ACT", "REFsb", "RFMsb"}, .latency = V("nRFC")},          
 
           /*** Same Bank Group ***/ 
           /// CAS <-> CAS
@@ -375,16 +347,22 @@ class HBM3 : public IDRAM, public Implementation {
           {.level = "bankgroup", .preceding = {"WR", "WRA"}, .following = {"RD", "RDA"}, .latency = V("nCWL") + V("nBL") + V("nWTRL")},
           /// RAS <-> RAS
           {.level = "bankgroup", .preceding = {"ACT"}, .following = {"ACT"}, .latency = V("nRRDL")},  
+          {.level = "bankgroup", .preceding = {"ACT"}, .following = {"REFsb", "RFMsb"}, .latency = V("nRRDL") + 1},  
+          {.level = "bankgroup", .preceding = {"REFsb", "RFMsb"}, .following = {"ACT"}, .latency = V("nRRDL") - 1},  
+
+          {.level = "bank", .preceding = {"RD"},  .following = {"PRE"}, .latency = V("nRTPS")},  
+
 
           /*** Bank ***/ 
           {.level = "bank", .preceding = {"ACT"}, .following = {"ACT"}, .latency = V("nRC")},  
-          {.level = "bank", .preceding = {"ACT"}, .following = {"RD", "RDA", "WR", "WRA"}, .latency = V("nRCD")},  
+          {.level = "bank", .preceding = {"ACT"}, .following = {"RD", "RDA"}, .latency = V("nRCDRD")},  
+          {.level = "bank", .preceding = {"ACT"}, .following = {"WR", "WRA"}, .latency = V("nRCDWR")},  
           {.level = "bank", .preceding = {"ACT"}, .following = {"PRE"}, .latency = V("nRAS")},  
           {.level = "bank", .preceding = {"PRE"}, .following = {"ACT"}, .latency = V("nRP")},  
-          {.level = "bank", .preceding = {"RD"},  .following = {"PRE"}, .latency = V("nRTP")},  
+          {.level = "bank", .preceding = {"RD"},  .following = {"PRE"}, .latency = V("nRTPL")},  
           {.level = "bank", .preceding = {"WR"},  .following = {"PRE"}, .latency = V("nCWL") + V("nBL") + V("nWR")},  
-          {.level = "bank", .preceding = {"RDA"}, .following = {"ACT"}, .latency = V("nRTP") + V("nRP")},  
-          {.level = "bank", .preceding = {"WRA"}, .following = {"ACT"}, .latency = V("nCWL") + V("nBL") + V("nWR") + V("nRP")},  
+          {.level = "bank", .preceding = {"RDA"}, .following = {"ACT", "REFsb", "RFMsb"}, .latency = V("nRTPL") + V("nRP")},  
+          {.level = "bank", .preceding = {"WRA"}, .following = {"ACT", "REFsb", "RFMsb"}, .latency = V("nCWL") + V("nBL") + V("nWR") + V("nRP")},  
         }
       );
       #undef V
@@ -394,40 +372,41 @@ class HBM3 : public IDRAM, public Implementation {
     void set_actions() {
       m_actions.resize(m_levels.size(), std::vector<ActionFunc_t<Node>>(m_commands.size()));
 
-      // Rank Actions
-      m_actions[m_levels["rank"]][m_commands["PREA"]] = Lambdas::Action::Rank::PREab<DDR4>;
+      // Channel Actions
+      m_actions[m_levels["channel"]][m_commands["PREA"]] = Lambdas::Action::Channel::PREab<HBM3>;
 
       // Bank actions
-      m_actions[m_levels["bank"]][m_commands["ACT"]] = Lambdas::Action::Bank::ACT<DDR4>;
-      m_actions[m_levels["bank"]][m_commands["PRE"]] = Lambdas::Action::Bank::PRE<DDR4>;
-      m_actions[m_levels["bank"]][m_commands["RDA"]] = Lambdas::Action::Bank::PRE<DDR4>;
-      m_actions[m_levels["bank"]][m_commands["WRA"]] = Lambdas::Action::Bank::PRE<DDR4>;
+      m_actions[m_levels["bank"]][m_commands["ACT"]] = Lambdas::Action::Bank::ACT<HBM3>;
+      m_actions[m_levels["bank"]][m_commands["PRE"]] = Lambdas::Action::Bank::PRE<HBM3>;
+      m_actions[m_levels["bank"]][m_commands["RDA"]] = Lambdas::Action::Bank::PRE<HBM3>;
+      m_actions[m_levels["bank"]][m_commands["WRA"]] = Lambdas::Action::Bank::PRE<HBM3>;
     };
 
     void set_preqs() {
       m_preqs.resize(m_levels.size(), std::vector<PreqFunc_t<Node>>(m_commands.size()));
 
-      // Rank Actions
-      m_preqs[m_levels["rank"]][m_commands["REFab"]] = Lambdas::Preq::Rank::RequireAllBanksClosed<DDR4>;
+      // Channel Actions
+      m_preqs[m_levels["channel"]][m_commands["REFab"]] = Lambdas::Preq::Channel::RequireAllBanksClosed<HBM3>;
 
       // Bank actions
-      m_preqs[m_levels["bank"]][m_commands["RD"]] = Lambdas::Preq::Bank::RequireRowOpen<DDR4>;
-      m_preqs[m_levels["bank"]][m_commands["WR"]] = Lambdas::Preq::Bank::RequireRowOpen<DDR4>;
+      m_preqs[m_levels["bank"]][m_commands["REFsb"]] = Lambdas::Preq::Bank::RequireBankClosed<HBM3>;
+      m_preqs[m_levels["bank"]][m_commands["RD"]] = Lambdas::Preq::Bank::RequireRowOpen<HBM3>;
+      m_preqs[m_levels["bank"]][m_commands["WR"]] = Lambdas::Preq::Bank::RequireRowOpen<HBM3>;
     };
 
     void set_rowhits() {
       m_rowhits.resize(m_levels.size(), std::vector<RowhitFunc_t<Node>>(m_commands.size()));
 
-      m_rowhits[m_levels["bank"]][m_commands["RD"]] = Lambdas::RowHit::Bank::RDWR<DDR4>;
-      m_rowhits[m_levels["bank"]][m_commands["WR"]] = Lambdas::RowHit::Bank::RDWR<DDR4>;
+      m_rowhits[m_levels["bank"]][m_commands["RD"]] = Lambdas::RowHit::Bank::RDWR<HBM3>;
+      m_rowhits[m_levels["bank"]][m_commands["WR"]] = Lambdas::RowHit::Bank::RDWR<HBM3>;
     }
 
 
     void set_rowopens() {
       m_rowopens.resize(m_levels.size(), std::vector<RowhitFunc_t<Node>>(m_commands.size()));
 
-      m_rowopens[m_levels["bank"]][m_commands["RD"]] = Lambdas::RowOpen::Bank::RDWR<DDR4>;
-      m_rowopens[m_levels["bank"]][m_commands["WR"]] = Lambdas::RowOpen::Bank::RDWR<DDR4>;
+      m_rowopens[m_levels["bank"]][m_commands["RD"]] = Lambdas::RowOpen::Bank::RDWR<HBM3>;
+      m_rowopens[m_levels["bank"]][m_commands["WR"]] = Lambdas::RowOpen::Bank::RDWR<HBM3>;
     }
 
 
