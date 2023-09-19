@@ -24,7 +24,7 @@ A quick glance at Ramulator 2.0's other key features:
 The initial release of Ramulator 2.0 is described in the following [paper](https://people.inf.ethz.ch/omutlu/pub/Ramulator2_arxiv23.pdf):
 > Haocong Luo, Yahya Can Tugrul, F. Nisa Bostancı, Ataberk Olgun, A. Giray Yaglıkcı, and Onur Mutlu,
 > "Ramulator 2.0: A Modern, Modular, and Extensible DRAM Simulator,"
-> arXiv
+> arXiv, 2023.
 
 If you use Ramulator 2.0 in your work, please use the following citation:
 ```
@@ -39,7 +39,7 @@ If you use Ramulator 2.0 in your work, please use the following citation:
 
 ## Using Ramulator 2.0
 ### Dependencies
-Ramulator utilizes some C++20 features to achieve both high runtime performance and modularity and extensibility. Therefore, a C++20-capable compiler is needed to build Ramulator 2.0. We have tested Ramulator 2.0 with the following compilers:
+Ramulator uses some C++20 features to achieve both high runtime performance and modularity and extensibility. Therefore, a C++20-capable compiler is needed to build Ramulator 2.0. We have tested and verified Ramulator 2.0 with the following compilers:
 - `g++-12`
 - `clang++-15`
 
@@ -63,7 +63,7 @@ Configure the project and build the executable
 ```
 This should produce a `ramulator2` executable that you can execute standalone and a `libramulator.so` dynamic library that can be used as a memory system library by other simulators.
 ### Running Ramulator 2.0 in Standalone Mode
-Ramulator 2.0 comes with two independent trace-driven simulation frontends: A memory-trace parser and a simplistic out-of-order core model that can accept instruction traces. To start a simulation with these frontends, just run the Ramulator 2.0 executable with the path to the configuration file specified through the `-f` argument
+Ramulator 2.0 comes with two independent simulation frontends: A memory-trace parser and a simplistic out-of-order core model that can accept instruction traces. To start a simulation with these frontends, just run the Ramulator 2.0 executable with the path to the configuration file specified through the `-f` argument
 ```bash
   $ ./ramulator2 -f ./example_config.yaml
 ```
@@ -85,7 +85,7 @@ for nRCD in nRCD_list:
   # Run the command with e.g., os.system(), subprocess.run(), ...
 ```
 ### Using Ramulator 2.0 as a Library (gem5 Example)
-Ramulator 2.0 packs all the interfaces and implementations into a dynamic library (`libramulator.so`). This can be used as a memory system library providing extensible cycle-accurate DRAM simulation to another simulator. We use gem5 as an example to show how to use Ramulator 2.0 as a library.
+Ramulator 2.0 packs all the interfaces and implementations into a dynamic library (`libramulator.so`). This can be used as a memory system library providing extensible cycle-accurate DRAM simulation to another simulator. We use gem5 as an example to show how to use Ramulator 2.0 as a library. We have tested and verified the integration of Ramulator 2.0 into gem5 as a library.
 
 1. Clone Ramulator 2.0 into `gem5/ext/ramulator2/` directory.
 2. Build Ramulator 2.0. You should have `libramulator.so` at `gem5/ext/ramulator2/ramulator2/libramulator.so`
@@ -131,7 +131,7 @@ system.mem_ctrl.config_path = "<path-to-config>.yaml" # Don't forget to specify 
 # Continue your configuration of gem5 ...
 ```
 
-### General Instructions for Writing Your Own Wrapper of Ramulator 2.0 for Your Own Simulator
+### General Instructions for Writing Your Own Wrapper of Ramulator 2.0 for Another (including Your Own) Simulator
 We describe the key steps and cover the key interfaces involved in using Ramulator 2.0 as a library for your own simulator.
 1. Add Ramulator 2.0's key header files to your build system:
 - `ramulator2/src/base/base.h`
