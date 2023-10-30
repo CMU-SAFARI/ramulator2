@@ -91,7 +91,7 @@ Ramulator 2.0 packs all the interfaces and implementations into a dynamic librar
 
 1. Clone Ramulator 2.0 into `gem5/ext/ramulator2/` directory.
 2. Build Ramulator 2.0. You should have `libramulator.so` at `gem5/ext/ramulator2/ramulator2/libramulator.so`
-3. Create a file `Sonscript` at `gem5/ext/ramulator2/`, with the following contents to add Ramulator 2.0 to gem5's build system
+3. Create a file `SConscript` at `gem5/ext/ramulator2/`, with the following contents to add Ramulator 2.0 to gem5's build system
 ```python
 import os
 
