@@ -422,7 +422,7 @@ class DDR4VRR : public IDRAM, public Implementation {
 
           /*** Bank ***/ 
           {.level = "bank", .preceding = {"ACT"}, .following = {"ACT", "VRR"}, .latency = V("nRC")},  
-          {.level = "bank", .preceding = {"ACT", "VRR"}, .following = {"ACT", "VRR"}, .latency = V("nVRR")},  
+          {.level = "bank", .preceding = {"VRR"}, .following = {"ACT", "VRR"}, .latency = V("nVRR")},  
           {.level = "bank", .preceding = {"ACT"}, .following = {"RD", "RDA", "WR", "WRA"}, .latency = V("nRCD")},  
           {.level = "bank", .preceding = {"ACT"}, .following = {"PRE"}, .latency = V("nRAS")},  
           {.level = "bank", .preceding = {"PRE"}, .following = {"ACT", "VRR"}, .latency = V("nRP")},  

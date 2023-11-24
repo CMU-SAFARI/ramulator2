@@ -227,12 +227,34 @@ class GenericDRAMController final : public IDRAMController, public Implementatio
         if (m_dram->m_command_meta(req_it->command).is_closing) {
           std::vector<Addr_t> rowgroup((req_it->addr_vec).begin(), (req_it->addr_vec).begin() + m_row_addr_idx);
 
-          // Search the active buffer with the row address (inkl. banks, etc.)
-          for (auto _it = m_active_buffer.begin(); _it != m_active_buffer.end(); _it++) {
-            std::vector<Addr_t> _it_rowgroup(_it->addr_vec.begin(), _it->addr_vec.begin() + m_row_addr_idx);
-            if (rowgroup == _it_rowgroup) {
-              // Invalidate this scheduling outcome if we are to interrupt a request in the active buffer
-              request_found = false;
+          bool has_addr_wildcard = false;
+          int last_valid_level = 0;
+          for (int i : rowgroup) {
+            if (i == -1) {
+              has_addr_wildcard = true;
+              break;
+            }
+            last_valid_level++;
+          }
+
+          if (!has_addr_wildcard) {
+            // Search the active buffer with the row address (inkl. banks, etc.)
+            for (auto _it = m_active_buffer.begin(); _it != m_active_buffer.end(); _it++) {
+              std::vector<Addr_t> _it_rowgroup(_it->addr_vec.begin(), _it->addr_vec.begin() + m_row_addr_idx);
+              if (rowgroup == _it_rowgroup) {
+                // Invalidate this scheduling outcome if we are to interrupt a request in the active buffer
+                request_found = false;
+              }
+            }
+          } else {
+            // If we have a wildcard index (i.e., matches ALL elements in a level), we will only compare up to this level
+            std::vector<Addr_t> rowgroup_prefix((req_it->addr_vec).begin(), (req_it->addr_vec).begin() + last_valid_level);
+            for (auto _it = m_active_buffer.begin(); _it != m_active_buffer.end(); _it++) {
+              std::vector<Addr_t> _it_rowgroup(_it->addr_vec.begin(), _it->addr_vec.begin() + last_valid_level);
+              if (rowgroup == _it_rowgroup) {
+                // Invalidate this scheduling outcome if we are to interrupt a request in the active buffer
+                request_found = false;
+              }
             }
           }
         }
