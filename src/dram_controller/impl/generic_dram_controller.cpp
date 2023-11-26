@@ -205,7 +205,7 @@ class GenericDRAMController final : public IDRAMController, public Implementatio
           req_it->command = m_dram->get_preq_command(req_it->final_command, req_it->addr_vec);
           
           request_found = m_dram->check_ready(req_it->command, req_it->addr_vec);
-          if (!request_found & m_priority_buffer.size() != 0) {
+          if ((!request_found) & (m_priority_buffer.size() != 0)) {
             return false;
           }
         }
@@ -225,36 +225,24 @@ class GenericDRAMController final : public IDRAMController, public Implementatio
       // 2.3 If we find a request to schedule, we need to check if it will close an opened row in the active buffer.
       if (request_found) {
         if (m_dram->m_command_meta(req_it->command).is_closing) {
-          std::vector<Addr_t> rowgroup((req_it->addr_vec).begin(), (req_it->addr_vec).begin() + m_row_addr_idx);
-
           bool has_addr_wildcard = false;
+          int row_group_end = m_row_addr_idx;
           int last_valid_level = 0;
-          for (int i : rowgroup) {
+          for (int i : req_it->addr_vec) {
             if (i == -1) {
               has_addr_wildcard = true;
+              row_group_end = last_valid_level;
               break;
             }
             last_valid_level++;
           }
 
-          if (!has_addr_wildcard) {
-            // Search the active buffer with the row address (inkl. banks, etc.)
-            for (auto _it = m_active_buffer.begin(); _it != m_active_buffer.end(); _it++) {
-              std::vector<Addr_t> _it_rowgroup(_it->addr_vec.begin(), _it->addr_vec.begin() + m_row_addr_idx);
-              if (rowgroup == _it_rowgroup) {
-                // Invalidate this scheduling outcome if we are to interrupt a request in the active buffer
-                request_found = false;
-              }
-            }
-          } else {
-            // If we have a wildcard index (i.e., matches ALL elements in a level), we will only compare up to this level
-            std::vector<Addr_t> rowgroup_prefix((req_it->addr_vec).begin(), (req_it->addr_vec).begin() + last_valid_level);
-            for (auto _it = m_active_buffer.begin(); _it != m_active_buffer.end(); _it++) {
-              std::vector<Addr_t> _it_rowgroup(_it->addr_vec.begin(), _it->addr_vec.begin() + last_valid_level);
-              if (rowgroup == _it_rowgroup) {
-                // Invalidate this scheduling outcome if we are to interrupt a request in the active buffer
-                request_found = false;
-              }
+          std::vector<Addr_t> rowgroup((req_it->addr_vec).begin(), (req_it->addr_vec).begin() + row_group_end);
+          for (auto _it = m_active_buffer.begin(); _it != m_active_buffer.end(); _it++) {
+            std::vector<Addr_t> _it_rowgroup(_it->addr_vec.begin(), _it->addr_vec.begin() + row_group_end);
+            if (rowgroup == _it_rowgroup) {
+              // Invalidate this scheduling outcome if we are to interrupt a request in the active buffer
+              request_found = false;
             }
           }
         }
