@@ -79,6 +79,7 @@ class RandomTranslation : public ITranslation, public Implementation {
             ppn_to_assign = m_allocator_rng() % m_num_pages;
           }
           core_translation[vpn] = ppn_to_assign;
+          m_free_physical_pages[ppn_to_assign] = true;  // Prevent subsequent allocations to the same physical page
           m_num_free_physical_pages--;
         }
       } 

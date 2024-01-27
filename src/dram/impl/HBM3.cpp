@@ -11,7 +11,7 @@ class HBM3 : public IDRAM, public Implementation {
       //   name     density   DQ    Ch Pch  Bg Ba   Ro     Co
       {"HBM3_2Gb",   {2<<10,  128,  {1, 2,  4,  4, 1<<13, 1<<6}}},
       {"HBM3_4Gb",   {4<<10,  128,  {1, 2,  4,  4, 1<<14, 1<<6}}},
-      {"HBM3_8Gb",   {6<<10,  128,  {1, 2,  4,  4, 1<<15, 1<<6}}},
+      {"HBM3_8Gb",   {8<<10,  128,  {1, 2,  4,  4, 1<<15, 1<<6}}},
     };
 
     inline static const std::map<std::string, std::vector<int>> timing_presets = {

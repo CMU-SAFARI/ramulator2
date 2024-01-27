@@ -120,7 +120,7 @@ env.Append(
 if env['HAVE_RAMULATOR2']:
   SimObject('Ramulator2.py', sim_objects=['Ramulator2'])
   Source('ramulator2.cc')
-  DebugFlag('Ramulator2')
+  DebugFlag("Ramulator2")
 ```
 6. Create the Ramulator2 SimObject as the memory controller and specify the path to the Ramulator 2.0 configuration file in your gem5 configuration script, e.g.,
 ```python
@@ -306,7 +306,17 @@ cd ..
 - DRAM Organization: "DDR4_8G_X8"
 - DRAM Frequency: "DDR4_2400"
 - Number of Ranks: 2
-4. Convert the DRAM Command Trace to fit the testbench of the Verilog model. We provide a script `verilog_verification/trace_converter.py` to do so. Then you can just start your Verilog simulator (e.g., ModelSim) and check for violations.
+
+We provide the already configured Verilog files in `verilog_verification/sources/`. 
+
+4. Convert the DRAM Command Trace to fit the testbench of the Verilog model. We provide a script `verilog_verification/trace_converter.py` to do so.
+```bash
+python3 trace_converter.py DDR4_8G_X8 2 DDR4_2400
+```
+5.  Then you can just start your Verilog simulator (e.g., ModelSim) and check for violations. We provide a script to parse the simulation output and check for errors `verilog_verification/trace_verifier.py`
+```bash
+python3 trace_verifier.py <trace_filepath> <output_filepath>
+```
 
 ## Reproducing the Results in our Ramulator 2.0 paper
 ### Simulation Performance Comparison with Other Simulators
@@ -355,7 +365,7 @@ We put all scripts and configurations in `rh_study/`
 1. Get the instruction traces from SPEC 2006 and 2017
 ```bash
 cd rh_study
-wget <download_link>  # Please visit 
+wget <download_link>  # We host the traces here https://drive.google.com/file/d/1CvAenRZQmmM6s55ptG0-XyeLjhMVovTx/view?usp=drive_link
 tar xvzf ./cputraces.tar.gz
 ```
 2. Generate workloads from trace combinations

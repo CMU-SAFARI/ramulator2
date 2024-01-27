@@ -18,6 +18,7 @@ class OracleRH : public IControllerPlugin, public Implementation {
 
     using BankACTCounter = std::unordered_map<Addr_t, int>;
     std::vector<BankACTCounter> m_table;
+    std::vector<int> m_rank_REF_counter;
 
     int m_RH_threshold = -1;
 
@@ -30,6 +31,7 @@ class OracleRH : public IControllerPlugin, public Implementation {
     int m_num_ranks = -1;
     int m_num_banks_per_rank = -1;
     int m_num_rows_per_bank = -1;
+
 
     bool m_is_debug = false;
 
@@ -60,6 +62,7 @@ class OracleRH : public IControllerPlugin, public Implementation {
       m_num_rows_per_bank = m_dram->get_level_size("row");
 
       m_table.resize(m_num_banks_per_rank * m_num_ranks);
+      m_rank_REF_counter.resize(m_num_ranks, 0);
     };
 
     void update(bool request_found, ReqBuffer::iterator& req_it) override {
@@ -90,8 +93,13 @@ class OracleRH : public IControllerPlugin, public Implementation {
           m_dram->m_command_meta(req_it->command).is_refreshing && 
           m_dram->m_command_scopes(req_it->command) == m_rank_level) {
             int rank_id = req_it->addr_vec[m_rank_level];
-            for (int i = rank_id * m_num_banks_per_rank; i < (rank_id + 1) * m_num_banks_per_rank; i++) {
-              m_table[i].clear();
+
+            m_rank_REF_counter[rank_id]++;
+            if (m_rank_REF_counter[rank_id] == 8191) {
+              for (int i = rank_id * m_num_banks_per_rank; i < (rank_id + 1) * m_num_banks_per_rank; i++) {
+                m_table[i].clear();
+              }
+              m_rank_REF_counter[rank_id] = 0;
             }
         }
       }
