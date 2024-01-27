@@ -120,6 +120,7 @@ env.Append(
 if env['HAVE_RAMULATOR2']:
   SimObject('Ramulator2.py', sim_objects=['Ramulator2'])
   Source('ramulator2.cc')
+  DebugFlag("Ramulator2")
 ```
 6. Create the Ramulator2 SimObject as the memory controller and specify the path to the Ramulator 2.0 configuration file in your gem5 configuration script, e.g.,
 ```python
