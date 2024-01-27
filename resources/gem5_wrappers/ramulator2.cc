@@ -128,7 +128,7 @@ Ramulator2::tick()
     }
 
     schedule(tickEvent,
-        curTick() + ramulator2_memorysystem->get_tCK() * sim_clock::as_int::ns);
+        curTick() + ramulator2_memorysystem->get_tCK() * sim_clock::as_float::ns);
 }
 
 Tick
@@ -177,7 +177,7 @@ Ramulator2::recvTimingReq(PacketPtr pkt)
     {
         // Generate ramulator READ request and try to send to ramulator's memory system
         enqueue_success = ramulator2_frontend->
-            receive_external_requests(0, pkt->getAddr(), pkt->req->contextId(), 
+            receive_external_requests(0, pkt->getAddr(), 0, 
             [this](Ramulator::Request& req) {
                 DPRINTF(Ramulator2, "Read to %ld completed.\n", req.addr);
                 auto& pkt_q = outstandingReads.find(req.addr)->second;
@@ -208,7 +208,7 @@ Ramulator2::recvTimingReq(PacketPtr pkt)
     } else if (pkt->isWrite()) {
         // Generate ramulator WRITE request and try to send to ramulator's memory system
         enqueue_success = ramulator2_frontend->
-            receive_external_requests(1, pkt->getAddr(), pkt->req->contextId(), 
+            receive_external_requests(1, pkt->getAddr(), 0, 
             [this](Ramulator::Request& req) {
                 DPRINTF(Ramulator2, "Write to %ld completed.\n", req.addr);
                 auto& pkt_q = outstandingWrites.find(req.addr)->second;
