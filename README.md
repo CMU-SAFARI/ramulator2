@@ -305,7 +305,17 @@ cd ..
 - DRAM Organization: "DDR4_8G_X8"
 - DRAM Frequency: "DDR4_2400"
 - Number of Ranks: 2
-4. Convert the DRAM Command Trace to fit the testbench of the Verilog model. We provide a script `verilog_verification/trace_converter.py` to do so. Then you can just start your Verilog simulator (e.g., ModelSim) and check for violations.
+
+We provide the already configured Verilog files in `verilog_verification/sources/`. 
+
+4. Convert the DRAM Command Trace to fit the testbench of the Verilog model. We provide a script `verilog_verification/trace_converter.py` to do so.
+```bash
+python3 trace_converter.py DDR4_8G_X8 2 DDR4_2400
+```
+5.  Then you can just start your Verilog simulator (e.g., ModelSim) and check for violations. We provide a script to parse the simulation output and check for errors `verilog_verification/trace_verifier.py`
+```bash
+python3 trace_verifier.py <trace_filepath> <output_filepath>
+```
 
 ## Reproducing the Results in our Ramulator 2.0 paper
 ### Simulation Performance Comparison with Other Simulators
