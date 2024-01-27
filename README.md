@@ -364,7 +364,7 @@ We put all scripts and configurations in `rh_study/`
 1. Get the instruction traces from SPEC 2006 and 2017
 ```bash
 cd rh_study
-wget <download_link>  # Please visit 
+wget <download_link>  # We host the traces here https://drive.google.com/file/d/1CvAenRZQmmM6s55ptG0-XyeLjhMVovTx/view?usp=drive_link
 tar xvzf ./cputraces.tar.gz
 ```
 2. Generate workloads from trace combinations
