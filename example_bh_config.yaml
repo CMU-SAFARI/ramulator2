@@ -1,0 +1,43 @@
+Frontend:
+  impl: BHO3
+  clock_ratio: 8
+  num_expected_insts: 5000000
+  llc_capacity_per_core: 2MB
+  llc_num_mshr_per_core: 16
+  inst_window_depth: 128
+  traces: 
+    - example_inst.trace
+  no_wait_traces:
+    - example_rh_physaddr.trace
+
+  Translation:
+    impl: RandomTranslation 
+    max_addr: 17179869184
+
+MemorySystem:
+  impl: BHDRAMSystem
+  clock_ratio: 3
+
+  DRAM:
+    impl: DDR4
+    org:
+      preset: DDR4_8Gb_x8
+      channel: 1
+      rank: 2
+    timing:
+      preset: DDR4_2400R 
+
+  BHDRAMController:
+    impl: BHDRAMController
+    BHScheduler:
+      impl: BHScheduler 
+    RefreshManager:
+      impl: AllBank
+    plugins:
+    - ControllerPlugin:
+        bf_ctr_thresh: 1024
+        bf_num_rh: 4096
+        impl: BlockHammerPlugin
+
+  AddrMapper:
+    impl: RoBaRaCoCh_with_rit
