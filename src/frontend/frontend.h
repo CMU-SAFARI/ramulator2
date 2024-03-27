@@ -19,6 +19,8 @@ class IFrontEnd : public Clocked<IFrontEnd>, public TopLevel<IFrontEnd> {
   protected:
     IMemorySystem* m_memory_system;
     uint m_clock_ratio = 1;
+    uint8_t m_data = 0;
+    bool m_data_is_set = false;
 
   public:
     virtual void connect_memory_system(IMemorySystem* memory_system) { 
@@ -60,6 +62,18 @@ class IFrontEnd : public Clocked<IFrontEnd>, public TopLevel<IFrontEnd> {
 
     virtual bool receive_external_requests(int req_type_id, Addr_t addr, int source_id, uint8_t payload,
                                            std::function<void(Request&)> callback) { return false; }
+
+    virtual void set_data(uint8_t data) {
+        m_data = data;
+        m_data_is_set = true;
+    };
+
+    virtual void reset_data() { m_data_is_set = false; }
+    
+    virtual uint8_t get_data() { return m_data; }
+
+    virtual bool data_is_set() { return m_data_is_set; }
+
 };
 
 }        // namespace Ramulator

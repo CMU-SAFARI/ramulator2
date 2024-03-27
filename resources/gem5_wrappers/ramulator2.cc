@@ -183,8 +183,16 @@ Ramulator2::recvTimingReq(PacketPtr pkt)
                 auto& pkt_q = outstandingReads.find(req.addr)->second;
                 PacketPtr pkt = pkt_q.front();
                 pkt_q.pop_front();
-                if (!pkt_q.size())
+                if (!pkt_q.size()) {
+                    if (ramulator2_frontend->data_is_set()) {
+                        uint8_t* data_ptr = new uint8_t(ramulator2_frontend->get_data());
+                        // Presumably
+                        // pkt->setData(data_ptr);
+                        // std::cout << "Ramulator frontend data: " << (unsigned) *data_ptr << std::endl; // test
+                        ramulator2_frontend->reset_data();
+                    }
                     outstandingReads.erase(req.addr);
+                }
 
                 // added counter to track requests in flight
                 --nbrOutstandingReads;
