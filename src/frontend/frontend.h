@@ -19,7 +19,7 @@ class IFrontEnd : public Clocked<IFrontEnd>, public TopLevel<IFrontEnd> {
   protected:
     IMemorySystem* m_memory_system;
     uint m_clock_ratio = 1;
-    uint8_t m_data = 0;
+    uint8_t* m_payload = nullptr;
     bool m_data_is_set = false;
 
   public:
@@ -60,17 +60,24 @@ class IFrontEnd : public Clocked<IFrontEnd>, public TopLevel<IFrontEnd> {
     virtual bool receive_external_requests(int req_type_id, Addr_t addr, int source_id, 
                                            std::function<void(Request&)> callback) { return false; }
 
-    virtual bool receive_external_requests(int req_type_id, Addr_t addr, int source_id, uint8_t payload,
+    virtual bool receive_external_requests(int req_type_id, Addr_t addr, int source_id, uint8_t* payload, int payload_size,
                                            std::function<void(Request&)> callback) { return false; }
 
-    virtual void set_data(uint8_t data) {
-        m_data = data;
+    virtual void set_data(uint8_t* payload) { 
+        if (m_payload != nullptr) delete(m_payload);
+        m_payload = payload;
         m_data_is_set = true;
-    };
+    }
 
-    virtual void reset_data() { m_data_is_set = false; }
+    virtual void reset_data() { 
+        m_data_is_set = false; 
+        if (m_payload != nullptr) {
+          delete(m_payload);
+          m_payload = nullptr;
+        }
+    }
     
-    virtual uint8_t get_data() { return m_data; }
+    virtual uint8_t* get_data() { return m_payload; }
 
     virtual bool data_is_set() { return m_data_is_set; }
 

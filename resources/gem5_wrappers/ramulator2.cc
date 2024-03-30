@@ -176,8 +176,11 @@ Ramulator2::recvTimingReq(PacketPtr pkt)
     if (pkt->isRead()) 
     {
         // Generate ramulator READ request and try to send to ramulator's memory system
+        int payload_size = pkt->getSize();
+        uint8_t* payload = new uint8_t[payload_size];
+        pkt->writeData(payload);
         enqueue_success = ramulator2_frontend->
-            receive_external_requests(0, pkt->getAddr(), 0, 
+            receive_external_requests(0, pkt->getAddr(), 0, payload, payload_size, 
             [this](Ramulator::Request& req) {
                 DPRINTF(Ramulator2, "Read to %ld completed.\n", req.addr);
                 auto& pkt_q = outstandingReads.find(req.addr)->second;
@@ -185,10 +188,14 @@ Ramulator2::recvTimingReq(PacketPtr pkt)
                 pkt_q.pop_front();
                 if (!pkt_q.size()) {
                     if (ramulator2_frontend->data_is_set()) {
-                        uint8_t* data_ptr = new uint8_t(ramulator2_frontend->get_data());
+                        uint8_t* data_ptr = ramulator2_frontend->get_data();
                         // Presumably
                         // pkt->setData(data_ptr);
-                        // std::cout << "Ramulator frontend data: " << (unsigned) *data_ptr << std::endl; // test
+                        int ssize = pkt->getSize();
+                        for (int i = 0; i < ssize; i++) {
+                            std::cout << "Ramulator frontend data: " << (unsigned) data_ptr[i] << std::endl; 
+                            std::cout << "Expected gem5 data: " << (unsigned) pkt->getPtr<uint8_t>()[i] << std::endl; 
+                        }
                         ramulator2_frontend->reset_data();
                     }
                     outstandingReads.erase(req.addr);
@@ -215,16 +222,19 @@ Ramulator2::recvTimingReq(PacketPtr pkt)
         }
     } else if (pkt->isWrite()) {
         // Generate ramulator WRITE request and try to send to ramulator's memory system
-        uint8_t payload = *pkt->getPtr<uint8_t>();
-        enqueue_success = ramulator2_frontend->
-            receive_external_requests(1, pkt->getAddr(), 0, payload,
+        int payload_size = pkt->getSize();
+        uint8_t* payload = new uint8_t[payload_size];
+        pkt->writeData(payload);
+        enqueue_success  = ramulator2_frontend->
+            receive_external_requests(1, pkt->getAddr(), 0, payload, payload_size,
             [this](Ramulator::Request& req) {
                 DPRINTF(Ramulator2, "Write to %ld completed.\n", req.addr);
                 auto& pkt_q = outstandingWrites.find(req.addr)->second;
                 PacketPtr pkt = pkt_q.front();
                 pkt_q.pop_front();
-                if (!pkt_q.size())
+                if (!pkt_q.size()) {
                     outstandingWrites.erase(req.addr);
+                }
 
                 // added counter to track requests in flight
                 --nbrOutstandingWrites;
@@ -268,7 +278,7 @@ void
 Ramulator2::accessAndRespond(PacketPtr pkt)
 {
     DPRINTF(Ramulator2, "Access for address %lld\n", pkt->getAddr());
-
+    
     bool needsResponse = pkt->needsResponse();
 
     access(pkt);
