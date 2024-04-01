@@ -33,12 +33,13 @@ struct Request {
 
   std::function<void(Request&)> callback;
 
-  uint8_t payload = 0;    // Generic payload
+  uint8_t* payload = 0;    // Generic payload
+  int payload_size = 0;
 
   Request(Addr_t addr, int type);
   Request(AddrVec_t addr_vec, int type);
   Request(Addr_t addr, int type, int source_id, std::function<void(Request&)> callback);
-  Request(Addr_t addr, int type, int source_id, uint8_t payload, std::function<void(Request&)> callback);
+  Request(Addr_t addr, int type, int source_id, uint8_t* payload, int payload_size, std::function<void(Request&)> callback);
 };
 
 
