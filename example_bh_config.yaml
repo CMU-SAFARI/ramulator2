@@ -35,6 +35,9 @@ MemorySystem:
       impl: BLISS
     RefreshManager:
       impl: AllBank
+    RowPolicy:
+      impl: CloseRowPolicy
+      cap: 4
     plugins:
     - ControllerPlugin:
         blacklist_thresh: 4

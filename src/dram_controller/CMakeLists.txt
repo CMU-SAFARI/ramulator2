@@ -8,6 +8,7 @@ target_sources(
   scheduler.h 
   plugin.h
   refresh.h
+  rowpolicy.h
 
   impl/bh_dram_controller.cpp
   impl/dummy_controller.cpp
@@ -20,6 +21,8 @@ target_sources(
 
   impl/refresh/all_bank_refresh.cpp
   
+  impl/rowpolicy/basic_rowpolicies.cpp
+
   impl/plugin/trace_recorder.cpp
   impl/plugin/cmd_counter.cpp
   impl/plugin/para.cpp
