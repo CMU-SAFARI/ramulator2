@@ -18,7 +18,7 @@ target_sources(
   impl/scheduler/generic_scheduler.cpp
 
   impl/refresh/all_bank_refresh.cpp
-
+  
   impl/plugin/trace_recorder.cpp
   impl/plugin/cmd_counter.cpp
   impl/plugin/para.cpp
@@ -28,6 +28,7 @@ target_sources(
   impl/plugin/hydra.cpp
   impl/plugin/rrs.cpp
   impl/plugin/aqua.cpp
+  impl/plugin/rfm_manager.cpp
 
   impl/plugin/blockhammer/blockhammer_throttler.h 
   impl/plugin/blockhammer/blockhammer_util.h 

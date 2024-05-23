@@ -19,7 +19,7 @@ MemorySystem:
   clock_ratio: 3
 
   DRAM:
-    impl: DDR5
+    impl: DDR5-VRR
     org:
       preset: DDR5_16Gb_x8
       channel: 1
@@ -36,6 +36,9 @@ MemorySystem:
     RefreshManager:
       impl: AllBank
     plugins:
+    - ControllerPlugin:
+        rfm_thresh: 80
+        impl: RFMManager
     - ControllerPlugin:
         bf_ctr_thresh: 1024
         bf_num_rh: 4096

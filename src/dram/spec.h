@@ -32,7 +32,15 @@ struct DRAMCommandMeta {
   bool is_opening = false;
   bool is_closing = false;
   bool is_accessing = false;
-  bool is_refreshing = false;  
+  bool is_refreshing = false;
+  bool is_sb_cmd = false;
+};
+
+// Future action entries
+struct FutureAction {
+  Command_t cmd;
+  AddrVec_t addr_vec;
+  Clk_t clk;
 };
 
 // Timing Constraint
@@ -285,6 +293,34 @@ ImplLUT<N, M, int> LUT (const ImplDef<N>& key_def, const ImplDef<M>& value_def, 
   return ImplLUT<N, M, int>(key_def, value_def, lut);
 };
 
-}        // namespace Ramulator
+struct PowerStats {
+  public:
+    int rank_id = -1;
+
+    enum class PowerState {
+      IDLE = 0,
+      ACTIVE = 1,
+      REFRESHING = 2
+    };
+    PowerState cur_power_state = PowerState::IDLE;
+
+    double act_background_energy = 0;
+    double pre_background_energy = 0;
+
+    double total_background_energy = 0;
+    double total_cmd_energy = 0;
+    double total_energy = 0;
+
+    std::vector<size_t> cmd_counters;
+
+    Clk_t active_cycles = 0;
+    Clk_t idle_cycles = 0;
+
+    Clk_t active_start_cycle = -1; // initially rank is not active
+    Clk_t idle_start_cycle = 0;
+    
+};        
+
+}// namespace Ramulator
 
 #endif   // RAMULATOR_DEVICE_DEVICE_H

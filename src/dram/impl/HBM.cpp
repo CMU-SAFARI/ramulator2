@@ -96,7 +96,7 @@ class HBM : public IDRAM, public Implementation {
    *                 Node States
    ***********************************************/
     inline static constexpr ImplDef m_states = {
-       "Opened", "Closed", "N/A"
+       "Opened", "Closed", "N/A", "Refreshing"
     };
 
     inline static const ImplLUT m_init_states = LUT (
@@ -158,6 +158,11 @@ class HBM : public IDRAM, public Implementation {
     bool check_rowbuffer_hit(int command, const AddrVec_t& addr_vec) override {
       int channel_id = addr_vec[m_levels["channel"]];
       return m_channels[channel_id]->check_rowbuffer_hit(command, addr_vec, m_clk);
+    };
+    
+    bool check_node_open(int command, const AddrVec_t& addr_vec) override {
+      int channel_id = addr_vec[m_levels["channel"]];
+      return m_channels[channel_id]->check_node_open(command, addr_vec, m_clk);
     };
 
   private:

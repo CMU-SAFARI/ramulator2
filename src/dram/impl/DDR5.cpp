@@ -5,6 +5,9 @@ namespace Ramulator {
 
 class DDR5 : public IDRAM, public Implementation {
   RAMULATOR_REGISTER_IMPLEMENTATION(IDRAM, DDR5, "DDR5", "DDR5 Device Model")
+  private:
+    int m_RH_radius = -1;
+
 
   public:
     inline static const std::map<std::string, Organization> org_presets = {
@@ -30,6 +33,15 @@ class DDR5 : public IDRAM, public Implementation {
       {"DDR5_3200C",   {3200,   8,  28,  28,   28,   52,   79,   48,   12,  26,  2,    8,     8,     26+8+4,    8,     16,    26+8+16,   8,   -1,   -1,  -1,   -1,   -1,    -1,     30,    -1,   -1,   -1,     -1,     -1,    2,   625}},
     };
 
+    inline static const std::map<std::string, std::vector<double>> voltage_presets = {
+      //   name          VDD      VPP
+      {"Default",       {1.1,     1.8}},
+    };
+
+    inline static const std::map<std::string, std::vector<double>> current_presets = {
+      // name           IDD0  IDD2N   IDD3N   IDD4R   IDD4W   IDD5B   IPP0  IPP2N  IPP3N  IPP4R  IPP4W  IPP5B
+      {"Default",       {60,   50,     55,     145,    145,    362,     3,    3,     3,     3,     3,     48}},
+    };
   /************************************************
    *                Organization
    ***********************************************/   
@@ -47,34 +59,45 @@ class DDR5 : public IDRAM, public Implementation {
       "ACT", 
       "PRE", "PREA", "PREsb",
       "RD",  "WR",  "RDA",  "WRA",
-      "REFab",  "REFsb",
-      "RFMab",  "RFMsb",
-      "DRFMab", "DRFMsb",
+      "REFab",  "REFsb", "REFab_end", "REFsb_end",
+      "RFMab",  "RFMsb", "RFMab_end", "RFMsb_end",
+      "DRFMab", "DRFMsb", "DRFMab_end", "DRFMsb_end",
     };
 
     inline static const ImplLUT m_command_scopes = LUT (
       m_commands, m_levels, {
         {"ACT",   "row"},
-        {"PRE",   "bank"},   {"PREA",   "rank"},   {"PREsb", "bankgroup"},
+        {"PRE",   "bank"},   {"PREA",   "rank"},   {"PREsb", "bank"},
         {"RD",    "column"}, {"WR",     "column"}, {"RDA",   "column"}, {"WRA",   "column"},
-        {"REFab",  "rank"},  {"REFsb",  "bankgroup"},  
-        {"RFMab",  "rank"},  {"RFMsb",  "bankgroup"},  
-        {"DRFMab", "rank"},  {"DRFMsb", "bankgroup"},  
+        {"REFab",  "rank"},  {"REFsb",  "bank"}, {"REFab_end",  "rank"},  {"REFsb_end",  "bank"},
+        {"RFMab",  "rank"},  {"RFMsb",  "bank"}, {"RFMab_end",  "rank"},  {"RFMsb_end",  "bank"},
+        {"DRFMab", "rank"},  {"DRFMsb", "bank"}, {"DRFMab_end", "rank"},  {"DRFMsb_end", "bank"},
       }
     );
 
     inline static const ImplLUT m_command_meta = LUT<DRAMCommandMeta> (
       m_commands, {
-                // open?   close?   access?  refresh?
-        {"ACT",   {true,   false,   false,   false}},
-        {"PRE",   {false,  true,    false,   false}},
-        {"PREA",  {false,  true,    false,   false}},
-        {"PREsb", {false,  true,    false,   false}},
-        {"RD",    {false,  false,   true,    false}},
-        {"WR",    {false,  false,   true,    false}},
-        {"RDA",   {false,  true,    true,    false}},
-        {"WRA",   {false,  true,    true,    false}},
-        {"REFab", {false,  false,   false,   true }},
+                      // open?   close?   access?  refresh?
+        {"ACT",         {true,   false,   false,   false}},
+        {"PRE",         {false,  true,    false,   false}},
+        {"PREA",        {false,  true,    false,   false}},
+        {"PREsb",       {false,  true,    false,   false}},
+        {"RD",          {false,  false,   true,    false}},
+        {"WR",          {false,  false,   true,    false}},
+        {"RDA",         {false,  true,    true,    false}},
+        {"WRA",         {false,  true,    true,    false}},
+        {"REFab",       {false,  false,   false,   true }},
+        {"REFsb",       {false,  false,   false,   true }},
+        {"REFab_end",   {false,  true,    false,   false}},
+        {"REFsb_end",   {false,  true,    false,   false}},
+        {"RFMab",       {false,  false,   false,   true }},
+        {"RFMsb",       {false,  false,   false,   true }},
+        {"RFMab_end",   {false,  true,    false,   false}},
+        {"RFMsb_end",   {false,  true,    false,   false}},
+        {"DRFMab",      {false,  false,   false,   true }},
+        {"DRFMsb",      {false,  false,   false,   true }},
+        {"DRFMab_end",  {false,  true,    false,   false}},
+        {"DRFMsb_end",  {false,  true,    false,   false}},
       }
     );
 
@@ -83,6 +106,7 @@ class DDR5 : public IDRAM, public Implementation {
       "all-bank-refresh", "same-bank-refresh", 
       "rfm", "same-bank-rfm",
       "directed-rfm", "same-bank-directed-rfm",
+      "open-row", "close-row"
     };
 
     inline static const ImplLUT m_request_translations = LUT (
@@ -91,10 +115,10 @@ class DDR5 : public IDRAM, public Implementation {
         {"all-bank-refresh", "REFab"}, {"same-bank-refresh", "REFsb"}, 
         {"rfm", "RFMab"}, {"same-bank-rfm", "RFMsb"}, 
         {"directed-rfm", "DRFMab"}, {"same-bank-directed-rfm", "DRFMsb"}, 
+        {"open-row", "ACT"}, {"close-row", "PRE"}
       }
     );
 
-   
   /************************************************
    *                   Timing
    ***********************************************/
@@ -112,13 +136,28 @@ class DDR5 : public IDRAM, public Implementation {
       "nCS",
       "tCK_ps"
     };
+   
+  /************************************************
+   *                   Power
+   ***********************************************/
+    inline static constexpr ImplDef m_voltages = {
+      "VDD", "VPP"
+    };
+    
+    inline static constexpr ImplDef m_currents = {
+      "IDD0", "IDD2N", "IDD3N", "IDD4R", "IDD4W", "IDD5B",
+      "IPP0", "IPP2N", "IPP3N", "IPP4R", "IPP4W", "IPP5B"
+    };
 
+    inline static constexpr ImplDef m_cmds_counted = {
+      "ACT", "PRE", "RD", "WR", "REF", "RFM"
+    };
 
   /************************************************
    *                 Node States
    ***********************************************/
     inline static constexpr ImplDef m_states = {
-       "Opened", "Closed", "PowerUp", "N/A"
+       "Opened", "Closed", "PowerUp", "N/A", "Refreshing"
     };
 
     inline static const ImplLUT m_init_states = LUT (
@@ -142,7 +181,11 @@ class DDR5 : public IDRAM, public Implementation {
     FuncMatrix<PreqFunc_t<Node>>    m_preqs;
     FuncMatrix<RowhitFunc_t<Node>>  m_rowhits;
     FuncMatrix<RowopenFunc_t<Node>> m_rowopens;
+    FuncMatrix<PowerFunc_t<Node>>   m_powers;
 
+    double s_total_rfm_energy = 0.0;
+
+    std::vector<size_t> s_total_rfm_cycles;
 
   /************************************************
    *                 RFM Related
@@ -154,6 +197,15 @@ class DDR5 : public IDRAM, public Implementation {
   public:
     void tick() override {
       m_clk++;
+
+      // Check if there is any future action at this cycle
+      for (int i = m_future_actions.size() - 1; i >= 0; i--) {
+        auto& future_action = m_future_actions[i];
+        if (future_action.clk == m_clk) {
+          handle_future_action(future_action.cmd, future_action.addr_vec);
+          m_future_actions.erase(m_future_actions.begin() + i);
+        }
+      }
     };
 
     void init() override {
@@ -165,6 +217,7 @@ class DDR5 : public IDRAM, public Implementation {
       set_preqs();
       set_rowhits();
       set_rowopens();
+      set_powers();
       
       create_nodes();
     };
@@ -172,7 +225,70 @@ class DDR5 : public IDRAM, public Implementation {
     void issue_command(int command, const AddrVec_t& addr_vec) override {
       int channel_id = addr_vec[m_levels["channel"]];
       m_channels[channel_id]->update_timing(command, addr_vec, m_clk);
+      m_channels[channel_id]->update_powers(command, addr_vec, m_clk);
       m_channels[channel_id]->update_states(command, addr_vec, m_clk);
+    
+      // Check if the command requires future action
+      check_future_action(command, addr_vec);
+    };
+
+    void check_future_action(int command, const AddrVec_t& addr_vec) {
+      switch (command) {
+        case m_commands("REFab"):
+          m_future_actions.push_back({command, addr_vec, m_clk + m_timing_vals("nRFC1") - 1});
+          break;
+        case m_commands("REFsb"):
+          m_future_actions.push_back({command, addr_vec, m_clk + m_timing_vals("nRFCsb") - 1});
+          break;
+        case m_commands("RFMab"):
+          m_future_actions.push_back({command, addr_vec, m_clk + m_timing_vals("nRFM1") - 1});
+          break;
+        case m_commands("RFMsb"):
+          m_future_actions.push_back({command, addr_vec, m_clk + m_timing_vals("nRFMsb") - 1});
+          break;
+        case m_commands("DRFMab"):
+          m_future_actions.push_back({command, addr_vec, m_clk + m_timing_vals("nDRFMab") - 1});
+          break;
+        case m_commands("DRFMsb"):
+          m_future_actions.push_back({command, addr_vec, m_clk + m_timing_vals("nDRFMsb") - 1});
+          break;
+        default:
+          // Other commands do not require future actions
+          break;
+      }
+    }
+
+    void handle_future_action(int command, const AddrVec_t& addr_vec) {
+      int channel_id = addr_vec[m_levels["channel"]];
+      switch (command) {
+        case m_commands("REFab"):
+          m_channels[channel_id]->update_powers(m_commands("REFab_end"), addr_vec, m_clk);
+          m_channels[channel_id]->update_states(m_commands("REFab_end"), addr_vec, m_clk);
+          break;
+        case m_commands("REFsb"):
+          m_channels[channel_id]->update_powers(m_commands("REFsb_end"), addr_vec, m_clk);
+          m_channels[channel_id]->update_states(m_commands("REFsb_end"), addr_vec, m_clk);
+          break;
+        case m_commands("RFMab"):
+          m_channels[channel_id]->update_powers(m_commands("RFMab_end"), addr_vec, m_clk);
+          m_channels[channel_id]->update_states(m_commands("RFMab_end"), addr_vec, m_clk);
+          break;
+        case m_commands("RFMsb"):
+          m_channels[channel_id]->update_powers(m_commands("RFMsb_end"), addr_vec, m_clk);
+          m_channels[channel_id]->update_states(m_commands("RFMsb_end"), addr_vec, m_clk);
+          break;
+        case m_commands("DRFMab"):
+          m_channels[channel_id]->update_powers(m_commands("DRFMab_end"), addr_vec, m_clk);
+          m_channels[channel_id]->update_states(m_commands("DRFMab_end"), addr_vec, m_clk);
+          break;
+        case m_commands("DRFMsb"):
+          m_channels[channel_id]->update_powers(m_commands("DRFMsb_end"), addr_vec, m_clk);
+          m_channels[channel_id]->update_states(m_commands("DRFMsb_end"), addr_vec, m_clk);
+          break;
+        default:
+          // Other commands do not require future actions
+          break;
+      }
     };
 
     int get_preq_command(int command, const AddrVec_t& addr_vec) override {
@@ -188,6 +304,11 @@ class DDR5 : public IDRAM, public Implementation {
     bool check_rowbuffer_hit(int command, const AddrVec_t& addr_vec) override {
       int channel_id = addr_vec[m_levels["channel"]];
       return m_channels[channel_id]->check_rowbuffer_hit(command, addr_vec, m_clk);
+    };
+    
+    bool check_node_open(int command, const AddrVec_t& addr_vec) override {
+      int channel_id = addr_vec[m_levels["channel"]];
+      return m_channels[channel_id]->check_node_open(command, addr_vec, m_clk);
     };
 
   private:
@@ -238,7 +359,13 @@ class DDR5 : public IDRAM, public Implementation {
             m_organization.density
         );
       }
+      int num_channels = m_organization.count[m_levels["channel"]];
+      int num_ranks = m_organization.count[m_levels["rank"]];
+      s_total_rfm_cycles.resize(num_channels * num_ranks, 0);
 
+      for (int r = 0; r < num_channels * num_ranks; r++) {
+        register_stat(s_total_rfm_cycles[r]).name("total_rfm_cycles_rank{}", r);
+      }
     };
 
     void set_timing_vals() {
@@ -334,6 +461,8 @@ class DDR5 : public IDRAM, public Implementation {
         }
       }(m_organization.density);
 
+      m_RH_radius = param<int>("RH_radius").desc("The number of rows to refresh on each side").default_val(2);
+
       m_timing_vals("nRFC1")  = JEDEC_rounding_DDR5(tRFC_TABLE[0][density_id], tCK_ps);
       m_timing_vals("nRFC2")  = JEDEC_rounding_DDR5(tRFC_TABLE[1][density_id], tCK_ps);
       m_timing_vals("nRFCsb") = JEDEC_rounding_DDR5(tRFCsb_TABLE[0][density_id], tCK_ps);
@@ -341,7 +470,7 @@ class DDR5 : public IDRAM, public Implementation {
 
       m_timing_vals("nRFM1")  = m_timing_vals("nRFC1");
       m_timing_vals("nRFM2")  = m_timing_vals("nRFC2");
-      m_timing_vals("nRFMsb") = m_timing_vals("nRFCsb");
+      m_timing_vals("nRFMsb") = m_timing_vals("nRFCsb") * m_RH_radius;
 
       // tRRF table (unit is nanosecond!)
       constexpr int tRRFsb_TABLE[2][3] = {
@@ -350,8 +479,8 @@ class DDR5 : public IDRAM, public Implementation {
         { 60,  60,  60 }, // tRRFsb
       };
       m_BRC = param_group("RFM").param<int>("BRC").default_val(2);
-      m_timing_vals("nDRFMab") = m_BRC * JEDEC_rounding_DDR5(tRRFsb_TABLE[0][density_id], tCK_ps);
-      m_timing_vals("nDRFMsb") = m_BRC * JEDEC_rounding_DDR5(tRRFsb_TABLE[1][density_id], tCK_ps);
+      m_timing_vals("nDRFMab") = 2 * m_BRC * JEDEC_rounding_DDR5(tRRFsb_TABLE[0][density_id], tCK_ps);
+      m_timing_vals("nDRFMsb") = 2 * m_BRC * JEDEC_rounding_DDR5(tRRFsb_TABLE[1][density_id], tCK_ps);
 
 
       // Overwrite timing parameters with any user-provided value
@@ -413,13 +542,16 @@ class DDR5 : public IDRAM, public Implementation {
           {.level = "rank", .preceding = {"PREA"}, .following = {"ACT"}, .latency = V("nRP")},          
           /// RAS <-> REF
           {.level = "rank", .preceding = {"ACT"}, .following = {"REFab", "RFMab", "DRFMab"}, .latency = V("nRC")},          
-          {.level = "rank", .preceding = {"PRE", "PREA"}, .following = {"REFab", "RFMab", "DRFMab"}, .latency = V("nRP")},          
+          {.level = "rank", .preceding = {"PRE", "PREsb"}, .following = {"REFab", "RFMab", "DRFMab"}, .latency = V("nRP")},          
+          {.level = "rank", .preceding = {"PREA"}, .following = {"REFab", "RFMab", "DRFMab", "REFsb", "RFMsb", "DRFMsb"}, .latency = V("nRP")},          
           {.level = "rank", .preceding = {"RDA"}, .following = {"REFab", "RFMab", "DRFMab"}, .latency = V("nRP") + V("nRTP")},          
           {.level = "rank", .preceding = {"WRA"}, .following = {"REFab", "RFMab", "DRFMab"}, .latency = V("nCWL") + V("nBL") + V("nWR") + V("nRP")},          
-          {.level = "rank", .preceding = {"REFab"}, .following = {"ACT"}, .latency = V("nRFC1")},          
-          {.level = "rank", .preceding = {"RFMab"}, .following = {"ACT"}, .latency = V("nRFM1")},          
-          {.level = "rank", .preceding = {"DRFMab"}, .following = {"ACT"}, .latency = V("nDRFMab")},          
-
+          {.level = "rank", .preceding = {"REFab"}, .following = {"ACT", "PREA", "REFab", "RFMab", "DRFMab", "REFsb", "RFMsb", "DRFMsb"}, .latency = V("nRFC1")},          
+          {.level = "rank", .preceding = {"RFMab"}, .following = {"ACT", "PREA", "REFab", "RFMab", "DRFMab", "REFsb", "RFMsb", "DRFMsb"}, .latency = V("nRFM1")},          
+          {.level = "rank", .preceding = {"DRFMab"}, .following = {"ACT", "PREA", "REFab", "RFMab", "DRFMab", "REFsb", "RFMsb", "DRFMsb"}, .latency = V("nDRFMab")},          
+          {.level = "rank", .preceding = {"REFsb"},  .following = {"PREA", "REFab", "RFMab", "DRFMab"}, .latency = V("nRFCsb")},  
+          {.level = "rank", .preceding = {"RFMsb"},  .following = {"PREA", "REFab", "RFMab", "DRFMab"}, .latency = V("nRFMsb")},  
+          {.level = "rank", .preceding = {"DRFMsb"}, .following = {"PREA", "REFab", "RFMab", "DRFMab"}, .latency = V("nDRFMsb")},  
           /*** Same Bank Group ***/ 
           /// CAS <-> CAS
           {.level = "bankgroup", .preceding = {"RD", "RDA"}, .following = {"RD", "RDA"}, .latency = V("nCCDL")},          
@@ -429,14 +561,14 @@ class DDR5 : public IDRAM, public Implementation {
           {.level = "bankgroup", .preceding = {"ACT"}, .following = {"ACT"}, .latency = V("nRRDL")},  
 
           /*** Bank ***/ 
-          {.level = "bank", .preceding = {"ACT"}, .following = {"ACT"}, .latency = V("nRC")},  
+          {.level = "bank", .preceding = {"ACT"}, .following = {"ACT", "REFsb", "RFMsb", "DRFMsb"}, .latency = V("nRC")},  
           {.level = "bank", .preceding = {"ACT"}, .following = {"RD", "RDA", "WR", "WRA"}, .latency = V("nRCD")},  
-          {.level = "bank", .preceding = {"ACT"}, .following = {"PRE"}, .latency = V("nRAS")},  
-          {.level = "bank", .preceding = {"PRE"}, .following = {"ACT"}, .latency = V("nRP")},  
-          {.level = "bank", .preceding = {"RD"},  .following = {"PRE"}, .latency = V("nRTP")},  
-          {.level = "bank", .preceding = {"WR"},  .following = {"PRE"}, .latency = V("nCWL") + V("nBL") + V("nWR")},  
-          {.level = "bank", .preceding = {"RDA"}, .following = {"ACT"}, .latency = V("nRTP") + V("nRP")},  
-          {.level = "bank", .preceding = {"WRA"}, .following = {"ACT"}, .latency = V("nCWL") + V("nBL") + V("nWR") + V("nRP")},  
+          {.level = "bank", .preceding = {"ACT"}, .following = {"PRE", "PREsb"}, .latency = V("nRAS")},  
+          {.level = "bank", .preceding = {"PRE", "PREsb"}, .following = {"ACT", "REFsb", "RFMsb", "DRFMsb"}, .latency = V("nRP")},  
+          {.level = "bank", .preceding = {"RD"},  .following = {"PRE", "PREsb"}, .latency = V("nRTP")},  
+          {.level = "bank", .preceding = {"WR"},  .following = {"PRE", "PREsb"}, .latency = V("nCWL") + V("nBL") + V("nWR")},  
+          {.level = "bank", .preceding = {"RDA"}, .following = {"ACT", "REFsb", "RFMsb", "DRFMsb"}, .latency = V("nRTP") + V("nRP")},  
+          {.level = "bank", .preceding = {"WRA"}, .following = {"ACT", "REFsb", "RFMsb", "DRFMsb"}, .latency = V("nCWL") + V("nBL") + V("nWR") + V("nRP")},  
           {.level = "bank", .preceding = {"WR"},  .following = {"RDA"}, .latency = V("nCWL") + V("nBL") + V("nWR") - V("nRTP")},  
 
           /// Same-bank refresh/RFM timings. The timings of the bank in other BGs will be updated by action function
@@ -454,14 +586,23 @@ class DDR5 : public IDRAM, public Implementation {
 
       // Rank Actions
       m_actions[m_levels["rank"]][m_commands["PREA"]] = Lambdas::Action::Rank::PREab<DDR5>;
-
+      m_actions[m_levels["rank"]][m_commands["REFab"]] = Lambdas::Action::Rank::REFab<DDR5>;
+      m_actions[m_levels["rank"]][m_commands["REFab_end"]] = Lambdas::Action::Rank::REFab_end<DDR5>;
+      m_actions[m_levels["rank"]][m_commands["RFMab"]] = Lambdas::Action::Rank::REFab<DDR5>;
+      m_actions[m_levels["rank"]][m_commands["RFMab_end"]] = Lambdas::Action::Rank::REFab_end<DDR5>;
+      m_actions[m_levels["rank"]][m_commands["DRFMab"]] = Lambdas::Action::Rank::REFab<DDR5>;
+      m_actions[m_levels["rank"]][m_commands["DRFMab_end"]] = Lambdas::Action::Rank::REFab_end<DDR5>;
+      
       // Same-Bank Actions.
       m_actions[m_levels["bankgroup"]][m_commands["PREsb"]] = Lambdas::Action::BankGroup::PREsb<DDR5>;
 
       // We call update_timing for the banks in other BGs here
-      m_actions[m_levels["bankgroup"]][m_commands["REFsb"]]  = Lambdas::Action::BankGroup::SameBankActions<DDR5>;
-      m_actions[m_levels["bankgroup"]][m_commands["RFMsb"]]  = Lambdas::Action::BankGroup::SameBankActions<DDR5>;
-      m_actions[m_levels["bankgroup"]][m_commands["DRFMsb"]] = Lambdas::Action::BankGroup::SameBankActions<DDR5>;
+      m_actions[m_levels["bankgroup"]][m_commands["REFsb"]]  = Lambdas::Action::BankGroup::REFsb<DDR5>;
+      m_actions[m_levels["bankgroup"]][m_commands["REFsb_end"]]  = Lambdas::Action::BankGroup::REFsb_end<DDR5>;
+      m_actions[m_levels["bankgroup"]][m_commands["RFMsb"]]  = Lambdas::Action::BankGroup::REFsb<DDR5>;
+      m_actions[m_levels["bankgroup"]][m_commands["RFMsb_end"]]  = Lambdas::Action::BankGroup::REFsb_end<DDR5>;
+      m_actions[m_levels["bankgroup"]][m_commands["DRFMsb"]] = Lambdas::Action::BankGroup::REFsb<DDR5>;
+      m_actions[m_levels["bankgroup"]][m_commands["DRFMsb_end"]] = Lambdas::Action::BankGroup::REFsb_end<DDR5>;
 
       // Bank actions
       m_actions[m_levels["bank"]][m_commands["ACT"]] = Lambdas::Action::Bank::ACT<DDR5>;
@@ -479,13 +620,15 @@ class DDR5 : public IDRAM, public Implementation {
       m_preqs[m_levels["rank"]][m_commands["DRFMab"]] = Lambdas::Preq::Rank::RequireAllBanksClosed<DDR5>;
 
       // Same-Bank Preqs.
-      m_preqs[m_levels["bankgroup"]][m_commands["REFsb"]]  = Lambdas::Preq::Rank::RequireSameBanksClosed<DDR5>;
-      m_preqs[m_levels["bankgroup"]][m_commands["RFMsb"]]  = Lambdas::Preq::Rank::RequireSameBanksClosed<DDR5>;
-      m_preqs[m_levels["bankgroup"]][m_commands["DRFMsb"]] = Lambdas::Preq::Rank::RequireSameBanksClosed<DDR5>;
+      m_preqs[m_levels["rank"]][m_commands["REFsb"]]  = Lambdas::Preq::Rank::RequireSameBanksClosed<DDR5>;
+      m_preqs[m_levels["rank"]][m_commands["RFMsb"]]  = Lambdas::Preq::Rank::RequireSameBanksClosed<DDR5>;
+      m_preqs[m_levels["rank"]][m_commands["DRFMsb"]] = Lambdas::Preq::Rank::RequireSameBanksClosed<DDR5>;
 
       // Bank Preqs
       m_preqs[m_levels["bank"]][m_commands["RD"]] = Lambdas::Preq::Bank::RequireRowOpen<DDR5>;
       m_preqs[m_levels["bank"]][m_commands["WR"]] = Lambdas::Preq::Bank::RequireRowOpen<DDR5>;
+      m_preqs[m_levels["bank"]][m_commands["ACT"]] = Lambdas::Preq::Bank::RequireRowOpen<DDR5>;
+      m_preqs[m_levels["bank"]][m_commands["PRE"]] = Lambdas::Preq::Bank::RequireBankClosed<DDR5>;
     };
 
     void set_rowhits() {
@@ -503,6 +646,89 @@ class DDR5 : public IDRAM, public Implementation {
       m_rowopens[m_levels["bank"]][m_commands["WR"]] = Lambdas::RowOpen::Bank::RDWR<DDR5>;
     }
 
+    void set_powers() {
+      
+      m_drampower_enable = param<bool>("drampower_enable").default_val(false);
+
+      if (!m_drampower_enable)
+        return;
+
+      m_voltage_vals.resize(m_voltages.size(), -1);
+
+      if (auto preset_name = param_group("voltage").param<std::string>("preset").optional()) {
+        if (voltage_presets.count(*preset_name) > 0) {
+          m_voltage_vals = voltage_presets.at(*preset_name);
+        } else {
+          throw ConfigurationError("Unrecognized voltage preset \"{}\" in {}!", *preset_name, get_name());
+        }
+      }
+
+      m_current_vals.resize(m_currents.size(), -1);
+
+      if (auto preset_name = param_group("current").param<std::string>("preset").optional()) {
+        if (current_presets.count(*preset_name) > 0) {
+          m_current_vals = current_presets.at(*preset_name);
+        } else {
+          throw ConfigurationError("Unrecognized current preset \"{}\" in {}!", *preset_name, get_name());
+        }
+      }
+
+      m_power_debug = param<bool>("power_debug").default_val(false);
+
+      // TODO: Check for multichannel configs.
+      int num_channels = m_organization.count[m_levels["channel"]];
+      int num_ranks = m_organization.count[m_levels["rank"]];
+      m_power_stats.resize(num_channels * num_ranks);
+      for (int i = 0; i < num_channels; i++) {
+        for (int j = 0; j < num_ranks; j++) {
+          m_power_stats[i * num_ranks + j].rank_id = i * num_ranks + j;
+          m_power_stats[i * num_ranks + j].cmd_counters.resize(m_cmds_counted.size(), 0);
+        }
+      }
+
+      m_powers.resize(m_levels.size(), std::vector<PowerFunc_t<Node>>(m_commands.size()));
+
+      m_powers[m_levels["bank"]][m_commands["ACT"]] = Lambdas::Power::Bank::ACT<DDR5>;
+      m_powers[m_levels["bank"]][m_commands["PRE"]] = Lambdas::Power::Bank::PRE<DDR5>;
+      m_powers[m_levels["bank"]][m_commands["RD"]]  = Lambdas::Power::Bank::RD<DDR5>;
+      m_powers[m_levels["bank"]][m_commands["WR"]]  = Lambdas::Power::Bank::WR<DDR5>;
+
+      // m_powers[m_levels["rank"]][m_commands["REFsb"]] = Lambdas::Power::Rank::REFsb<DDR5>;
+      // m_powers[m_levels["rank"]][m_commands["REFsb_end"]] = Lambdas::Power::Rank::REFsb_end<DDR5>;
+      m_powers[m_levels["rank"]][m_commands["RFMsb"]] = Lambdas::Power::Rank::RFMsb<DDR5>;
+      m_powers[m_levels["rank"]][m_commands["RFMsb_end"]] = Lambdas::Power::Rank::RFMsb_end<DDR5>;
+      // m_powers[m_levels["rank"]][m_commands["DRFMsb"]] = Lambdas::Power::Rank::REFsb<DDR5>;
+      // m_powers[m_levels["rank"]][m_commands["DRFMsb_end"]] = Lambdas::Power::Rank::REFsb_end<DDR5>;
+
+      m_powers[m_levels["rank"]][m_commands["ACT"]] = Lambdas::Power::Rank::ACT<DDR5>;
+      m_powers[m_levels["rank"]][m_commands["PRE"]] = Lambdas::Power::Rank::PRE<DDR5>;
+      m_powers[m_levels["rank"]][m_commands["PREA"]] = Lambdas::Power::Rank::PREA<DDR5>;
+      m_powers[m_levels["rank"]][m_commands["REFab"]] = Lambdas::Power::Rank::REFab<DDR5>;
+      m_powers[m_levels["rank"]][m_commands["REFab_end"]] = Lambdas::Power::Rank::REFab_end<DDR5>;
+      // m_powers[m_levels["rank"]][m_commands["RFMab"]] = Lambdas::Power::Rank::REFab<DDR5>;
+      // m_powers[m_levels["rank"]][m_commands["RFMab_end"]] = Lambdas::Power::Rank::REFab_end<DDR5>;
+      // m_powers[m_levels["rank"]][m_commands["DRFMab"]] = Lambdas::Power::Rank::REFab<DDR5>;
+      // m_powers[m_levels["rank"]][m_commands["DRFMab_end"]] = Lambdas::Power::Rank::REFab_end<DDR5>;
+
+      m_powers[m_levels["rank"]][m_commands["PREsb"]] = Lambdas::Power::Rank::PREsb<DDR5>;
+
+      // register stats
+      register_stat(s_total_background_energy).name("total_background_energy");
+      register_stat(s_total_cmd_energy).name("total_cmd_energy");
+      register_stat(s_total_energy).name("total_energy");
+      register_stat(s_total_rfm_energy).name("total_rfm_energy");
+
+            
+      for (auto& power_stat : m_power_stats){
+        register_stat(power_stat.total_background_energy).name("total_background_energy_rank{}", power_stat.rank_id);
+        register_stat(power_stat.total_cmd_energy).name("total_cmd_energy_rank{}", power_stat.rank_id);
+        register_stat(power_stat.total_energy).name("total_energy_rank{}", power_stat.rank_id);
+        register_stat(power_stat.act_background_energy).name("act_background_energy_rank{}", power_stat.rank_id);
+        register_stat(power_stat.pre_background_energy).name("pre_background_energy_rank{}", power_stat.rank_id);
+        register_stat(power_stat.active_cycles).name("active_cycles_rank{}", power_stat.rank_id);
+        register_stat(power_stat.idle_cycles).name("idle_cycles_rank{}", power_stat.rank_id);
+      }
+    }
 
     void create_nodes() {
       int num_channels = m_organization.count[m_levels["channel"]];
@@ -510,7 +736,75 @@ class DDR5 : public IDRAM, public Implementation {
         Node* channel = new Node(this, nullptr, 0, i);
         m_channels.push_back(channel);
       }
-    };
+    }
+    
+    void finalize() override {
+      if (!m_drampower_enable)
+        return;
+
+      int num_channels = m_organization.count[m_levels["channel"]];
+      int num_ranks = m_organization.count[m_levels["rank"]];
+      for (int i = 0; i < num_channels; i++) {
+        for (int j = 0; j < num_ranks; j++) {
+          process_rank_energy(m_power_stats[i * num_ranks + j], m_channels[i]->m_child_nodes[j]);
+        }
+      }
+    }
+
+    void process_rank_energy(PowerStats& rank_stats, Node* rank_node) {
+      
+      Lambdas::Power::Rank::finalize_rank<DDR5>(rank_node, 0, AddrVec_t(), m_clk);
+
+      size_t num_bankgroups = m_organization.count[m_levels["bankgroup"]];
+
+      auto TS = [&](std::string_view timing) { return m_timing_vals(timing); };
+      auto VE = [&](std::string_view voltage) { return m_voltage_vals(voltage); };
+      auto CE = [&](std::string_view current) { return m_current_vals(current); };
+
+      double tCK_ns = (double) TS("tCK_ps") / 1000.0;
+
+      rank_stats.act_background_energy = (VE("VDD") * CE("IDD3N") + VE("VPP") * CE("IPP3N")) 
+                                            * rank_stats.active_cycles * tCK_ns / 1E3;
+
+      rank_stats.pre_background_energy = (VE("VDD") * CE("IDD2N") + VE("VPP") * CE("IPP2N")) 
+                                            * rank_stats.idle_cycles * tCK_ns / 1E3;
+
+
+      double act_cmd_energy  = (VE("VDD") * (CE("IDD0") - CE("IDD3N")) + VE("VPP") * (CE("IPP0") - CE("IPP3N"))) 
+                                      * rank_stats.cmd_counters[m_cmds_counted("ACT")] * TS("nRAS") * tCK_ns / 1E3;
+
+      double pre_cmd_energy  = (VE("VDD") * (CE("IDD0") - CE("IDD2N")) + VE("VPP") * (CE("IPP0") - CE("IPP2N"))) 
+                                      * rank_stats.cmd_counters[m_cmds_counted("PRE")] * TS("nRP")  * tCK_ns / 1E3;
+
+      double rd_cmd_energy   = (VE("VDD") * (CE("IDD4R") - CE("IDD3N")) + VE("VPP") * (CE("IPP4R") - CE("IPP3N"))) 
+                                      * rank_stats.cmd_counters[m_cmds_counted("RD")] * TS("nBL") * tCK_ns / 1E3;
+
+      double wr_cmd_energy   = (VE("VDD") * (CE("IDD4W") - CE("IDD3N")) + VE("VPP") * (CE("IPP4W") - CE("IPP3N"))) 
+                                      * rank_stats.cmd_counters[m_cmds_counted("WR")] * TS("nBL") * tCK_ns / 1E3;
+
+      double ref_cmd_energy  = (VE("VDD") * (CE("IDD5B")) + VE("VPP") * (CE("IPP5B"))) 
+                                      * rank_stats.cmd_counters[m_cmds_counted("REF")] * TS("nRFC1") * tCK_ns / 1E3;
+
+      double rfm_cmd_energy = (VE("VDD") * (CE("IDD0") - CE("IDD3N")) + VE("VPP") * (CE("IPP0") - CE("IPP3N"))) * num_bankgroups
+                                      * rank_stats.cmd_counters[m_cmds_counted("RFM")] * TS("nRFMsb") * tCK_ns / 1E3;
+
+      rank_stats.total_background_energy = rank_stats.act_background_energy + rank_stats.pre_background_energy;
+      rank_stats.total_cmd_energy = act_cmd_energy 
+                                    + pre_cmd_energy 
+                                    + rd_cmd_energy
+                                    + wr_cmd_energy 
+                                    + ref_cmd_energy
+                                    + rfm_cmd_energy;
+
+      rank_stats.total_energy = rank_stats.total_background_energy + rank_stats.total_cmd_energy;
+
+      s_total_background_energy += rank_stats.total_background_energy;
+      s_total_cmd_energy += rank_stats.total_cmd_energy;
+      s_total_energy += rank_stats.total_energy;
+      s_total_rfm_energy += rfm_cmd_energy;
+
+      s_total_rfm_cycles[rank_stats.rank_id] = rank_stats.cmd_counters[m_cmds_counted("RFM")] * TS("nRFMsb");
+    }
 };
 
 

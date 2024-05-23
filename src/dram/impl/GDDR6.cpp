@@ -66,9 +66,9 @@ class GDDR6 : public IDRAM, public Implementation {
         {"WR",    {false,  false,   true,    false}},
         {"RDA",   {false,  true,    true,    false}},
         {"WRA",   {false,  true,    true,    false}},
-        {"REFab", {false,  false,   false,   true} }, //double check
-        {"REFpb", {false,  false,   false,   true} },
-        {"REFp2b",{false,  false,   false,   true} },
+        {"REFab", {false,  false,   false,   true }}, //double check
+        {"REFpb", {false,  false,   false,   true }},
+        {"REFp2b",{false,  false,   false,   true }},
       }
     );
 
@@ -103,7 +103,7 @@ class GDDR6 : public IDRAM, public Implementation {
    *                 Node States
    ***********************************************/
     inline static constexpr ImplDef m_states = {
-       "Opened", "Closed", "PowerUp", "N/A"
+       "Opened", "Closed", "PowerUp", "N/A", "Refreshing"
     };
 
     inline static const ImplLUT m_init_states = LUT (
@@ -165,6 +165,11 @@ class GDDR6 : public IDRAM, public Implementation {
     bool check_rowbuffer_hit(int command, const AddrVec_t& addr_vec) override {
       int channel_id = addr_vec[m_levels["channel"]];
       return m_channels[channel_id]->check_rowbuffer_hit(command, addr_vec, m_clk);
+    };
+    
+    bool check_node_open(int command, const AddrVec_t& addr_vec) override {
+      int channel_id = addr_vec[m_levels["channel"]];
+      return m_channels[channel_id]->check_node_open(command, addr_vec, m_clk);
     };
 
   private:
