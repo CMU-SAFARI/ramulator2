@@ -1,7 +1,7 @@
 Frontend:
   impl: BHO3
   clock_ratio: 8
-  num_expected_insts: 5000000
+  num_expected_insts: 1000000
   llc_capacity_per_core: 2MB
   llc_num_mshr_per_core: 16
   inst_window_depth: 128
@@ -19,13 +19,15 @@ MemorySystem:
   clock_ratio: 3
 
   DRAM:
-    impl: DDR4
+    impl: DDR5
     org:
-      preset: DDR4_8Gb_x8
+      preset: DDR5_16Gb_x8
       channel: 1
       rank: 2
     timing:
-      preset: DDR4_2400R 
+      preset: DDR5_3200AN 
+    RFM:
+      BRC: 2
 
   BHDRAMController:
     impl: BHDRAMController

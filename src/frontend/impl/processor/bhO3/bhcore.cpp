@@ -118,6 +118,9 @@ m_llc(llc), m_lat_hist_sens(lat_hist_sens), m_is_attacker(is_attacker) {
   m_num_bubbles = inst.bubble_count;
   m_load_addr = inst.load_addr;
   m_writeback_addr = inst.store_addr;
+  if (m_dump_path == "") {
+    return;
+  }
   m_dump_path = fmt::format("{}.core{}", dump_path, id);
   auto parent_path = m_dump_path.parent_path();
   std::filesystem::create_directories(parent_path);
@@ -223,6 +226,9 @@ void BHO3Core::receive(Request& req) {
 }
 
 void BHO3Core::dump_latency_histogram() {
+  if (m_dump_path == "") {
+    return;
+  }
   std::ofstream output(m_dump_path);
   for (const auto& [bucket_base, count] : m_lat_histogram) {
     output << fmt::format("{}, {}", bucket_base, count) << std::endl;

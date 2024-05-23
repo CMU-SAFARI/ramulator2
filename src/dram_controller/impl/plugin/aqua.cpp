@@ -8,7 +8,7 @@
 #include "dram_controller/plugin.h"
 #include "translation/translation.h"
 #include "addr_mapper/impl/rit.h"
-#include "dram_controller/impl/plugi/device_config/device_config.h"
+#include "dram_controller/impl/plugin/device_config/device_config.h"
 
 namespace Ramulator {
 
@@ -82,7 +82,6 @@ class AQUA : public IControllerPlugin, public Implementation {
       m_translation = frontend->get_ifce<ITranslation>();
 
       m_cfg.set_device(m_ctrl);
-      throttleable_setup(m_cfg.m_num_banks, 2);
 
       m_reset_period_clk = m_reset_period_ns / ((float) m_dram->m_timing_vals("tCK_ps") / 1000.0f);
 
@@ -301,9 +300,6 @@ class AQUA : public IControllerPlugin, public Implementation {
     }
 
     void issue_migration(ReqBuffer::iterator& req_it, int src_row, int dst_row) {
-      // increment operation counters
-      increment_operation(m_cfg.get_flat_bank_id(*req_it), req_it->source_id);
-
       // load addr_vec
       std::vector<int> addr_vec;
       for (int i = 0; i < req_it->addr_vec.size(); i++){

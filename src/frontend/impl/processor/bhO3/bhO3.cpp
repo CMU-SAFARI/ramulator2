@@ -24,7 +24,7 @@ void BHO3::init() {
   int depth = param<int>("inst_window_depth").desc("Instruction window size of the SimpleO3 core.").default_val(128);
 
   int lat_hist_sensitivity = param<int>("lat_hist_sensitivity").default_val(5);
-  std::string lat_dump_path = param<std::string>("lat_dump_path").required();
+  std::string lat_dump_path = param<std::string>("lat_dump_path").default_val(std::string(""));
 
   // LLC params
   int llc_latency           = param<int>("llc_latency").desc("Aggregated latency of the LLC.").default_val(47);
