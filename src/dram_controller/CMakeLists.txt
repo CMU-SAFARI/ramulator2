@@ -16,6 +16,7 @@ target_sources(
   impl/scheduler/bh_scheduler.cpp
   impl/scheduler/blocking_scheduler.cpp
   impl/scheduler/generic_scheduler.cpp
+  impl/scheduler/bliss_scheduler.cpp
 
   impl/refresh/all_bank_refresh.cpp
   
@@ -37,6 +38,9 @@ target_sources(
 
   impl/plugin/device_config/device_config.cpp 
   impl/plugin/device_config/device_config.h 
+
+  impl/plugin/bliss/bliss.cpp 
+  impl/plugin/bliss/bliss.h 
 )
 
 target_link_libraries(

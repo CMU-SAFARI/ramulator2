@@ -32,17 +32,21 @@ MemorySystem:
   BHDRAMController:
     impl: BHDRAMController
     BHScheduler:
-      impl: BHScheduler 
+      impl: BLISS
     RefreshManager:
       impl: AllBank
     plugins:
+    - ControllerPlugin:
+        blacklist_thresh: 4
+        unblacklist_cycles: 10000
+        impl: BLISS
     - ControllerPlugin:
         rfm_thresh: 80
         impl: RFMManager
     - ControllerPlugin:
         bf_ctr_thresh: 1024
         bf_num_rh: 4096
-        impl: BlockHammerPlugin
+        impl: BlockHammer
 
   AddrMapper:
     impl: RoBaRaCoCh_with_rit

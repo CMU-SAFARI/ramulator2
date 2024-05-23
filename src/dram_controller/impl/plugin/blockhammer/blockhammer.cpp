@@ -28,7 +28,7 @@ Logger_t m_logger;
 
 
 class BlockHammer : public IControllerPlugin, public Implementation, public IBlockHammer {
-  RAMULATOR_REGISTER_IMPLEMENTATION(IControllerPlugin, BlockHammer, "BlockHammerPlugin", "BlockHammer")
+  RAMULATOR_REGISTER_IMPLEMENTATION(IControllerPlugin, BlockHammer, "BlockHammer", "BlockHammer")
 
   typedef int elem_t;
   typedef uint16_t ctr_t;
