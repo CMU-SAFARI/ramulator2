@@ -24,6 +24,7 @@ DECLARE_DEBUG_FLAG(DBHO3LLC);
 
 class BHO3LLC : public Clocked<BHO3LLC> {
   friend class BHO3;
+
   struct Line {
     Addr_t addr = -1;
     Addr_t tag = -1;
@@ -99,7 +100,7 @@ class BHO3LLC : public Clocked<BHO3LLC> {
     void connect_memory_system(IMemorySystem* memory_system);
     
     void tick();
-    bool send(Request req);
+    bool send(Request& req);
     void receive(Request& req);
 
     void serialize(std::string serialization_filename);
@@ -112,11 +113,12 @@ class BHO3LLC : public Clocked<BHO3LLC> {
     // Currently not switching the following to setter for backwards portability.
     void add_blacklist(int source_id);
     void erase_blacklist(int source_id);
+    bool clflush(Addr_t addr);
     // BH Changes End
   private:
-    int get_index(Addr_t addr)  { return (addr >> m_index_offset) & m_index_mask; };
-    Addr_t get_tag(Addr_t addr) { return (addr >> m_tag_offset); };
-    Addr_t align(Addr_t addr)   { return (addr & ~(m_linesize_bytes-1l)); };
+    int get_index(Addr_t addr)  { return (addr >> m_index_offset) & m_index_mask; }
+    Addr_t get_tag(Addr_t addr) { return (addr >> m_tag_offset); }
+    Addr_t align(Addr_t addr)   { return (addr & ~(m_linesize_bytes-1l)); }
 
     CacheSet_t& get_set(Addr_t addr);
     CacheSet_t::iterator allocate_line(CacheSet_t& set, Addr_t addr);
