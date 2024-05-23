@@ -19,7 +19,6 @@ target_sources(
 
   impl/refresh/all_bank_refresh.cpp
 
-  # impl/plugin/trr.cpp
   impl/plugin/trace_recorder.cpp
   impl/plugin/cmd_counter.cpp
   impl/plugin/para.cpp
@@ -28,11 +27,15 @@ target_sources(
   impl/plugin/twice.cpp
   impl/plugin/hydra.cpp
   impl/plugin/rrs.cpp
+  impl/plugin/aqua.cpp
 
   impl/plugin/blockhammer/blockhammer_throttler.h 
   impl/plugin/blockhammer/blockhammer_util.h 
   impl/plugin/blockhammer/blockhammer.cpp 
   impl/plugin/blockhammer/blockhammer.h 
+
+  impl/plugin/device_config/device_config.cpp 
+  impl/plugin/device_config/device_config.h 
 )
 
 target_link_libraries(
