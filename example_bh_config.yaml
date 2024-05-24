@@ -1,7 +1,7 @@
 Frontend:
   impl: BHO3
   clock_ratio: 8
-  num_expected_insts: 1000000
+  num_expected_insts: 500000
   llc_capacity_per_core: 2MB
   llc_num_mshr_per_core: 16
   inst_window_depth: 128
@@ -36,7 +36,7 @@ MemorySystem:
     RefreshManager:
       impl: AllBank
     RowPolicy:
-      impl: CloseRowPolicy
+      impl: ClosedRowPolicy
       cap: 4
     plugins:
     - ControllerPlugin:

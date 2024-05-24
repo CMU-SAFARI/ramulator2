@@ -13,7 +13,6 @@
 #include "dram_controller/controller.h"
 #include "dram_controller/plugin.h"
 #include "dram_controller/refresh.h"
-#include "dram_controller/rowpolicy.h"
 
 namespace Ramulator {
 
@@ -22,7 +21,6 @@ class IBHDRAMController : public IDRAMController {
 
   public:
     IBHScheduler* m_scheduler = nullptr;
-    IRowPolicy*   m_rowpolicy = nullptr;
     virtual void tick() = 0;
 
     template <class T>
