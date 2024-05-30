@@ -8,6 +8,7 @@ target_sources(
   scheduler.h 
   plugin.h
   refresh.h
+  rowpolicy.h
 
   impl/bh_dram_controller.cpp
   impl/dummy_controller.cpp
@@ -16,10 +17,12 @@ target_sources(
   impl/scheduler/bh_scheduler.cpp
   impl/scheduler/blocking_scheduler.cpp
   impl/scheduler/generic_scheduler.cpp
+  impl/scheduler/bliss_scheduler.cpp
 
   impl/refresh/all_bank_refresh.cpp
+  
+  impl/rowpolicy/basic_rowpolicies.cpp
 
-  # impl/plugin/trr.cpp
   impl/plugin/trace_recorder.cpp
   impl/plugin/cmd_counter.cpp
   impl/plugin/para.cpp
@@ -28,11 +31,19 @@ target_sources(
   impl/plugin/twice.cpp
   impl/plugin/hydra.cpp
   impl/plugin/rrs.cpp
+  impl/plugin/aqua.cpp
+  impl/plugin/rfm_manager.cpp
 
   impl/plugin/blockhammer/blockhammer_throttler.h 
   impl/plugin/blockhammer/blockhammer_util.h 
   impl/plugin/blockhammer/blockhammer.cpp 
   impl/plugin/blockhammer/blockhammer.h 
+
+  impl/plugin/device_config/device_config.cpp 
+  impl/plugin/device_config/device_config.h 
+
+  impl/plugin/bliss/bliss.cpp 
+  impl/plugin/bliss/bliss.h 
 )
 
 target_link_libraries(

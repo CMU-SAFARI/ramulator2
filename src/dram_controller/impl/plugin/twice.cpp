@@ -16,11 +16,15 @@ class TWiCeIdeal : public IControllerPlugin, public Implementation {
     IDRAM* m_dram = nullptr;
 
     struct TwiCeEntry {
-      int act_count = -1;
-      int life = -1;
+      int act_count;
+      int life;
+      TwiCeEntry():
+        act_count(-1), life(-1) {};
+      TwiCeEntry(int a, int l):
+        act_count(a), life(l) {};
     };
 
-    int m_clk = -1;
+    Clk_t m_clk = 0;
 
     int m_twice_rh_threshold = -1;
     float m_twice_pruning_interval_threshold = -1;
@@ -129,7 +133,7 @@ class TWiCeIdeal : public IControllerPlugin, public Implementation {
 
           if (m_twice_table[flat_bank_id].find(row_id) == m_twice_table[flat_bank_id].end()){
             // If row is not in the table, insert it
-            m_twice_table[flat_bank_id].insert(std::make_pair(row_id, TwiCeEntry{1, 0}));
+            m_twice_table[flat_bank_id].insert(std::make_pair(row_id, TwiCeEntry(1, 0)));
             
             if (m_is_debug) {
               std::cout << "TWiCeIdeal: Inserted row " << row_id << " into bank " << flat_bank_id << std::endl;

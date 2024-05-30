@@ -22,7 +22,7 @@ m_latency(latency), m_size_bytes(size_bytes), m_linesize_bytes(linesize_bytes), 
   DEBUG_LOG(DBHO3LLC, m_logger, "Index mask: {0:x}", m_index_mask);
   DEBUG_LOG(DBHO3LLC, m_logger, "Index offset: {}",  m_index_offset);
   DEBUG_LOG(DBHO3LLC, m_logger, "Tag offset: {}",    m_tag_offset);
-};
+}
 
 void BHO3LLC::tick() {
   m_clk++;
@@ -57,9 +57,9 @@ void BHO3LLC::tick() {
       it++;
     }
   }
-};
+}
 
-bool BHO3LLC::send(Request req) {
+bool BHO3LLC::send(Request& req) {
   CacheSet_t& set = get_set(req.addr);
 
   if (req.type_id == Request::Type::Read) {
@@ -170,7 +170,7 @@ bool BHO3LLC::send(Request req) {
     // BH Changes End
     return true;
   }
-};
+}
 
 void BHO3LLC::receive(Request& req) {
   auto it = std::find_if(
@@ -189,7 +189,7 @@ void BHO3LLC::receive(Request& req) {
     }
     // BH Changes End
   }
-};
+}
 
 BHO3LLC::CacheSet_t& BHO3LLC::get_set(Addr_t addr) {
   int set_index = get_index(addr);
@@ -248,7 +248,7 @@ void BHO3LLC::evict_line(CacheSet_t& set, CacheSet_t::iterator victim_it) {
 
 BHO3LLC::CacheSet_t::iterator BHO3LLC::check_set_hit(CacheSet_t& set, Addr_t addr) {
   auto line_it = std::find_if(set.begin(), set.end(), [addr, this](Line l){return (l.tag == get_tag(addr));});
-  if (!line_it->ready) {
+  if (line_it == set.end() || !line_it->ready) {
     return set.end();
   } else {
     return line_it;
@@ -355,6 +355,17 @@ void BHO3LLC::add_blacklist(int source_id) {
 
 void BHO3LLC::erase_blacklist(int source_id) {
   m_blacklist_status[source_id] = false;
+}
+
+// TODO: I'll do some stuff to limit number of clflushes issable in a window (@Oguzhan)
+// Currently everything returns true
+bool BHO3LLC::clflush(Addr_t addr) {
+  CacheSet_t& set = get_set(addr);
+  auto line_it = check_set_hit(set, addr);
+  if (line_it != set.end()) {
+    evict_line(set, line_it);
+  }
+  return true;
 }
 
 }        // namespace Ramulator

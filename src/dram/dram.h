@@ -13,7 +13,7 @@
 namespace Ramulator {
 
 class IDRAM : public Clocked<IDRAM> {
-  RAMULATOR_REGISTER_INTERFACE(IDRAM, "DRAM", "DRAM Deivce Model Interface")
+  RAMULATOR_REGISTER_INTERFACE(IDRAM, "DRAM", "DRAM Device Model Interface")
 
   /************************************************
    *                Organization
@@ -36,6 +36,8 @@ class IDRAM : public Clocked<IDRAM> {
     SpecDef m_requests;                                     // The definition of all requests supported
     SpecLUT<Command_t> m_request_translations{m_requests};  // A LUT of the final DRAM commands needed by every request
 
+    // TODO: make this a priority queue
+    std::vector<FutureAction> m_future_actions;  // A vector of requests that requires future state changes
 
   /************************************************
    *                Node States
@@ -56,6 +58,24 @@ class IDRAM : public Clocked<IDRAM> {
 
     Clk_t m_read_latency = -1;          // Number of cycles needed between issuing RD command and receiving data.
 
+  /***********************************************
+   *                   Power
+   ***********************************************/
+  public:
+    bool m_drampower_enable = false;             // Whether to enable DRAM power model
+
+    std::vector<PowerStats> m_power_stats;      // The power stats and counters PER channel PER rank (ch0rank0, ch0rank1... ch1rank0,...)
+    SpecDef m_voltages;                         // The names of the voltage constraints
+    SpecLUT<double> m_voltage_vals{m_voltages}; // The LUT of the values for each voltage constraints
+    SpecDef m_currents;                         // The names of the current constraints
+    SpecLUT<double> m_current_vals{m_currents}; // The LUT of the values for each current constraints
+    SpecDef m_cmds_counted;
+
+    bool m_power_debug = false;
+
+    double s_total_background_energy = 0; // Total background energy consumed by the device
+    double s_total_cmd_energy = 0;        // Total command energy consumed by the device
+    double s_total_energy = 0;            // Total energy consumed by the device
 
   /************************************************
    *          Device Behavior Interface
@@ -98,6 +118,12 @@ class IDRAM : public Clocked<IDRAM> {
     virtual bool check_rowbuffer_hit(int command, const AddrVec_t& addr_vec) = 0;
 
     /**
+     * @brief     
+     * @details
+     */
+    virtual bool check_node_open(int command, const AddrVec_t& addr_vec) = 0;
+
+    /**
      * @brief     An universal interface for the host to change DRAM configurations on the fly
      * @details
      * Provide a universal interface to let the host change the DRAM configurations on the fly (e.g., set refresh mode),
@@ -107,6 +133,10 @@ class IDRAM : public Clocked<IDRAM> {
      */
     virtual void notify(std::string_view key, uint64_t value) {};
 
+    /**
+     * @brief     
+    */
+    virtual void finalize() {};
 
   /************************************************
    *        Interface to Query Device Spec
@@ -128,12 +158,13 @@ class IDRAM : public Clocked<IDRAM> {
   IDRAM::m_commands = m_commands; \
   IDRAM::m_command_scopes = m_command_scopes; \
   IDRAM::m_command_meta = m_command_meta; \
-  IDRAM::m_command_meta = m_command_meta; \
   IDRAM::m_requests = m_requests; \
   IDRAM::m_request_translations = m_request_translations; \
   IDRAM::m_states = m_states; \
   IDRAM::m_init_states = m_init_states; \
   IDRAM::m_timings = m_timings; \
+  IDRAM::m_voltages = m_voltages; \
+  IDRAM::m_currents = m_currents; \
 
 }        // namespace Ramulator
 

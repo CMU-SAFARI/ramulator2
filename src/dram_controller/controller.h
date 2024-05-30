@@ -12,6 +12,7 @@
 #include "dram_controller/scheduler.h"
 #include "dram_controller/plugin.h"
 #include "dram_controller/refresh.h"
+#include "dram_controller/rowpolicy.h"
 
 
 namespace Ramulator {
@@ -23,6 +24,8 @@ class IDRAMController : public Clocked<IDRAMController> {
     IDRAM*  m_dram = nullptr;          
     IScheduler*   m_scheduler = nullptr;
     IRefreshManager*   m_refresh = nullptr;
+    IRowPolicy*   m_rowpolicy = nullptr;
+    std::vector<IControllerPlugin*> m_plugins;
 
     int m_channel_id = -1;
   public:

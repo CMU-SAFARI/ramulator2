@@ -11,7 +11,7 @@ class HBM2 : public IDRAM, public Implementation {
       //   name     density   DQ    Ch Pch  Bg Ba   Ro     Co
       {"HBM2_2Gb",   {2<<10,  128,  {1, 2,  4,  2, 1<<14, 1<<6}}},
       {"HBM2_4Gb",   {4<<10,  128,  {1, 2,  4,  4, 1<<14, 1<<6}}},
-      {"HBM2_8Gb",   {8<<10,  128,  {1, 2,  4,  4, 1<<15, 1<<6}}},
+      {"HBM2_8Gb",   {6<<10,  128,  {1, 2,  4,  4, 1<<15, 1<<6}}},
     };
 
     inline static const std::map<std::string, std::vector<int>> timing_presets = {
@@ -96,7 +96,7 @@ class HBM2 : public IDRAM, public Implementation {
    *                 Node States
    ***********************************************/
     inline static constexpr ImplDef m_states = {
-       "Opened", "Closed", "N/A"
+       "Opened", "Closed", "N/A", "Refreshing"
     };
 
     inline static const ImplLUT m_init_states = LUT (
@@ -159,6 +159,11 @@ class HBM2 : public IDRAM, public Implementation {
     bool check_rowbuffer_hit(int command, const AddrVec_t& addr_vec) override {
       int channel_id = addr_vec[m_levels["channel"]];
       return m_channels[channel_id]->check_rowbuffer_hit(command, addr_vec, m_clk);
+    };
+    
+    bool check_node_open(int command, const AddrVec_t& addr_vec) override {
+      int channel_id = addr_vec[m_levels["channel"]];
+      return m_channels[channel_id]->check_node_open(command, addr_vec, m_clk);
     };
 
   private:

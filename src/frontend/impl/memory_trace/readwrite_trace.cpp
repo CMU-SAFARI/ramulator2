@@ -38,7 +38,7 @@ class ReadWriteTrace : public IFrontEnd, public Implementation {
 
     void tick() override {
       const Trace& t = m_trace[m_curr_trace_idx];
-      m_memory_system->send({t.addr_vec, t.is_write ? Request::Type::Read : Request::Type::Write});
+      m_memory_system->send({t.addr_vec, t.is_write ? Request::Type::Write : Request::Type::Read});
       m_curr_trace_idx = (m_curr_trace_idx + 1) % m_trace_length;
     };
 

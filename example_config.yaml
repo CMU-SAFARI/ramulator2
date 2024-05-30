@@ -1,7 +1,7 @@
 Frontend:
   impl: SimpleO3
   clock_ratio: 8
-  num_expected_insts: 300000
+  num_expected_insts: 500000
   traces: 
     - example_inst.trace
 
@@ -29,6 +29,9 @@ MemorySystem:
       impl: FRFCFS
     RefreshManager:
       impl: AllBank
+    RowPolicy:
+      impl: ClosedRowPolicy
+      cap: 4
     plugins:
 
   AddrMapper:

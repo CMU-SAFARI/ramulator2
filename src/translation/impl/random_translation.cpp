@@ -79,7 +79,6 @@ class RandomTranslation : public ITranslation, public Implementation {
             ppn_to_assign = m_allocator_rng() % m_num_pages;
           }
           core_translation[vpn] = ppn_to_assign;
-          m_free_physical_pages[ppn_to_assign] = true;  // Prevent subsequent allocations to the same physical page
           m_num_free_physical_pages--;
         }
       } 
@@ -94,9 +93,6 @@ class RandomTranslation : public ITranslation, public Implementation {
     };    
 
     bool reserve(const std::string& type, Addr_t addr) override {
-      if (type != "Hydra") {
-        throw ConfigurationError("Hydra translation only accepts address reservation for Hydra.");
-      }
       Addr_t ppn = addr >> m_offsetbits;
       // Add page to reserved pages if it is not already reserved
       m_reserved_pages.insert(ppn);

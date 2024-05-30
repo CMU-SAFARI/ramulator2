@@ -9,7 +9,6 @@
 #include "base/base.h"
 #include "frontend/frontend.h"
 
-
 namespace Ramulator {
 
 class IMemorySystem : public TopLevel<IMemorySystem> {
