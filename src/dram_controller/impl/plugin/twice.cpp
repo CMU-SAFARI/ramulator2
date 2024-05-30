@@ -16,8 +16,12 @@ class TWiCeIdeal : public IControllerPlugin, public Implementation {
     IDRAM* m_dram = nullptr;
 
     struct TwiCeEntry {
-      int act_count = -1;
-      int life = -1;
+      int act_count;
+      int life;
+      TwiCeEntry():
+        act_count(-1), life(-1) {};
+      TwiCeEntry(int a, int l):
+        act_count(a), life(l) {};
     };
 
     Clk_t m_clk = 0;
