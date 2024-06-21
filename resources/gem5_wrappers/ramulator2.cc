@@ -194,7 +194,8 @@ Ramulator2::recvTimingReq(PacketPtr pkt)
                         int ssize = pkt->getSize();
                         for (int i = 0; i < ssize; i++) {
                             std::cout << "Ramulator frontend data: " << (unsigned) data_ptr[i] << std::endl; 
-                            std::cout << "Expected gem5 data: " << (unsigned) pkt->getPtr<uint8_t>()[i] << std::endl; 
+                            std::cout << "Expected gem5 data: " << (unsigned) toHostAddr(pkt->getAddr())[i] << std::endl;
+                            //std::cout << "Expected gem5 data: " << (unsigned) pkt->getPtr<uint8_t>()[i] << std::endl; 
                         }
                         ramulator2_frontend->reset_data();
                     }

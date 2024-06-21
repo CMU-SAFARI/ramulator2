@@ -1,7 +1,6 @@
 #ifndef     RAMULATOR_FRONTEND_FRONTEND_H
 #define     RAMULATOR_FRONTEND_FRONTEND_H
 
-#include <vector>
 #include <string>
 #include <functional>
 
