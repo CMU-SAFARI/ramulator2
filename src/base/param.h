@@ -81,14 +81,14 @@ class _ParamChainer {
   private:
     _ParamChainer(const YAML::Node& config, std::string impl_name, Params& params) : _config(config), _impl_name(impl_name), _params(params) {};
     _ParamChainer& _set_name(std::string name) { _name = name; return *this; };
-    std::optional<T> _get() const { 
+    std::optional<T> _get() const {
       if (_default_val_set && _required) {
         throw ConfigurationError("Param \"{}\" for implementation \"{}\" cannot both has a default value and be required.", _name_prefix + _name, _impl_name);
       }
 
       if (_config[_name]) {
         try {
-          return _config[_name].as<T>();
+          return _config[_name].template as<T>();
         } catch (const YAML::BadConversion& e) {
           throw ConfigurationError("Failed to parse Param \"{}\" for implementation \"{}\".", _name_prefix + _name, _impl_name);
         }
@@ -116,7 +116,7 @@ class Params {
   template <typename> friend class _ParamChainer;
   friend _ParamGroupChainer;
   friend Implementation;
-  
+
   private:
     struct ParamInfo {
       std::string name;
@@ -133,7 +133,7 @@ class Params {
     Params(const YAML::Node& config) : m_config(config) {};
     void set_impl_name(std::string impl_name) { m_impl_name = impl_name; };
 
-  private:    
+  private:
     template <typename T>
     _ParamChainer<T> _param(std::string param_name) {
       // Check for reserved key names
@@ -207,7 +207,7 @@ template<typename T>
 _ParamChainer<T>& _ParamChainer<T>::desc(std::string desc) {
   _desc = desc;
   _params._add_desc(_name_prefix + _name, desc);
-  return *this; 
+  return *this;
 };
 
 }        // namespace Ramulator
