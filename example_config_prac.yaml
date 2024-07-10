@@ -1,0 +1,53 @@
+Frontend:
+  impl: BHO3
+  clock_ratio: 8
+  num_expected_insts: 1000000
+  llc_capacity_per_core: 2MB
+  llc_num_mshr_per_core: 16
+  inst_window_depth: 128
+  traces: 
+    - example_inst.trace
+    - example_inst.trace
+    - example_inst.trace
+  no_wait_traces:
+    - example_prac_attacker.trace
+
+  Translation:
+    impl: RandomTranslation 
+    max_addr: 17179869184
+
+MemorySystem:
+  impl: BHDRAMSystem
+  clock_ratio: 3
+
+  DRAM:
+    impl: DDR5-VRR
+    org:
+      preset: DDR5_16Gb_x8
+      channel: 1
+      rank: 2
+    timing:
+      preset: DDR5_3200AN 
+    RFM:
+      BRC: 2
+    PRAC: true
+
+  BHDRAMController:
+    impl: PRACDRAMController
+    BHScheduler:
+      impl: PRACScheduler
+    RefreshManager:
+      impl: AllBank
+    RowPolicy:
+      impl: ClosedRowPolicy
+      cap: 4
+    plugins:
+      - ControllerPlugin:
+          impl: PRAC
+          abo_delay_acts: 4
+          abo_recovery_refs: 4
+          abo_act_ns: 180
+          abo_threshold: 16
+
+  AddrMapper:
+    impl: RoBaRaCoCh_with_rit

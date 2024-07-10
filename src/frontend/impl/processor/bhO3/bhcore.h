@@ -5,6 +5,7 @@
 #include <string>
 #include <functional>
 #include <filesystem>
+#include <fstream>
 
 #include "base/type.h"
 #include "base/request.h"
@@ -16,14 +17,15 @@ class BHO3LLC;
 
 class BHO3Core: public Clocked<BHO3Core> {
   friend class BHO3;
+  struct Inst {
+    int bubble_count = 0;
+    Addr_t load_addr = -1;
+    Addr_t store_addr = -1;
+  };
+  
   class Trace {
     friend class BHO3Core;
-    struct Inst {
-      int bubble_count = 0;
-      Addr_t load_addr = -1;
-      Addr_t store_addr = -1;
-    };
-  
+
     std::vector<Inst> m_trace;
     size_t m_trace_length = 0;
     size_t m_curr_trace_idx = 0;
@@ -50,10 +52,10 @@ class BHO3Core: public Clocked<BHO3Core> {
 
       std::vector<bool>   m_ready_list;   // Bitvector to mark whether each instruction is ready to be retired.
       std::vector<Addr_t> m_addr_list;    // Which address is each LD/ST instruction targeting? TODO: Perf. optimization with unordered map?
+      std::vector<Clk_t>  m_depart_list;  // When did this request leave the core?  
 
     public:
       InstWindow(int ipc = 4, int depth = 128);      
-
 
       bool   is_full();
 
@@ -63,7 +65,7 @@ class BHO3Core: public Clocked<BHO3Core> {
        * @param ready True if instruction is a non-memory instruction. False otherwise.
        * @param addr  -1 if non-memory, the actual LD/ST address otherwise.
        */
-      void   insert(bool ready, Addr_t addr);
+      void   insert(bool ready, Addr_t addr, Clk_t clk);
 
       /**
        * @brief   Tries to retire instructions from the tail of the window
@@ -75,8 +77,9 @@ class BHO3Core: public Clocked<BHO3Core> {
       /**
        * @brief   Set a memory instruction to ready. Called by the callback when a request is served by the memory
        * 
+       * @return Clk_t depart cycle of this address
        */
-      void   set_ready(Addr_t addr);
+      Clk_t  set_ready(Addr_t addr);
   };
 
   private:
@@ -100,6 +103,8 @@ class BHO3Core: public Clocked<BHO3Core> {
     std::unordered_map<int, uint64_t> m_lat_histogram;
     std::filesystem::path m_dump_path;
 
+    bool m_is_attacker = false;
+
     void dump_latency_histogram();
 
   /************************************************
@@ -116,7 +121,7 @@ class BHO3Core: public Clocked<BHO3Core> {
   public:
     BHO3Core(int id, int ipc, int depth,
       size_t num_expected_insts, uint64_t num_max_cycles, std::string trace_path,
-      ITranslation* translation, BHO3LLC* llc, int lat_hist_sens, std::string& dump_path);
+      ITranslation* translation, BHO3LLC* llc, int lat_hist_sens, std::string& dump_path, bool is_attacker);
 
     /**
      * @brief   Ticks the core.

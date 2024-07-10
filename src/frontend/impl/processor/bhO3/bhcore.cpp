@@ -49,24 +49,24 @@ BHO3Core::Trace::Trace(std::string file_path_str) {
   m_trace_length = m_trace.size();
 }
 
-const BHO3Core::Trace::Inst& BHO3Core::Trace::get_next_inst() {
+const BHO3Core::Inst& BHO3Core::Trace::get_next_inst() {
   const Inst& inst = m_trace[m_curr_trace_idx];
   m_curr_trace_idx = (m_curr_trace_idx + 1) % m_trace_length;
   return inst;
 }
 
-
 BHO3Core::InstWindow::InstWindow(int ipc, int depth):
 m_ipc(ipc), m_depth(depth),
-m_ready_list(depth, false), m_addr_list(depth, -1) {};
+m_ready_list(depth, false), m_addr_list(depth, -1), m_depart_list(depth, -1) {};
 
 bool BHO3Core::InstWindow::is_full() {
   return m_load == m_depth;
 }
 
-void BHO3Core::InstWindow::insert(bool ready, Addr_t addr) {
+void BHO3Core::InstWindow::insert(bool ready, Addr_t addr, Clk_t clk) {
   m_ready_list.at(m_head_idx) = ready;
   m_addr_list.at(m_head_idx) = addr;
+  m_depart_list.at(m_head_idx) = clk;
 
   m_head_idx = (m_head_idx + 1) % m_depth;
   m_load++;
@@ -87,34 +87,38 @@ int BHO3Core::InstWindow::retire() {
   return num_retired;
 }
 
-void BHO3Core::InstWindow::set_ready(Addr_t addr) {
-  if (m_load == 0) return;
+Clk_t BHO3Core::InstWindow::set_ready(Addr_t addr) {
+  if (m_load == 0) return std::numeric_limits<Clk_t>::max();
 
   int index = m_tail_idx;
+  Clk_t min = std::numeric_limits<Clk_t>::max();
   for (int i = 0; i < m_load; i++) {
     if (m_addr_list[index] == addr) {
       m_ready_list[index] = true;
+      if (m_depart_list[index] < min) {
+        min = m_depart_list[index];
+      }
     }
     index++;
     if (index == m_depth) {
       index = 0;
     }
   }
+  return min;
 }
 
 BHO3Core::BHO3Core(int id, int ipc, int depth, size_t num_expected_insts,
   uint64_t num_max_cycles, std::string trace_path, ITranslation* translation,
-  BHO3LLC* llc, int lat_hist_sens, std::string& dump_path):
+  BHO3LLC* llc, int lat_hist_sens, std::string& dump_path, bool is_attacker):
 m_id(id), m_window(ipc, depth), m_trace(trace_path),
 m_num_expected_insts(num_expected_insts), m_num_max_cycles(num_max_cycles), m_translation(translation),
-m_llc(llc), m_lat_hist_sens(lat_hist_sens) {
+m_llc(llc), m_lat_hist_sens(lat_hist_sens), m_is_attacker(is_attacker) {
   // Fetch the instructions and addresses for tick 0
   auto inst = m_trace.get_next_inst();
   m_num_bubbles = inst.bubble_count;
   m_load_addr = inst.load_addr;
   m_writeback_addr = inst.store_addr;
-  if (dump_path == "") {
-    m_dump_path = "";
+  if (m_dump_path == "") {
     return;
   }
   m_dump_path = fmt::format("{}.core{}", dump_path, id);
@@ -126,9 +130,11 @@ m_llc(llc), m_lat_hist_sens(lat_hist_sens) {
 }
 
 void BHO3Core::tick() {
+  static int retire_log = 1;
   m_clk++;
 
   s_insts_retired += m_window.retire();
+
   if (!reached_expected_num_insts) {
     s_cycles_recorded = m_clk;
     s_insts_recorded = s_insts_retired;
@@ -147,7 +153,7 @@ void BHO3Core::tick() {
     if (m_window.is_full()) {
       return;
     }
-    m_window.insert(true, -1);
+    m_window.insert(true, -1, -1);
     num_inserted_insts++;
     m_num_bubbles--;
   }
@@ -168,7 +174,7 @@ void BHO3Core::tick() {
 
     if (m_llc->send(load_request)) {
       s_mem_requests_issued++;
-      m_window.insert(false, load_request.addr);
+      m_window.insert(false, load_request.addr, m_clk);
       m_load_addr = -1;
       if (m_writeback_addr != -1) {
         // If there is still writeback, return without getting the next trace line
@@ -200,19 +206,22 @@ void BHO3Core::tick() {
 }
 
 void BHO3Core::receive(Request& req) {
-  m_window.set_ready(req.addr);
+  Clk_t depart = m_window.set_ready(req.addr);
+  Clk_t arrive = m_clk;
+  int req_duration = arrive - depart;
 
-  if (req.arrive != -1 && req.depart > m_last_mem_cycle) {
-    if (!reached_expected_num_insts) {
-      s_mem_access_cycles += (req.depart - std::max(m_last_mem_cycle, req.arrive));
-      m_last_mem_cycle = req.depart;
-      int req_duration = req.depart - req.arrive;
-      int lat_bucket = req_duration - (req_duration % m_lat_hist_sens);
-      if (m_lat_histogram.find(lat_bucket) == m_lat_histogram.end()) {
-        m_lat_histogram[lat_bucket] = 0;
-      }
-      m_lat_histogram[lat_bucket]++;
+  if (!reached_expected_num_insts && depart != std::numeric_limits<Clk_t>::max()) {
+    s_mem_access_cycles += req_duration;
+    m_last_mem_cycle = depart;
+    int lat_bucket = req_duration - (req_duration % m_lat_hist_sens);
+    if (m_lat_histogram.find(lat_bucket) == m_lat_histogram.end()) {
+      m_lat_histogram[lat_bucket] = 0;
     }
+    m_lat_histogram[lat_bucket]++;
+  }
+
+  if (m_is_attacker) {
+    m_llc->clflush(req.addr);
   }
 }
 

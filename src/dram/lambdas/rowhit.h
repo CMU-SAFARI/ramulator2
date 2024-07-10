@@ -18,6 +18,7 @@ namespace Bank {
         else {
           return false;
         }
+      case T::m_states["Refreshing"]: return false;
       default: {
         spdlog::error("[RowHit::Bank] Invalid bank state for an RD/WR command!");
         std::exit(-1);      

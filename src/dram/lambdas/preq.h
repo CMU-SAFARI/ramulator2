@@ -8,16 +8,17 @@ namespace Lambdas {
 namespace Preq {
 namespace Bank {
 template <class T>
-int RequireRowOpen(typename T::Node* node, int cmd, int target_id, Clk_t clk) {
+int RequireRowOpen(typename T::Node* node, int cmd, const AddrVec_t& addr_vec, Clk_t clk) {
   switch (node->m_state) {
     case T::m_states["Closed"]: return T::m_commands["ACT"];
     case T::m_states["Opened"]: {
-      if (node->m_row_state.find(target_id) != node->m_row_state.end()) {
+      if (node->m_row_state.find(addr_vec[T::m_levels["row"]]) != node->m_row_state.end()) {
         return cmd;
       } else {
         return T::m_commands["PRE"];
       }
     }    
+    case T::m_states["Refreshing"]: return T::m_commands["ACT"];
     default: {
       spdlog::error("[Preq::Bank] Invalid bank state for an RD/WR command!");
       std::exit(-1);      
@@ -26,10 +27,11 @@ int RequireRowOpen(typename T::Node* node, int cmd, int target_id, Clk_t clk) {
 };
 
 template <class T>
-int RequireBankClosed(typename T::Node* node, int cmd, int target_id, Clk_t clk) {
+int RequireBankClosed(typename T::Node* node, int cmd, const AddrVec_t& addr_vec, Clk_t clk) {
   switch (node->m_state) {
     case T::m_states["Closed"]: return cmd;
     case T::m_states["Opened"]: return T::m_commands["PRE"];
+    case T::m_states["Refreshing"]: return cmd;
     default: {
       spdlog::error("[Preq::Bank] Invalid bank state for an RD/WR command!");
       std::exit(-1);      
@@ -40,11 +42,13 @@ int RequireBankClosed(typename T::Node* node, int cmd, int target_id, Clk_t clk)
 
 namespace Rank {
 template <class T>
-int RequireAllBanksClosed(typename T::Node* node, int cmd, int target_id, Clk_t clk) {
+int RequireAllBanksClosed(typename T::Node* node, int cmd, const AddrVec_t& addr_vec, Clk_t clk) {
   if constexpr (T::m_levels["bank"] - T::m_levels["rank"] == 1) {
     for (auto bank: node->m_child_nodes) {
       if (bank->m_state == T::m_states["Closed"]) {
         continue;
+      } else if(bank->m_state == T::m_states["Refreshing"]) {
+        return cmd; 
       } else {
         return T::m_commands["PREA"];
       }
@@ -54,6 +58,8 @@ int RequireAllBanksClosed(typename T::Node* node, int cmd, int target_id, Clk_t 
       for (auto bank: bg->m_child_nodes) {
         if (bank->m_state == T::m_states["Closed"]) {
           continue;
+        } else if(bank->m_state == T::m_states["Refreshing"]) {
+          return cmd; 
         } else {
           return T::m_commands["PREA"];
         }
@@ -64,13 +70,12 @@ int RequireAllBanksClosed(typename T::Node* node, int cmd, int target_id, Clk_t 
 };
 
 template <class T>
-int RequireSameBanksClosed(typename T::Node* node, int cmd, int target_id, Clk_t clk) {
+int RequireSameBanksClosed(typename T::Node* node, int cmd, const AddrVec_t& addr_vec, Clk_t clk) {
   bool all_banks_ready = true;
-  typename T::Node* rank = node->m_parent_node;
-  for (auto bg : rank->m_child_nodes) {
+  for (auto bg : node->m_child_nodes) {
     for (auto bank : bg->m_child_nodes) {
-      if (bank->m_node_id == target_id) {
-        all_banks_ready &= (bank->m_state == T::m_states["Closed"]);
+      if (bank->m_node_id == addr_vec[T::m_levels["bank"]]) {
+        all_banks_ready &= (bank->m_state == T::m_states["Closed"]) || (bank->m_state == T::m_states["Refreshing"]);
       }
     }
   }
@@ -83,7 +88,7 @@ int RequireSameBanksClosed(typename T::Node* node, int cmd, int target_id, Clk_t
 }       // namespace Rank
 namespace Channel {
   template <class T>
-  int RequireAllBanksClosed(typename T::Node* node, int cmd, int target_id, Clk_t clk) {
+  int RequireAllBanksClosed(typename T::Node* node, int cmd, const AddrVec_t& addr_vec, Clk_t clk) {
     if constexpr (T::m_levels["bank"] - T::m_levels["channel"] == 2) {
       for (auto bg : node->m_child_nodes) {
         for (auto bank: bg->m_child_nodes) {

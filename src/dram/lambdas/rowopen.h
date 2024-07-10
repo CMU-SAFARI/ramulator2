@@ -12,6 +12,7 @@ namespace Bank {
     switch (node->m_state)  {
       case T::m_states["Closed"]: return false;
       case T::m_states["Opened"]: return true;
+      case T::m_states["Refreshing"]: return false;
       default: {
         spdlog::error("[RowHit::Bank] Invalid bank state for an RD/WR command!");
         std::exit(-1);      

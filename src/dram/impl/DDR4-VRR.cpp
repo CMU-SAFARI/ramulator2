@@ -6,7 +6,7 @@ namespace Ramulator {
 class DDR4VRR : public IDRAM, public Implementation {
   RAMULATOR_REGISTER_IMPLEMENTATION(IDRAM, DDR4VRR, "DDR4-VRR", "DDR4 with Victim Row Refresh")
   private:
-    int m_VRR_radius = -1;
+    int m_RH_radius = -1;
 
   public:
     inline static const std::map<std::string, Organization> org_presets = {
@@ -51,7 +51,17 @@ class DDR4VRR : public IDRAM, public Implementation {
       {"DDR4_3200W",  {3200,   4,  20,  20,   20,   52,   72,   24,   12,  16,   4,    8,   -1,   -1,    4,    12,  -1,  -1,  -1,  -1,   2,  625} },
       {"DDR4_3200AA", {3200,   4,  22,  22,   22,   52,   74,   24,   12,  16,   4,    8,   -1,   -1,    4,    12,  -1,  -1,  -1,  -1,   2,  625} },
       {"DDR4_3200AC", {3200,   4,  24,  24,   24,   52,   76,   24,   12,  16,   4,    8,   -1,   -1,    4,    12,  -1,  -1,  -1,  -1,   2,  625} },
-   };
+    };
+
+    inline static const std::map<std::string, std::vector<double>> voltage_presets = {
+      //   name          VDD      VPP
+      {"Default",       {1.2,     2.5}},
+    };
+
+    inline static const std::map<std::string, std::vector<double>> current_presets = {
+      // name           IDD0  IDD2N   IDD3N   IDD4R   IDD4W   IDD5B   IPP0  IPP2N  IPP3N  IPP4R  IPP4W  IPP5B
+      {"Default",       {60,   50,     55,     145,    145,    362,     3,    3,     3,     3,     3,     48}},
+    };
 
   /************************************************
    *                Organization
@@ -70,8 +80,8 @@ class DDR4VRR : public IDRAM, public Implementation {
       "ACT", 
       "PRE", "PREA",
       "RD",  "WR",  "RDA",  "WRA",
-      "REFab",
-      "VRR"   // Victim Row Refresh command
+      "REFab", "REFab_end",
+      "VRR", "VRR_end"   // Victim Row Refresh command
     };
 
     inline static const ImplLUT m_command_scopes = LUT (
@@ -79,35 +89,37 @@ class DDR4VRR : public IDRAM, public Implementation {
         {"ACT",   "row"},
         {"PRE",   "bank"},   {"PREA",   "rank"},
         {"RD",    "column"}, {"WR",     "column"}, {"RDA",   "column"}, {"WRA",   "column"},
-        {"REFab", "rank"},
-        {"VRR",   "bank"},
+        {"REFab", "rank"},   {"REFab_end", "rank"},
+        {"VRR",   "bank"},   {"VRR_end",   "bank"},
       }
     );
 
     inline static const ImplLUT m_command_meta = LUT<DRAMCommandMeta> (
       m_commands, {
-                // open?   close?   access?  refresh?
-        {"ACT",   {true,   false,   false,   false}},
-        {"PRE",   {false,  true,    false,   false}},
-        {"PREA",  {false,  true,    false,   false}},
-        {"RD",    {false,  false,   true,    false}},
-        {"WR",    {false,  false,   true,    false}},
-        {"RDA",   {false,  true,    true,    false}},
-        {"WRA",   {false,  true,    true,    false}},
-        {"REFab", {false,  false,   false,   true }},
-        {"VRR",   {false,  false,   false,   true }},
+                    // open?   close?   access?  refresh?
+        {"ACT",       {true,   false,   false,   false}},
+        {"PRE",       {false,  true,    false,   false}},
+        {"PREA",      {false,  true,    false,   false}},
+        {"RD",        {false,  false,   true,    false}},
+        {"WR",        {false,  false,   true,    false}},
+        {"RDA",       {false,  true,    true,    false}},
+        {"WRA",       {false,  true,    true,    false}},
+        {"REFab",     {false,  false,   false,   true }},
+        {"REFab_end", {false,  true,    false,   false}},
+        {"VRR",       {false,  false,   false,   true }},
+        {"VRR_end",   {false,  true,    false,   false}},
       }
     );
 
     inline static constexpr ImplDef m_requests = {
       "read", "write", "all-bank-refresh", 
-      "victim-row-refresh",
+      "victim-row-refresh", "open-row", "close-row"
     };
 
     inline static const ImplLUT m_request_translations = LUT (
       m_requests, m_commands, {
         {"read", "RD"}, {"write", "WR"}, {"all-bank-refresh", "REFab"},
-        {"victim-row-refresh", "VRR"},
+        {"victim-row-refresh", "VRR"}, {"open-row", "ACT"}, {"close-row", "PRE"}
       }
     );
 
@@ -128,12 +140,28 @@ class DDR4VRR : public IDRAM, public Implementation {
       "tCK_ps"
     };
 
+   
+  /************************************************
+   *                   Power
+   ***********************************************/
+    inline static constexpr ImplDef m_voltages = {
+      "VDD", "VPP"
+    };
+    
+    inline static constexpr ImplDef m_currents = {
+      "IDD0", "IDD2N", "IDD3N", "IDD4R", "IDD4W", "IDD5B",
+      "IPP0", "IPP2N", "IPP3N", "IPP4R", "IPP4W", "IPP5B"
+    };
+
+    inline static constexpr ImplDef m_cmds_counted = {
+      "ACT", "PRE", "RD", "WR", "REF", "VRR"
+    };
 
   /************************************************
    *                 Node States
    ***********************************************/
     inline static constexpr ImplDef m_states = {
-       "Opened", "Closed", "PowerUp", "N/A"
+       "Opened", "Closed", "PowerUp", "N/A", "Refreshing"
     };
 
     inline static const ImplLUT m_init_states = LUT (
@@ -157,11 +185,24 @@ class DDR4VRR : public IDRAM, public Implementation {
     FuncMatrix<PreqFunc_t<Node>>    m_preqs;
     FuncMatrix<RowhitFunc_t<Node>>  m_rowhits;
     FuncMatrix<RowopenFunc_t<Node>> m_rowopens;
+    FuncMatrix<PowerFunc_t<Node>>   m_powers;
 
+    double s_total_vrr_energy = 0.0;
+
+    std::vector<size_t> s_total_vrr_cycles;
 
   public:
     void tick() override {
       m_clk++;
+
+      // Check if there is any future action at this cycle
+      for (int i = m_future_actions.size() - 1; i >= 0; i--) {
+        auto& future_action = m_future_actions[i];
+        if (future_action.clk == m_clk) {
+          handle_future_action(future_action.cmd, future_action.addr_vec);
+          m_future_actions.erase(m_future_actions.begin() + i);
+        }
+      }
     };
 
     void init() override {
@@ -173,6 +214,7 @@ class DDR4VRR : public IDRAM, public Implementation {
       set_preqs();
       set_rowhits();
       set_rowopens();
+      set_powers();
       
       create_nodes();
     };
@@ -180,7 +222,44 @@ class DDR4VRR : public IDRAM, public Implementation {
     void issue_command(int command, const AddrVec_t& addr_vec) override {
       int channel_id = addr_vec[m_levels["channel"]];
       m_channels[channel_id]->update_timing(command, addr_vec, m_clk);
+      m_channels[channel_id]->update_powers(command, addr_vec, m_clk);
       m_channels[channel_id]->update_states(command, addr_vec, m_clk);
+
+      // Check if the command requires future action
+      check_future_action(command, addr_vec);
+    };
+
+    void check_future_action(int command, const AddrVec_t& addr_vec) {
+      switch (command) {
+        case m_commands("REFab"):
+          // REFab command requires future action after nRFC cycles
+          m_future_actions.push_back({command, addr_vec, m_clk + m_timing_vals("nRFC") - 1});
+          break;
+        case m_commands("VRR"):
+          // Check if there is any bank that is not in the closed state
+          m_future_actions.push_back({command, addr_vec, m_clk + m_timing_vals("nVRR") - 1});
+          break;
+        default:
+          // Other commands do not require future actions
+          break;
+      }
+    }
+
+    void handle_future_action(int command, const AddrVec_t& addr_vec) {
+      int channel_id = addr_vec[m_levels["channel"]];
+      switch (command) {
+        case m_commands("REFab"):
+          m_channels[channel_id]->update_powers(m_commands("REFab_end"), addr_vec, m_clk);
+          m_channels[channel_id]->update_states(m_commands("REFab_end"), addr_vec, m_clk);
+          break;
+        case m_commands("VRR"):
+          m_channels[channel_id]->update_powers(m_commands("VRR_end"), addr_vec, m_clk);
+          m_channels[channel_id]->update_states(m_commands("VRR_end"), addr_vec, m_clk);
+          break;
+        default:
+          // Other commands do not require future actions
+          break;
+      }
     };
 
     int get_preq_command(int command, const AddrVec_t& addr_vec) override {
@@ -196,6 +275,11 @@ class DDR4VRR : public IDRAM, public Implementation {
     bool check_rowbuffer_hit(int command, const AddrVec_t& addr_vec) override {
       int channel_id = addr_vec[m_levels["channel"]];
       return m_channels[channel_id]->check_rowbuffer_hit(command, addr_vec, m_clk);
+    };
+    
+    bool check_node_open(int command, const AddrVec_t& addr_vec) override {
+      int channel_id = addr_vec[m_levels["channel"]];
+      return m_channels[channel_id]->check_node_open(command, addr_vec, m_clk);
     };
 
   private:
@@ -246,7 +330,13 @@ class DDR4VRR : public IDRAM, public Implementation {
             m_organization.density
         );
       }
+      int num_channels = m_organization.count[m_levels["channel"]];
+      int num_ranks = m_organization.count[m_levels["rank"]];
+      s_total_vrr_cycles.resize(num_channels * num_ranks, 0);
 
+      for (int r = 0; r < num_channels * num_ranks; r++) {
+        register_stat(s_total_vrr_cycles[r]).name("total_vrr_cycles_rank{}", r);
+      }
     };
 
     void set_timing_vals() {
@@ -347,9 +437,9 @@ class DDR4VRR : public IDRAM, public Implementation {
       m_timing_vals("nRFC")  = JEDEC_rounding(tRFC_TABLE[0][density_id], tCK_ps);
       m_timing_vals("nREFI") = JEDEC_rounding(tREFI_BASE, tCK_ps);
 
-      m_VRR_radius = param<int>("VRR_radius").desc("The number of rows to refresh on each side").default_val(2);
+      m_RH_radius = param<int>("RH_radius").desc("The number of rows to refresh on each side").default_val(2);
       const int nVRR_base_ns = 70;   // Taken from DDR5 DRFM
-      m_timing_vals("nVRR") = JEDEC_rounding(nVRR_base_ns * m_VRR_radius, tCK_ps);
+      m_timing_vals("nVRR") = JEDEC_rounding(nVRR_base_ns * m_RH_radius * 2, tCK_ps);
 
       // Overwrite timing parameters with any user-provided value
       // Rate and tCK should not be overwritten
@@ -400,10 +490,11 @@ class DDR4VRR : public IDRAM, public Implementation {
           {.level = "rank", .preceding = {"RD"}, .following = {"PREA"}, .latency = V("nRTP")},
           {.level = "rank", .preceding = {"WR"}, .following = {"PREA"}, .latency = V("nCWL") + V("nBL") + V("nWR")},          
           /// RAS <-> RAS
-          {.level = "rank", .preceding = {"ACT", "VRR"}, .following = {"ACT", "VRR"}, .latency = V("nRRDS")},          
+          {.level = "rank", .preceding = {"ACT"}, .following = {"ACT"}, .latency = V("nRRDS")},          
           {.level = "rank", .preceding = {"ACT"}, .following = {"ACT"}, .latency = V("nFAW"), .window = 4},          
           {.level = "rank", .preceding = {"ACT"}, .following = {"PREA"}, .latency = V("nRAS")},          
-          {.level = "rank", .preceding = {"PREA"}, .following = {"ACT"}, .latency = V("nRP")},          
+          {.level = "rank", .preceding = {"VRR"}, .following = {"PREA"}, .latency = V("nVRR")},          
+          {.level = "rank", .preceding = {"PREA"}, .following = {"ACT", "VRR"}, .latency = V("nRP")},          
           /// RAS <-> REF
           {.level = "rank", .preceding = {"ACT"}, .following = {"REFab"}, .latency = V("nRC")},          
           {.level = "rank", .preceding = {"VRR"}, .following = {"REFab"}, .latency = V("nVRR")},          
@@ -418,7 +509,7 @@ class DDR4VRR : public IDRAM, public Implementation {
           {.level = "bankgroup", .preceding = {"WR", "WRA"}, .following = {"WR", "WRA"}, .latency = V("nCCDL")},          
           {.level = "bankgroup", .preceding = {"WR", "WRA"}, .following = {"RD", "RDA"}, .latency = V("nCWL") + V("nBL") + V("nWTRL")},
           /// RAS <-> RAS
-          {.level = "bankgroup", .preceding = {"ACT", "VRR"}, .following = {"ACT", "VRR"}, .latency = V("nRRDL")},  
+          {.level = "bankgroup", .preceding = {"ACT"}, .following = {"ACT"}, .latency = V("nRRDL")},  
 
           /*** Bank ***/ 
           {.level = "bank", .preceding = {"ACT"}, .following = {"ACT", "VRR"}, .latency = V("nRC")},  
@@ -441,12 +532,16 @@ class DDR4VRR : public IDRAM, public Implementation {
 
       // Rank Actions
       m_actions[m_levels["rank"]][m_commands["PREA"]] = Lambdas::Action::Rank::PREab<DDR4VRR>;
+      m_actions[m_levels["rank"]][m_commands["REFab"]] = Lambdas::Action::Rank::REFab<DDR4VRR>;
+      m_actions[m_levels["rank"]][m_commands["REFab_end"]] = Lambdas::Action::Rank::REFab_end<DDR4VRR>;
 
       // Bank actions
       m_actions[m_levels["bank"]][m_commands["ACT"]] = Lambdas::Action::Bank::ACT<DDR4VRR>;
       m_actions[m_levels["bank"]][m_commands["PRE"]] = Lambdas::Action::Bank::PRE<DDR4VRR>;
       m_actions[m_levels["bank"]][m_commands["RDA"]] = Lambdas::Action::Bank::PRE<DDR4VRR>;
       m_actions[m_levels["bank"]][m_commands["WRA"]] = Lambdas::Action::Bank::PRE<DDR4VRR>;
+      m_actions[m_levels["bank"]][m_commands["VRR"]] = Lambdas::Action::Bank::VRR<DDR4VRR>;
+      m_actions[m_levels["bank"]][m_commands["VRR_end"]] = Lambdas::Action::Bank::VRR_end<DDR4VRR>;
     };
 
     void set_preqs() {
@@ -460,6 +555,9 @@ class DDR4VRR : public IDRAM, public Implementation {
       m_preqs[m_levels["bank"]][m_commands["WR"]] = Lambdas::Preq::Bank::RequireRowOpen<DDR4VRR>;
 
       m_preqs[m_levels["bank"]][m_commands["VRR"]] = Lambdas::Preq::Bank::RequireBankClosed<DDR4VRR>;
+
+      m_preqs[m_levels["bank"]][m_commands["ACT"]] = Lambdas::Preq::Bank::RequireRowOpen<DDR4VRR>;
+      m_preqs[m_levels["bank"]][m_commands["PRE"]] = Lambdas::Preq::Bank::RequireBankClosed<DDR4VRR>;
     };
 
     void set_rowhits() {
@@ -477,6 +575,78 @@ class DDR4VRR : public IDRAM, public Implementation {
       m_rowopens[m_levels["bank"]][m_commands["WR"]] = Lambdas::RowOpen::Bank::RDWR<DDR4VRR>;
     }
 
+    void set_powers() {
+      
+      m_drampower_enable = param<bool>("drampower_enable").default_val(false);
+
+      if (!m_drampower_enable)
+        return;
+
+      m_voltage_vals.resize(m_voltages.size(), -1);
+
+      if (auto preset_name = param_group("voltage").param<std::string>("preset").optional()) {
+        if (voltage_presets.count(*preset_name) > 0) {
+          m_voltage_vals = voltage_presets.at(*preset_name);
+        } else {
+          throw ConfigurationError("Unrecognized voltage preset \"{}\" in {}!", *preset_name, get_name());
+        }
+      }
+
+      m_current_vals.resize(m_currents.size(), -1);
+
+      if (auto preset_name = param_group("current").param<std::string>("preset").optional()) {
+        if (current_presets.count(*preset_name) > 0) {
+          m_current_vals = current_presets.at(*preset_name);
+        } else {
+          throw ConfigurationError("Unrecognized current preset \"{}\" in {}!", *preset_name, get_name());
+        }
+      }
+      
+      m_power_debug = param<bool>("power_debug").default_val(false);
+
+      // TODO: Check for multichannel configs.
+      int num_channels = m_organization.count[m_levels["channel"]];
+      int num_ranks = m_organization.count[m_levels["rank"]];
+      m_power_stats.resize(num_channels * num_ranks);
+      for (int i = 0; i < num_channels; i++) {
+        for (int j = 0; j < num_ranks; j++) {
+          m_power_stats[i * num_ranks + j].rank_id = i * num_ranks + j;
+          m_power_stats[i * num_ranks + j].cmd_counters.resize(m_cmds_counted.size(), 0);
+        }
+      }
+
+      m_powers.resize(m_levels.size(), std::vector<PowerFunc_t<Node>>(m_commands.size()));
+
+      m_powers[m_levels["bank"]][m_commands["ACT"]] = Lambdas::Power::Bank::ACT<DDR4VRR>;
+      m_powers[m_levels["bank"]][m_commands["PRE"]] = Lambdas::Power::Bank::PRE<DDR4VRR>;
+      m_powers[m_levels["bank"]][m_commands["RD"]]  = Lambdas::Power::Bank::RD<DDR4VRR>;
+      m_powers[m_levels["bank"]][m_commands["WR"]]  = Lambdas::Power::Bank::WR<DDR4VRR>;
+      m_powers[m_levels["bank"]][m_commands["VRR"]]  = Lambdas::Power::Bank::VRR<DDR4VRR>;
+
+      m_powers[m_levels["rank"]][m_commands["ACT"]] = Lambdas::Power::Rank::ACT<DDR4VRR>;
+      m_powers[m_levels["rank"]][m_commands["PRE"]] = Lambdas::Power::Rank::PRE<DDR4VRR>;
+      m_powers[m_levels["rank"]][m_commands["PREA"]] = Lambdas::Power::Rank::PREA<DDR4VRR>;
+      m_powers[m_levels["rank"]][m_commands["REFab"]] = Lambdas::Power::Rank::REFab<DDR4VRR>;
+      m_powers[m_levels["rank"]][m_commands["REFab_end"]] = Lambdas::Power::Rank::REFab_end<DDR4VRR>;
+      m_powers[m_levels["rank"]][m_commands["VRR"]] = Lambdas::Power::Rank::VRR<DDR4VRR>;
+      m_powers[m_levels["rank"]][m_commands["VRR_end"]] = Lambdas::Power::Rank::VRR_end<DDR4VRR>;
+
+      // register stats
+      register_stat(s_total_background_energy).name("total_background_energy");
+      register_stat(s_total_cmd_energy).name("total_cmd_energy");
+      register_stat(s_total_energy).name("total_energy");
+      register_stat(s_total_vrr_energy).name("total_vrr_energy");
+      
+      for (auto& power_stat : m_power_stats){
+        register_stat(power_stat.total_background_energy).name("total_background_energy_rank{}", power_stat.rank_id);
+        register_stat(power_stat.total_cmd_energy).name("total_cmd_energy_rank{}", power_stat.rank_id);
+        register_stat(power_stat.total_energy).name("total_energy_rank{}", power_stat.rank_id);
+        register_stat(power_stat.act_background_energy).name("act_background_energy_rank{}", power_stat.rank_id);
+        register_stat(power_stat.pre_background_energy).name("pre_background_energy_rank{}", power_stat.rank_id);
+        register_stat(power_stat.active_cycles).name("active_cycles_rank{}", power_stat.rank_id);
+        register_stat(power_stat.idle_cycles).name("idle_cycles_rank{}", power_stat.rank_id);
+      }
+    }
 
     void create_nodes() {
       int num_channels = m_organization.count[m_levels["channel"]];
@@ -484,7 +654,74 @@ class DDR4VRR : public IDRAM, public Implementation {
         Node* channel = new Node(this, nullptr, 0, i);
         m_channels.push_back(channel);
       }
-    };
+    }
+
+    void finalize() override {
+      if (!m_drampower_enable)
+        return;
+        
+      int num_channels = m_organization.count[m_levels["channel"]];
+      int num_ranks = m_organization.count[m_levels["rank"]];
+      for (int i = 0; i < num_channels; i++) {
+        for (int j = 0; j < num_ranks; j++) {
+          process_rank_energy(m_power_stats[i * num_ranks + j], m_channels[i]->m_child_nodes[j]);
+        }
+      }
+    }
+
+    void process_rank_energy(PowerStats& rank_stats, Node* rank_node) {
+
+      Lambdas::Power::Rank::finalize_rank<DDR4VRR>(rank_node, 0, AddrVec_t(), m_clk);
+
+      auto TS = [&](std::string_view timing) { return m_timing_vals(timing); };
+      auto VE = [&](std::string_view voltage) { return m_voltage_vals(voltage); };
+      auto CE = [&](std::string_view current) { return m_current_vals(current); };
+
+      double tCK_ns = (double) TS("tCK_ps") / 1000.0;
+
+      rank_stats.act_background_energy = (VE("VDD") * CE("IDD3N") + VE("VPP") * CE("IPP3N")) 
+                                            * rank_stats.active_cycles * tCK_ns / 1E3;
+
+      rank_stats.pre_background_energy = (VE("VDD") * CE("IDD2N") + VE("VPP") * CE("IPP2N")) 
+                                            * rank_stats.idle_cycles * tCK_ns / 1E3;
+
+
+      double act_cmd_energy  = (VE("VDD") * (CE("IDD0") - CE("IDD3N")) + VE("VPP") * (CE("IPP0") - CE("IPP3N"))) 
+                                      * rank_stats.cmd_counters[m_cmds_counted("ACT")] * TS("nRAS") * tCK_ns / 1E3;
+
+      double pre_cmd_energy  = (VE("VDD") * (CE("IDD0") - CE("IDD2N")) + VE("VPP") * (CE("IPP0") - CE("IPP2N"))) 
+                                      * rank_stats.cmd_counters[m_cmds_counted("PRE")] * TS("nRP")  * tCK_ns / 1E3;
+
+      double rd_cmd_energy   = (VE("VDD") * (CE("IDD4R") - CE("IDD3N")) + VE("VPP") * (CE("IPP4R") - CE("IPP3N"))) 
+                                      * rank_stats.cmd_counters[m_cmds_counted("RD")] * TS("nBL") * tCK_ns / 1E3;
+
+      double wr_cmd_energy   = (VE("VDD") * (CE("IDD4W") - CE("IDD3N")) + VE("VPP") * (CE("IPP4W") - CE("IPP3N"))) 
+                                      * rank_stats.cmd_counters[m_cmds_counted("WR")] * TS("nBL") * tCK_ns / 1E3;
+
+      double ref_cmd_energy  = (VE("VDD") * (CE("IDD5B")) + VE("VPP") * (CE("IPP5B"))) 
+                                      * rank_stats.cmd_counters[m_cmds_counted("REF")] * TS("nRFC") * tCK_ns / 1E3;
+
+      double vrr_cmd_energy  = (VE("VDD") * (CE("IDD0") - CE("IDD3N")) + VE("VPP") * (CE("IPP0") - CE("IPP3N"))) 
+                                      * rank_stats.cmd_counters[m_cmds_counted("VRR")] * TS("nVRR") * tCK_ns / 1E3;
+
+      rank_stats.total_background_energy = rank_stats.act_background_energy + rank_stats.pre_background_energy;
+      rank_stats.total_cmd_energy = act_cmd_energy 
+                                    + pre_cmd_energy 
+                                    + rd_cmd_energy
+                                    + wr_cmd_energy 
+                                    + ref_cmd_energy
+                                    + vrr_cmd_energy;
+
+      rank_stats.total_energy = rank_stats.total_background_energy + rank_stats.total_cmd_energy;
+
+      s_total_background_energy += rank_stats.total_background_energy;
+      s_total_cmd_energy += rank_stats.total_cmd_energy;
+      s_total_energy += rank_stats.total_energy;
+
+      s_total_vrr_energy += vrr_cmd_energy;
+
+      s_total_vrr_cycles[rank_stats.rank_id] = rank_stats.cmd_counters[m_cmds_counted("VRR")] * TS("nVRR");
+    }
 };
 
 

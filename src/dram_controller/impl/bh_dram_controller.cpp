@@ -3,7 +3,6 @@
 #include "frontend/frontend.h"
 #include "frontend/impl/processor/bhO3/bhllc.h"
 #include "frontend/impl/processor/bhO3/bhO3.h"
-#include "dram_controller/impl/plugin/blockhammer/blockhammer.h"
 
 namespace Ramulator {
 
@@ -50,7 +49,8 @@ class BHDRAMController final : public IBHDRAMController, public Implementation {
       m_wr_high_watermark = param<float>("wr_high_watermark").desc("Threshold for switching to write mode.").default_val(0.8f);
 
       m_scheduler = create_child_ifce<IBHScheduler>();
-      m_refresh = create_child_ifce<IRefreshManager>();    
+      m_refresh = create_child_ifce<IRefreshManager>();
+      m_rowpolicy = create_child_ifce<IRowPolicy>();
       m_logger = Logging::create_logger("DBHCTRL");
 
       if (m_config["plugins"]) {
@@ -143,6 +143,9 @@ class BHDRAMController final : public IBHDRAMController, public Implementation {
       ReqBuffer::iterator req_it;
       ReqBuffer* buffer = nullptr;
       bool request_found = schedule_request(req_it, buffer);
+
+      // 2.1 RowPolicy
+      m_rowpolicy->update(request_found, req_it);
 
       // 3. Update all plugins
       for (auto plugin : m_plugins) {
@@ -258,27 +261,19 @@ class BHDRAMController final : public IBHDRAMController, public Implementation {
         }
       }
 
-
       if (request_found) {
         if (m_dram->m_command_meta(req_it->command).is_closing) {
-          if (req_it->addr < 0 && m_active_buffer.size() > 0) {
-            return false;
-          }
-          std::vector<Addr_t> rowgroup((req_it->addr_vec).begin(), (req_it->addr_vec).begin() + m_row_addr_idx);
-          bool invalidate_flag = false;
-          // Search the active buffer with the row address (inkl. banks, etc.)
+          auto& rowgroup = req_it->addr_vec;
           for (auto _it = m_active_buffer.begin(); _it != m_active_buffer.end(); _it++) {
-            std::vector<Addr_t> _it_rowgroup(_it->addr_vec.begin(), _it->addr_vec.begin() + m_row_addr_idx);
-            bool is_colliding = true;
-            for (int addr_idx = 0; addr_idx < rowgroup.size(); addr_idx++) {
-              // Here -1 is treated as a wildcard. 
-              if (rowgroup[addr_idx] != -1 && _it_rowgroup[addr_idx] != -1
-                && rowgroup[addr_idx] != _it_rowgroup[addr_idx]) {
-                  is_colliding = false;
-                  break;
-              } 
+            auto& _it_rowgroup = _it->addr_vec;
+            bool is_matching = true;
+            for (int i = 0; i < m_bank_addr_idx + 1 ; i++) {
+              if (_it_rowgroup[i] != rowgroup[i] && _it_rowgroup[i] != -1 && rowgroup[i] != -1) {
+                is_matching = false;
+                break;
+              }
             }
-            if (is_colliding) {
+            if (is_matching) {
               request_found = false;
               break;
             }
@@ -307,6 +302,9 @@ class BHDRAMController final : public IBHDRAMController, public Implementation {
         }
       }
       return request_found;
+    }
+
+    void finalize() override {
     }
 };
 }   // namespace Ramulator
