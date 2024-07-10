@@ -3,6 +3,9 @@
 
 namespace Ramulator {
 
+const std::string Logging::default_logger_pattern = "[%n] %^[%l]%$ %v";
+bool Logging::base_logger_registered = Logging::_create_base_logger();
+
 Logger_t Logging::create_logger(std::string name, std::string pattern) {
   auto logger = spdlog::stdout_color_st("Ramulator::" + name);
 

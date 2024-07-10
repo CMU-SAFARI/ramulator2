@@ -1,17 +1,23 @@
-add_library(ramulator-example OBJECT)
+add_library(ramulator2_example OBJECT)
 
-target_sources(
-  ramulator-example PRIVATE
-  example_ifce.h
-  impl/example_impl.cpp
-  impl/example_serialization.cpp
-  impl/complicated_impl.h   impl/complicated_impl.cpp
-  impl/another_impl.cpp
-  impl/yetanother_impl.cpp
+target_include_directories(ramulator2_example PRIVATE
+  ${CMAKE_CURRENT_SOURCE_DIR}/..
 )
 
-target_link_libraries(
-  ramulator
+target_sources(ramulator2_example
+  PUBLIC
+    example_ifce.h
+    impl/complicated_impl.h
+
   PRIVATE
-  ramulator-example
+    impl/example_impl.cpp
+    impl/example_serialization.cpp
+    impl/complicated_impl.cpp
+    impl/another_impl.cpp
+    impl/yetanother_impl.cpp
+)
+
+target_link_libraries(ramulator2_example PRIVATE
+  spdlog
+  yaml-cpp
 )

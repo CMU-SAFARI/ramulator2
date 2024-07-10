@@ -1,17 +1,21 @@
-add_library(ramulator-memorysystem OBJECT)
+add_library(ramulator2_memory_system OBJECT)
 
-target_sources(
-  ramulator-memorysystem PRIVATE
-  bh_memory_system.h
-  memory_system.h
-
-  impl/bh_DRAM_system.cpp
-  impl/dummy_memory_system.cpp
-  impl/generic_DRAM_system.cpp
+target_include_directories(ramulator2_memory_system PRIVATE
+  ${CMAKE_CURRENT_SOURCE_DIR}/..
 )
 
-target_link_libraries(
-  ramulator
+target_sources(ramulator2_memory_system
+  PUBLIC
+    bh_memory_system.h
+    memory_system.h
+
   PRIVATE
-  ramulator-memorysystem
+    impl/bh_DRAM_system.cpp
+    impl/dummy_memory_system.cpp
+    impl/generic_DRAM_system.cpp
+)
+
+target_link_libraries(ramulator2_memory_system PRIVATE
+  spdlog
+  yaml-cpp
 )
