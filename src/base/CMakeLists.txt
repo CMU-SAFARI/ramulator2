@@ -1,24 +1,35 @@
-add_library(ramulator-base OBJECT)
+add_library(ramulator2_base OBJECT)
 
-target_sources(
-  ramulator-base PRIVATE
-  base.h      
-  factory.h   factory.cpp
-  type.h
-  exception.h
-  logging.h   logging.cpp
-  debug.h
-  param.h 
-  utils.h     utils.cpp
-  config.h    config.cpp
-  clocked.h
-  stats.h     stats.cpp
-  request.h   request.cpp
-  serialization.h
+target_include_directories(ramulator2_base PRIVATE
+  ${CMAKE_CURRENT_SOURCE_DIR}/..
 )
 
-target_link_libraries(
-  ramulator
+target_sources(ramulator2_base
+  PUBLIC
+    base.h
+    factory.h
+    type.h
+    exception.h
+    logging.h
+    debug.h
+    param.h
+    utils.h
+    config.h
+    clocked.h
+    stats.h
+    request.h
+    serialization.h
+
   PRIVATE
-  ramulator-base
+    factory.cpp
+    logging.cpp
+    utils.cpp
+    config.cpp
+    stats.cpp
+    request.cpp
+)
+
+target_link_libraries(ramulator2_base PRIVATE
+  spdlog
+  yaml-cpp
 )

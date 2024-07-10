@@ -17,29 +17,29 @@ using Logger_t = std::shared_ptr<spdlog::logger>;
 
 class Logging {
   private:
-    inline static const std::string default_logger_pattern = "[%n] %^[%l]%$ %v";
+    static const std::string default_logger_pattern;
 
   public:
     /**
      * @brief       Create an spdlog logger.
-     * 
+     *
      * @param name  The name of the logger
-     * @return Logger_t 
+     * @return Logger_t
      */
     static Logger_t create_logger(std::string name, std::string pattern = default_logger_pattern);
 
     /**
      * @brief       Returns a pointer to the logger by its name.
-     * 
-     * @param name 
-     * @return Logger_t 
+     *
+     * @param name
+     * @return Logger_t
      */
     static Logger_t get(std::string name);
 
   private:
     static bool _create_base_logger();
-    inline static bool base_logger_registered = _create_base_logger();
-    
+    static bool base_logger_registered;
+
   public:
     Logging() = delete;
     Logging(const Logging&) = delete;
