@@ -116,24 +116,36 @@ env.Append(
   ramulator2_path+'/ext/yaml-cpp/include'
 ])
 ```
-4. Put the Ramulator2 wrapper code to `gem5/src/mem/`
-5. Add the code to `gem5/src/mem/SConscript` to register the Ramulator2 SimObjects to gem5 
+4. Put the Ramulator2 wrapper code to `gem5/src/mem/`. And `wrapper/component` code to `gem5/src/python/gem5/components/memory`
+5. Add the code to register the Ramulator2 SimObjects to gem5 
 ```python
+# add to gem5/src/mem/SConscript
 if env['HAVE_RAMULATOR2']:
   SimObject('Ramulator2.py', sim_objects=['Ramulator2'])
   Source('ramulator2.cc')
   DebugFlag("Ramulator2")
+
+# add to gem5/src/python/SConscript
+PySource('gem5.components.memory', 'gem5/components/memory/ramulator_2.py')
+
 ```
-6. Create the Ramulator2 SimObject as the memory controller and specify the path to the Ramulator 2.0 configuration file in your gem5 configuration script, e.g.,
+6. Create the Ramulator2 SimObject as the memory controller and specify the path to the Ramulator 2.0 configuration file in your gem5 configuration script. e.g., 
 ```python
+# version1 - using se.py
 import m5
 from m5.objects import *
 
 system = System()
 system.mem_ctrl = Ramulator2()
 system.mem_ctrl.config_path = "<path-to-config>.yaml" # Don't forget to specify GEM5 as the implementation of the frontend interface!
+...
 
-# Continue your configuration of gem5 ...
+# version2 - using standard library
+memory = Ramulator2System("<path-to-config>.yaml", "<fill-size>GB")
+board = SimpleBoard (
+	memory = memory
+	...
+	) 
 ```
 
 ### General Instructions for Writing Your Own Wrapper of Ramulator 2.0 for Another (including Your Own) Simulator
