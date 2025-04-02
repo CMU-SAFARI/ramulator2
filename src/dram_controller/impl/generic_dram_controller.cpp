@@ -214,8 +214,9 @@ class GenericDRAMController final : public IDRAMController, public Implementatio
           buffer->remove(req_it);
         } else {
           if (m_dram->m_command_meta(req_it->command).is_opening) {
-            m_active_buffer.enqueue(*req_it);
-            buffer->remove(req_it);
+            if (m_active_buffer.enqueue(*req_it)) {
+              buffer->remove(req_it);
+            }
           }
         }
 
