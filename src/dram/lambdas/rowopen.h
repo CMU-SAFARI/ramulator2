@@ -14,13 +14,13 @@ namespace Bank {
       case T::m_states["Opened"]: return true;
       case T::m_states["Refreshing"]: return false;
       default: {
-        spdlog::error("[RowHit::Bank] Invalid bank state for an RD/WR command!");
+        spdlog::error("[RowOpen::Bank] Invalid bank state for an RD/WR command!");
         std::exit(-1);      
       }
     }
   }
 }       // namespace Bank
-}       // namespace RowHit
+}       // namespace RowOpen
 }       // namespace Lambdas
 };      // namespace Ramulator
 
