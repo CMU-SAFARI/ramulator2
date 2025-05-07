@@ -3,7 +3,7 @@ services:
     entrypoint:
     - sleep
     - infinity
-    image: richardluo831/cpp-dev
+    image: richardluo831/ramulator2
     init: true
     volumes:
     - type: bind
