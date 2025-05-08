@@ -1,13 +1,18 @@
-add_library(ramulator-test OBJECT)
+add_library(ramulator2_test OBJECT)
 
-target_sources(
-  ramulator-test PRIVATE
-  test_ifce.h
-  test_impl.cpp
+target_include_directories(ramulator2_test PRIVATE
+  ${CMAKE_CURRENT_SOURCE_DIR}/..
 )
 
-target_link_libraries(
-  ramulator
+target_sources(ramulator2_test
+  PUBLIC
+    test_ifce.h
+
   PRIVATE
-  ramulator-test
+    test_impl.cpp
+)
+
+target_link_libraries(ramulator2_test PRIVATE
+  spdlog
+  yaml-cpp
 )
