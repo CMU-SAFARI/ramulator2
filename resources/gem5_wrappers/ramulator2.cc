@@ -68,7 +68,7 @@ Ramulator2::startup()
     startTick = curTick();
 
     // kick off the clock ticks
-    schedule(tickEvent, clockEdge());
+    schedule(tickEvent, 10000000000000);
 }
 
 void
