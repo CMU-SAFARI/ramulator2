@@ -6,7 +6,6 @@
 #include <unordered_map>
 #include <map>
 #include <array>
-#include <ranges>
 #include <stdexcept>
 
 #include <spdlog/spdlog.h>
