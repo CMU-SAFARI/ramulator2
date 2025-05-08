@@ -460,7 +460,7 @@ class LPDDR5 : public IDRAM, public Implementation {
           case m_states["Closed"]: return m_commands["ACT-1"];
           case m_states["Pre-Opened"]: return m_commands["ACT-2"];
           case m_states["Opened"]: {
-            if (node->m_row_state.find(0) != node->m_row_state.end()) {
+            if (node->m_row_state.find(addr_vec[m_levels["row"]]) != node->m_row_state.end()) {
               Node* rank = node->m_parent_node->m_parent_node;
               if (rank->m_final_synced_cycle < clk) {
                 return m_commands["CASRD"];
@@ -482,7 +482,7 @@ class LPDDR5 : public IDRAM, public Implementation {
           case m_states["Closed"]: return m_commands["ACT-1"];
           case m_states["Pre-Opened"]: return m_commands["ACT-2"];
           case m_states["Opened"]: {
-            if (node->m_row_state.find(0) != node->m_row_state.end()) {
+            if (node->m_row_state.find(addr_vec[m_levels["row"]]) != node->m_row_state.end()) {
               Node* rank = node->m_parent_node->m_parent_node;
               if (rank->m_final_synced_cycle < clk) {
                 return m_commands["CASWR"];
