@@ -1,7 +1,6 @@
 #ifndef     RAMULATOR_FRONTEND_FRONTEND_H
 #define     RAMULATOR_FRONTEND_FRONTEND_H
 
-#include <vector>
 #include <string>
 #include <functional>
 
@@ -19,6 +18,8 @@ class IFrontEnd : public Clocked<IFrontEnd>, public TopLevel<IFrontEnd> {
   protected:
     IMemorySystem* m_memory_system;
     uint m_clock_ratio = 1;
+    uint8_t* m_payload = nullptr;
+    bool m_data_is_set = false;
 
   public:
     virtual void connect_memory_system(IMemorySystem* memory_system) { 
@@ -55,7 +56,30 @@ class IFrontEnd : public Clocked<IFrontEnd>, public TopLevel<IFrontEnd> {
      * (tries to) send to the memory system, and return if this is successful
      * 
      */
-    virtual bool receive_external_requests(int req_type_id, Addr_t addr, int source_id, std::function<void(Request&)> callback) { return false; }
+    virtual bool receive_external_requests(int req_type_id, Addr_t addr, int source_id, 
+                                           std::function<void(Request&)> callback) { return false; }
+
+    virtual bool receive_external_requests(int req_type_id, Addr_t addr, int source_id, uint8_t* payload, int payload_size,
+                                           std::function<void(Request&)> callback) { return false; }
+
+    virtual void set_data(uint8_t* payload) { 
+        if (m_payload != nullptr) delete(m_payload);
+        m_payload = payload;
+        m_data_is_set = true;
+    }
+
+    virtual void reset_data() { 
+        m_data_is_set = false; 
+        if (m_payload != nullptr) {
+          delete(m_payload);
+          m_payload = nullptr;
+        }
+    }
+    
+    virtual uint8_t* get_data() { return m_payload; }
+
+    virtual bool data_is_set() { return m_data_is_set; }
+
 };
 
 }        // namespace Ramulator

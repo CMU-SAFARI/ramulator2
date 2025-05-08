@@ -19,6 +19,11 @@ class GEM5 : public IFrontEnd, public Implementation {
       return m_memory_system->send({addr, req_type_id, source_id, callback});
     }
 
+    bool receive_external_requests(int req_type_id, Addr_t addr, int source_id, 
+                                   uint8_t* payload, int payload_size, std::function<void(Request&)> callback) override {
+      return m_memory_system->send({addr, req_type_id, source_id, payload, payload_size, callback});
+    }
+
   private:
     bool is_finished() override { return true; };
 };
