@@ -504,16 +504,45 @@ class LPDDR5 : public IDRAM, public Implementation {
     void set_rowhits() {
       m_rowhits.resize(m_levels.size(), std::vector<RowhitFunc_t<Node>>(m_commands.size()));
 
-      m_rowhits[m_levels["bank"]][m_commands["RD16"]] = Lambdas::RowHit::Bank::RDWR<LPDDR5>;
-      m_rowhits[m_levels["bank"]][m_commands["WR16"]] = Lambdas::RowHit::Bank::RDWR<LPDDR5>;
+      auto rowhit_func = [] (Node* node, int cmd, int target_id, Clk_t clk) {
+        switch (node->m_state) {
+          case m_states["Closed"]: return false;
+          case m_states["Pre-Opened"]: return false;
+          case m_states["Opened"]:
+            if (node->m_row_state.find(target_id) != node->m_row_state.end()) {
+              return true;
+            }
+            else {
+              return false;
+            }
+          case m_states["Refreshing"]: return false;
+          default: {
+            spdlog::error("[RowHit::Bank] Invalid bank state for an RD/WR command!");
+            std::exit(-1);
+          }
+        }
+      };
+      m_rowhits[m_levels["bank"]][m_commands["RD16"]] = rowhit_func;
+      m_rowhits[m_levels["bank"]][m_commands["WR16"]] = rowhit_func;
     }
-
 
     void set_rowopens() {
       m_rowopens.resize(m_levels.size(), std::vector<RowhitFunc_t<Node>>(m_commands.size()));
 
-      m_rowopens[m_levels["bank"]][m_commands["RD16"]] = Lambdas::RowOpen::Bank::RDWR<LPDDR5>;
-      m_rowopens[m_levels["bank"]][m_commands["WR16"]] = Lambdas::RowOpen::Bank::RDWR<LPDDR5>;
+      auto rowopen_func = [] (Node* node, int cmd, int target_id, Clk_t clk) {
+        switch (node->m_state) {
+          case m_states["Closed"]: return false;
+          case m_states["Pre-Opened"]: return false;
+          case m_states["Opened"]: return true;
+          case m_states["Refreshing"]: return false;
+          default: {
+            spdlog::error("[RowOpen::Bank] Invalid bank state for an RD/WR command!");
+            std::exit(-1);
+          }
+        }
+      };
+      m_rowopens[m_levels["bank"]][m_commands["RD16"]] = rowopen_func;
+      m_rowopens[m_levels["bank"]][m_commands["WR16"]] = rowopen_func;
     }
 
 
