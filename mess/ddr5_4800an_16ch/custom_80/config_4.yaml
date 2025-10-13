@@ -1,0 +1,36 @@
+Frontend:
+  Translation:
+    impl: NoTranslation
+    max_addr: 4294967295
+  clock_ratio: 1
+  impl: MessReqGenerator
+  nop_counter: 4
+  num_columns: 8
+  ratio_reads: 0.8
+  start_addr: 0
+  total_requests: 20000
+  traces:
+  - example_inst.trace
+MemorySystem:
+  AddrMapper:
+    impl: ChRaBaRoCo
+  Controller:
+    RefreshManager:
+      impl: AllBank
+    RowPolicy:
+      impl: OpenRowPolicy
+    Scheduler:
+      impl: FRFCFS
+    impl: Generic
+    plugins: null
+  DRAM:
+    RFM: null
+    impl: DDR5
+    org:
+      channel: 16
+      preset: DDR5_16Gb_x8
+      rank: 1
+    timing:
+      preset: DDR5_4800AN
+  clock_ratio: 1
+  impl: GenericDRAM
