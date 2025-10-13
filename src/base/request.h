@@ -1,7 +1,6 @@
 #ifndef     RAMULATOR_BASE_REQUEST_H
 #define     RAMULATOR_BASE_REQUEST_H
 
-#include <vector>
 #include <list>
 #include <string>
 
@@ -9,9 +8,11 @@
 
 namespace Ramulator {
 
-struct Request { 
+struct Request {
   Addr_t    addr = -1;
   AddrVec_t addr_vec {};
+
+  int request_type = -1;   // 0 for random, 1 for strided, -1 for everything else
 
   // Basic request id convention
   // 0 = Read, 1 = Write. The device spec defines all others
@@ -31,6 +32,8 @@ struct Request {
 
   Clk_t arrive = -1;   // Clock cycle when the request arrive at the memory controller
   Clk_t depart = -1;   // Clock cycle when the request depart the memory controller
+  Clk_t enqueued = -1;  // Clock cycle when the request was enqueued in MC request queue 
+  Clk_t dequeued = -1;  // Clock cycle when the request was dequeued from MC request queue
 
   std::array<int, 4> scratchpad = { 0 };    // A scratchpad for the request
 
@@ -43,16 +46,13 @@ struct Request {
   Request(Addr_t addr, int type, int source_id, std::function<void(Request&)> callback);
 };
 
-
 struct ReqBuffer {
   std::list<Request> buffer;
   size_t max_size = 32;
 
-
   using iterator = std::list<Request>::iterator;
   iterator begin() { return buffer.begin(); };
   iterator end() { return buffer.end(); };
-
 
   size_t size() const { return buffer.size(); }
 

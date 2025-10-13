@@ -22,6 +22,15 @@ class BHDRAMSystem final : public IBHMemorySystem, public Implementation {
 
 
   public:
+    bool is_finished_ms() override {return true;};
+    bool is_request_finished(Request req) override {return true;};
+    int get_total_address_bits() override { return 0; };
+    int get_shift_amt(int idx) override { return -1; };
+    size_t get_max(int idx) override { return -1; };
+    int get_num_channels() override {
+      return m_dram->get_level_size("channel");
+    }
+    
     void init() override { 
       // Create device (a top-level node wrapping all channel nodes)
       m_dram = create_child_ifce<IDRAM>();

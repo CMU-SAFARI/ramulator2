@@ -177,6 +177,21 @@ class BHDRAMController final : public IBHDRAMController, public Implementation {
 
     };
 
+    size_t get_read_queue_length() override {
+      return m_read_buffer.size(); 
+    };
+  
+    size_t get_write_queue_length() override {
+      return m_write_buffer.size(); 
+    };
+
+    size_t get_active_buffer_length() override {
+      return m_active_buffer.size(); 
+    };
+
+    bool is_req_in_read_queue(Request req) override {return true;};
+    bool is_req_in_pending_queue(Request req) override {return true;};
+
   private:
     /**
      * @brief    Helper function to serve the completed read requests

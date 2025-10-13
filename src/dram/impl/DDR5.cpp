@@ -28,9 +28,10 @@ class DDR5 : public IDRAM, public Implementation {
 
     inline static const std::map<std::string, std::vector<int>> timing_presets = {
       //   name         rate   nBL  nCL nRCD   nRP  nRAS   nRC   nWR  nRTP nCWL nPPD nCCDS nCCDS_WR nCCDS_WTR nCCDL nCCDL_WR nCCDL_WTR nRRDS nRRDL nFAW nRFC1 nRFC2 nRFCsb nREFI nREFSBRD nRFM1 nRFM2 nRFMsb nDRFMab nDRFMsb nCS, tCK_ps
-      {"DDR5_3200AN",  {3200,   8,  24,  24,   24,   52,   75,   48,   12,  22,  2,    8,     8,     22+8+4,    8,     16,    22+8+16,   8,   -1,   -1,  -1,   -1,   -1,    -1,     30,    -1,   -1,   -1,     -1,     -1,    2,   625}},
-      {"DDR5_3200BN",  {3200,   8,  26,  26,   26,   52,   77,   48,   12,  24,  2,    8,     8,     24+8+4,    8,     16,    24+8+16,   8,   -1,   -1,  -1,   -1,   -1,    -1,     30,    -1,   -1,   -1,     -1,     -1,    2,   625}},
-      {"DDR5_3200C",   {3200,   8,  28,  28,   28,   52,   79,   48,   12,  26,  2,    8,     8,     26+8+4,    8,     16,    26+8+16,   8,   -1,   -1,  -1,   -1,   -1,    -1,     30,    -1,   -1,   -1,     -1,     -1,    2,   625}},
+      {"DDR5_3200AN",  {3200,   8,  24,  24,   24,   52,   75,   48,   12,  22,  2,    8,     8,     22+8+4,    8,     16,    22+8+16,   8,   -1,   -1,  -1,   -1,   -1,    -1,     48,    -1,   -1,   -1,     -1,     -1,    2,   625}},
+      {"DDR5_3200BN",  {3200,   8,  26,  26,   26,   52,   77,   48,   12,  24,  2,    8,     8,     24+8+4,    8,     16,    24+8+16,   8,   -1,   -1,  -1,   -1,   -1,    -1,     48,    -1,   -1,   -1,     -1,     -1,    2,   625}},
+      {"DDR5_3200C",   {3200,   8,  28,  28,   28,   52,   79,   48,   12,  26,  2,    8,     8,     26+8+4,    8,     16,    26+8+16,   8,   -1,   -1,  -1,   -1,   -1,    -1,     48,    -1,   -1,   -1,     -1,     -1,    2,   625}},
+      {"DDR5_4800AN",  {4800,   8,  34,  34,   34,   77,   111,  72,   18,  32,  2,    8,     8,     32+8+6,    12,    48,    32+8+24,   8,   -1,   -1,  -1,   -1,   -1,    -1,     73,    -1,   -1,   -1,     -1,     -1,    2,   416}},
     };
 
     inline static const std::map<std::string, std::vector<double>> voltage_presets = {
@@ -218,7 +219,6 @@ class DDR5 : public IDRAM, public Implementation {
       set_rowhits();
       set_rowopens();
       set_powers();
-      
       create_nodes();
     };
 
@@ -405,21 +405,22 @@ class DDR5 : public IDRAM, public Implementation {
       int rate_id = [](int rate) -> int {
         switch (rate) {
           case 3200:  return 0;
+          case 4800:  return 1;
           default:    return -1;
         }
       }(m_timing_vals("rate"));
 
-      constexpr int nRRDL_TABLE[3][1] = {
-      // 3200  
-        { 5, },  // x4
-        { 5, },  // x8
-        { 5, },  // x16
+      constexpr int nRRDL_TABLE[3][2] = {
+      // 3200  4800
+        { 5,    12, },  // x4
+        { 5,    12, },  // x8
+        { 5,    12, },  // x16
       };
-      constexpr int nFAW_TABLE[3][1] = {
-      // 3200  
-        { 40, },  // x4
-        { 32, },  // x8
-        { 32, },  // x16
+      constexpr int nFAW_TABLE[3][2] = {
+      // 3200  4800  
+        { 40,   40},  // x4  
+        { 32,   32},  // x8
+        { 32,   32},  // x16
       };
 
       if (dq_id != -1 && rate_id != -1) {
@@ -428,9 +429,9 @@ class DDR5 : public IDRAM, public Implementation {
       }
 
       // tCCD_L_WR2 (with RMW) table
-      constexpr int nCCD_L_WR2_TABLE[1] = {
-      // 3200  
-        32,
+      constexpr int nCCD_L_WR2_TABLE[2] = {
+      // 3200  4800
+        32,      32,
       };
       if (dq_id == 0) {
         m_timing_vals("nCCDL_WR") = nCCD_L_WR2_TABLE[rate_id];
@@ -515,11 +516,12 @@ class DDR5 : public IDRAM, public Implementation {
           // Two-Cycle Commands
           {.level = "channel", .preceding = {"ACT", "RD", "RDA", "WR", "WRA"}, .following = all_commands, .latency = 2},
 
+          // add nPPD constraint that applies to any combination of precharge commands (PREab, PREsb, PREpb) (source: DDR5 JEDEC page 452)
+          {.level = "channel", .preceding = {"PREsb", "PREA"}, .following = {"PREsb", "PREA"}, .latency = V("nPPD")},
+
           // CAS <-> CAS
           /// Data bus occupancy
-          {.level = "channel", .preceding = {"RD", "RDA"}, .following = {"RD", "RDA"}, .latency = V("nBL")},
-          {.level = "channel", .preceding = {"WR", "WRA"}, .following = {"WR", "WRA"}, .latency = V("nBL")},
-
+          {.level = "channel", .preceding = {"RD", "RDA", "WR", "WRA"}, .following = {"RD", "RDA", "WR", "WRA"}, .latency = V("nBL")},
           /*** Rank (or different BankGroup) ***/ 
           // CAS <-> CAS
           /// nCCDS is the minimal latency for column commands 
@@ -647,7 +649,6 @@ class DDR5 : public IDRAM, public Implementation {
     }
 
     void set_powers() {
-      
       m_drampower_enable = param<bool>("drampower_enable").default_val(false);
 
       if (!m_drampower_enable)

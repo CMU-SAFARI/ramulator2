@@ -6,6 +6,7 @@ target_sources(
 
   impl/memory_trace/loadstore_trace.cpp
   impl/memory_trace/readwrite_trace.cpp
+  impl/memory_trace/mess_trace_generator.cpp
 
   impl/processor/simpleO3/simpleO3.cpp
   impl/processor/simpleO3/core.h      impl/processor/simpleO3/core.cpp

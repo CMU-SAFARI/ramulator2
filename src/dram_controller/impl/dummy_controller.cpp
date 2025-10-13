@@ -27,6 +27,19 @@ class DummyController final : public IDRAMController, public Implementation {
     void tick() override {
       return;
     }
+    
+    size_t get_read_queue_length() override {
+      return 0; 
+    };
+    size_t get_write_queue_length() override {
+      return 0; 
+    };
+    size_t get_active_buffer_length() override {
+      return 0; 
+    };
+
+    bool is_req_in_read_queue(Request req) override {return true;};
+    bool is_req_in_pending_queue(Request req) override {return true;};
 
 };
 

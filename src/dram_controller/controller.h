@@ -49,6 +49,13 @@ class IDRAMController : public Clocked<IDRAMController> {
      * 
      */
     virtual void tick() = 0;
+
+    virtual size_t get_read_queue_length() = 0;
+    virtual size_t get_write_queue_length() = 0;
+    virtual size_t get_active_buffer_length() = 0;
+
+    virtual bool is_req_in_read_queue(Request req) = 0;
+    virtual bool is_req_in_pending_queue(Request req) = 0;
    
 };
 

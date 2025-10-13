@@ -49,8 +49,58 @@ class GenericDRAMController final : public IDRAMController, public Implementatio
     size_t s_read_latency = 0;
     float s_avg_read_latency = 0;
 
+    size_t s_num_strided_read_reqs = 0;
+    size_t s_num_random_read_reqs = 0;
+
+    size_t s_random_read_latency = 0;
+    float s_avg_random_read_latency = 0;
+
+    size_t s_strided_read_latency = 0;
+    float s_avg_strided_read_latency = 0;
+
+    size_t s_queue_time_random = 0;
+    float s_avg_queue_time_random = 0;
+    size_t s_queue_time_stream = 0;
+    float s_avg_queue_time_stream = 0;
+
+    int64_t s_max_queue_time_stream = 0;
+    int64_t s_max_queue_time_random = 0;
+
+    int64_t s_min_queue_time_stream = INT64_MAX;
+    int64_t s_min_queue_time_random = INT64_MAX;
+
+    int64_t s_num_queue_points_stream = 0;
+    int64_t s_num_queue_points_random = 0;
 
   public:
+
+    size_t get_read_queue_length() override {
+      return m_read_buffer.size(); 
+    };
+
+    size_t get_write_queue_length() override {
+      return m_write_buffer.size(); 
+    };
+
+    size_t get_active_buffer_length() override {
+      return m_active_buffer.size(); 
+    };
+
+    bool contains(const Request &req, ReqBuffer buffer) const {
+      return std::find_if(buffer.begin(), buffer.end(), [&](const Request &r) {
+          return r.addr == req.addr; }) != buffer.end();
+    }
+
+    bool is_req_in_read_queue(Request req) override {
+      if (contains(req, m_read_buffer)) return true;
+      return false;
+    }
+
+    bool is_req_in_pending_queue(Request req) override {
+      if (contains(req, m_active_buffer)) return true;
+      return false;
+    }
+  
     void init() override {
       m_wr_low_watermark =  param<float>("wr_low_watermark").desc("Threshold for switching back to read mode.").default_val(0.2f);
       m_wr_high_watermark = param<float>("wr_high_watermark").desc("Threshold for switching to write mode.").default_val(0.8f);
@@ -108,6 +158,16 @@ class GenericDRAMController final : public IDRAMController, public Implementatio
 
       register_stat(s_read_latency).name("read_latency_{}", m_channel_id);
       register_stat(s_avg_read_latency).name("avg_read_latency_{}", m_channel_id);
+
+      register_stat(s_avg_queue_time_random).name("avg_queue_time_random{}", m_channel_id);
+      register_stat(s_avg_queue_time_stream).name("avg_queue_time_stream{}", m_channel_id);
+      register_stat(s_max_queue_time_stream).name("max_time_in_queue_stream_{}", m_channel_id);
+      register_stat(s_max_queue_time_random).name("max_time_in_queue_random_{}", m_channel_id);
+      register_stat(s_min_queue_time_stream).name("min_time_in_queue_stream_{}", m_channel_id);
+      register_stat(s_min_queue_time_random).name("min_time_in_queue_random_{}", m_channel_id);
+
+      register_stat(s_avg_strided_read_latency).name("average_strided_read_latency_{}", m_channel_id);
+      register_stat(s_avg_random_read_latency).name("avg_random_read_latency_{}", m_channel_id);
     };
 
     bool send(Request& req) override {
@@ -129,20 +189,21 @@ class GenericDRAMController final : public IDRAMController, public Implementatio
       }
 
       // Forward existing write requests to incoming read requests
-      if (req.type_id == Request::Type::Read) {
-        auto compare_addr = [req](const Request& wreq) {
-          return wreq.addr == req.addr;
-        };
-        if (std::find_if(m_write_buffer.begin(), m_write_buffer.end(), compare_addr) != m_write_buffer.end()) {
-          // The request will depart at the next cycle
-          req.depart = m_clk + 1;
-          pending.push_back(req);
-          return true;
-        }
-      }
+      // if (req.type_id == Request::Type::Read) {
+      //   auto compare_addr = [req](const Request& wreq) {
+      //     return wreq.addr == req.addr;
+      //   };
+      //   if (std::find_if(m_write_buffer.begin(), m_write_buffer.end(), compare_addr) != m_write_buffer.end()) {
+      //     // The request will depart at the next cycle
+      //     req.depart = m_clk + 1;
+      //     pending.push_back(req);
+      //     return true;
+      //   }
+      // }
 
       // Else, enqueue them to corresponding buffer based on request type id
       bool is_success = false;
+      req.enqueued = m_clk;
       req.arrive = m_clk;
       if        (req.type_id == Request::Type::Read) {
         is_success = m_read_buffer.enqueue(req);
@@ -157,6 +218,28 @@ class GenericDRAMController final : public IDRAMController, public Implementatio
         return false;
       }
 
+      if (is_success) {
+        switch (req.type_id) {
+          case Request::Type::Read: {
+            s_num_read_reqs++;
+            if (req.request_type == 0) {
+              s_num_random_read_reqs += 1;
+            } else if (req.request_type == 1) {
+              s_num_strided_read_reqs += 1;
+            }
+            break;
+          }
+          case Request::Type::Write: {
+            s_num_write_reqs++;
+            break;
+          }
+          default: {
+            s_num_other_reqs++;
+            break;
+          }
+        }
+      }
+
       return true;
     };
 
@@ -166,6 +249,26 @@ class GenericDRAMController final : public IDRAMController, public Implementatio
       bool is_success = false;
       is_success = m_priority_buffer.enqueue(req);
       return is_success;
+    }
+
+    void update_queue_stay_stats(ReqBuffer::iterator req) {
+      if (req->enqueued == -1 || req->dequeued == -1) {
+        return;
+      }
+      if (req->request_type == 0) {
+        int64_t val = (req->dequeued - req->enqueued);
+        s_queue_time_random += val;
+        s_num_queue_points_random += 1;
+        if (val > s_max_queue_time_random) s_max_queue_time_random = val;
+        if (val < s_min_queue_time_random) s_min_queue_time_random = val;
+
+      } else if (req->request_type == 1) {
+        int64_t val = (req->dequeued - req->enqueued);
+        s_queue_time_stream += val;
+        s_num_queue_points_stream += 1;
+        if (val > s_max_queue_time_stream) s_max_queue_time_stream = val;
+        if (val < s_min_queue_time_stream) s_min_queue_time_stream = val;
+      }
     }
 
     void tick() override {
@@ -210,6 +313,10 @@ class GenericDRAMController final : public IDRAMController, public Implementatio
             pending.push_back(*req_it);
           } else if (req_it->type_id == Request::Type::Write) {
             // TODO: Add code to update statistics
+          }
+          if (req_it->dequeued == -1) {
+            req_it->dequeued = m_clk;
+            update_queue_stay_stats(req_it);
           }
           buffer->remove(req_it);
         } else {
@@ -305,6 +412,11 @@ class GenericDRAMController final : public IDRAMController, public Implementatio
             // Check if this requests accesses the DRAM or is being forwarded.
             // TODO add the stats back
             s_read_latency += req.depart - req.arrive;
+            if (req.request_type == 0) {
+              s_random_read_latency += req.depart - req.arrive;
+            } else if (req.request_type == 1) {
+              s_strided_read_latency += req.depart - req.arrive;
+            }
           }
 
           if (req.callback) {
@@ -400,12 +512,17 @@ class GenericDRAMController final : public IDRAMController, public Implementatio
     }
 
     void finalize() override {
-      s_avg_read_latency = (float) s_read_latency / (float) s_num_read_reqs;
+      s_avg_read_latency = (float)s_read_latency / (float)s_num_read_reqs;
+      s_avg_strided_read_latency = (float)s_strided_read_latency / (float)s_num_strided_read_reqs;
+      s_avg_random_read_latency = (float)s_random_read_latency / (float)s_num_random_read_reqs;
 
-      s_queue_len_avg = (float) s_queue_len / (float) m_clk;
-      s_read_queue_len_avg = (float) s_read_queue_len / (float) m_clk;
-      s_write_queue_len_avg = (float) s_write_queue_len / (float) m_clk;
-      s_priority_queue_len_avg = (float) s_priority_queue_len / (float) m_clk;
+      s_avg_queue_time_stream = (float) s_queue_time_stream / (float)s_num_queue_points_stream;
+      s_avg_queue_time_random = (float) s_queue_time_random / (float)s_num_queue_points_random;
+
+      s_queue_len_avg = (float)s_queue_len / (float)m_clk;
+      s_read_queue_len_avg = (float)s_read_queue_len / (float)m_clk;
+      s_write_queue_len_avg = (float)s_write_queue_len / (float)m_clk;
+      s_priority_queue_len_avg = (float)s_priority_queue_len / (float)m_clk;
 
       return;
     }

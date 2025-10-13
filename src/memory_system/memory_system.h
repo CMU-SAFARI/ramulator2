@@ -21,6 +21,13 @@ class IMemorySystem : public TopLevel<IMemorySystem> {
     uint m_clock_ratio = 1;
 
   public:
+    virtual bool is_finished_ms() = 0;
+    virtual bool is_request_finished(Request req) = 0;
+    virtual int get_total_address_bits() = 0;
+    virtual int get_shift_amt(int idx) = 0;
+    virtual size_t get_max(int idx) = 0;
+    virtual int get_num_channels() = 0;
+
     virtual void connect_frontend(IFrontEnd* frontend) { 
       m_frontend = frontend; 
       m_impl->setup(frontend, this);
