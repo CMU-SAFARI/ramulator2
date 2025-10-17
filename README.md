@@ -1,3 +1,19 @@
+# Cleaning up the Mess - Artifacts
+This branch contains the source code and data to reproduce the results of our paper titled ["Cleaning up the Mess"]().
+
+## Instructions for reproducing Figure 1-c and Figure 3 in our paper
+
+### Build the Ramulator 2.0 executable
+1. `mkdir build`
+2. `cd build`
+3. `cmake ..`
+4. `make -j8`
+5. `cp ramulator2 ..`
+
+### Run Ramulator 2.0 experiments and plot Figure 1-c and Figure 3
+1. Navigate to the `mess` directory
+2. Refer to the README.md in the `mess` directory
+
 # Ramulator V2.0a
 ## Introduction
 Ramulator 2.0 is a modern, modular, and extensible cycle-accurate DRAM simulator. It is the successor of Ramulator 1.0 [Kim+, CAL'16], achieving both fast simulation speed and ease of extension. The goal of Ramulator 2.0 is to enable rapid and agile implementation and evaluation of design changes in the memory controller and DRAM to meet the increasing research effort in improving the performance, security, and reliability of memory systems. Ramulator 2.0 abstracts and models key components in a DRAM-based memory system and their interactions into shared interfaces and independent implementations, enabling easy modification and extension of the modeled functions of the memory controller and DRAM. 
