@@ -77,8 +77,7 @@ class MessReqGenerator : public IFrontEnd, public Implementation {
     if (m_max_addr == -1) {
       set_max_addr();
     }
-    static std::random_device rd;
-    static std::mt19937 gen(rd());
+    static std::mt19937 gen(1337);
     //std::cout << "get random req, max: " << m_max_addr << ", min: " << m_min_addr << std::endl;
     std::uniform_int_distribution<uint64_t> dist(m_min_addr, m_max_addr);
     Addr_t addr = dist(gen);
