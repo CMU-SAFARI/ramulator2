@@ -88,7 +88,7 @@ class _ParamChainer {
 
       if (_config[_name]) {
         try {
-          return _config[_name].as<T>();
+          return _config[_name].template as<T>();
         } catch (const YAML::BadConversion& e) {
           throw ConfigurationError("Failed to parse Param \"{}\" for implementation \"{}\".", _name_prefix + _name, _impl_name);
         }
