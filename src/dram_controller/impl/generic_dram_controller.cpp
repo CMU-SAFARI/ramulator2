@@ -358,7 +358,7 @@ class GenericDRAMController final : public IDRAMController, public Implementatio
           req_it->command = m_dram->get_preq_command(req_it->final_command, req_it->addr_vec);
           
           request_found = m_dram->check_ready(req_it->command, req_it->addr_vec);
-          if (!request_found & m_priority_buffer.size() != 0) {
+          if (!request_found && m_priority_buffer.size() != 0) {
             return false;
           }
         }
