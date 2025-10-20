@@ -1,5 +1,5 @@
 # Cleaning up the Mess - Artifacts
-This branch contains the source code and data to reproduce the results of our paper titled ["Cleaning up the Mess"]().
+This branch contains the source code and data to reproduce the results of our paper titled ["Cleaning up the Mess"](https://arxiv.org/pdf/2510.15744).
 
 ## Instructions for reproducing Figure 1-c and Figure 3 in our paper
 
