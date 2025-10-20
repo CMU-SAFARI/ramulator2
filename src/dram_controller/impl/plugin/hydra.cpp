@@ -11,6 +11,7 @@
 #include "addr_mapper/addr_mapper.h"
 #include "dram_controller/controller.h"
 #include "dram_controller/plugin.h"
+#include "memory_system/memory_system.h"
 
 namespace Ramulator {
 
@@ -70,7 +71,7 @@ class Hydra : public IControllerPlugin, public Implementation {
     int m_rct_per_cl = -1;
     int m_group_rct_cl_size = -1;
 
-    // per bank GCT, 
+    // per bank GCT,
     // the first index is the flat bank id
     // the second index is the row group id
     // each entry has a group counter and a flag indicating if the group counter has beed initialized
@@ -115,7 +116,7 @@ class Hydra : public IControllerPlugin, public Implementation {
     bool m_is_debug;
 
   public:
-    void init() override { 
+    void init() override {
       m_tracking_threshold = param<int>("hydra_tracking_threshold").required();
       m_group_threshold = param<int>("hydra_group_threshold").required();
       m_row_group_size = param<int>("hydra_row_group_size").default_val(128);
@@ -149,8 +150,8 @@ class Hydra : public IControllerPlugin, public Implementation {
       m_col_level = m_dram->m_levels("column");
 
       m_num_ranks = m_dram->get_level_size("rank");
-      m_num_banks_per_rank = m_dram->get_level_size("bankgroup") == -1 ? 
-                             m_dram->get_level_size("bank") : 
+      m_num_banks_per_rank = m_dram->get_level_size("bankgroup") == -1 ?
+                             m_dram->get_level_size("bank") :
                              m_dram->get_level_size("bankgroup") * m_dram->get_level_size("bank");
       m_num_rows_per_bank = m_dram->get_level_size("row");
       m_num_cls = m_dram->get_level_size("column") / 8;
@@ -190,7 +191,7 @@ class Hydra : public IControllerPlugin, public Implementation {
         }
         row_count_cache.push_back(rcc_rank);
       }
-      
+
       for (int i = 0; i < m_num_ranks * m_num_banks_per_rank; i++) {
         std::unordered_map<Addr_t, int> row_count_table_bank;
         row_count_table.push_back(row_count_table_bank);
@@ -283,13 +284,13 @@ class Hydra : public IControllerPlugin, public Implementation {
             accumulated_dimension *= m_dram->m_organization.count[i + 1];
             flat_bank_id += req_it->addr_vec[i] * accumulated_dimension;
           }
-          
+
           uint rank_id = req_it->addr_vec[m_rank_level];
           uint bank_id = flat_bank_id % m_num_banks_per_rank;
           uint row_id = req_it->addr_vec[m_row_level];
           uint gct_index = row_id >> (m_row_address_bits - m_gct_index_bits); // get most significant bits
           uint rcc_index = row_id & ((1 << m_rcc_index_bits) - 1); // get least significant bits
-          uint rcc_tag = row_id >> (m_row_address_bits - m_rcc_tag_row_bits) // most significant bits of row_id 
+          uint rcc_tag = row_id >> (m_row_address_bits - m_rcc_tag_row_bits) // most significant bits of row_id
                           | bank_id << m_rcc_tag_row_bits; // bank_id
 
           if (m_is_debug) {
@@ -349,7 +350,7 @@ class Hydra : public IControllerPlugin, public Implementation {
           if (group_count_table[flat_bank_id][gct_index].group_count >= m_group_threshold){
             if (m_is_debug) {
               std::cout << "Hydra: Checking GCT" << std::endl;
-              std::cout << "Hydra: GCT above threshold " 
+              std::cout << "Hydra: GCT above threshold "
                         << group_count_table[flat_bank_id][gct_index].group_count << std::endl;
             }
 
@@ -378,7 +379,7 @@ class Hydra : public IControllerPlugin, public Implementation {
                 Request rct_init_req(rct_init_addr_vec, m_WR_req_id);
                 m_ctrl->priority_send(rct_init_req);
                 s_num_write_req++;
-                
+
                 if (m_is_debug) {
                   std::cout << "Hydra: Group initializing, generating write request to DRAM for RCT" << std::endl
                             << "        rct_bank: " << flat_bank_id << std::endl
@@ -463,7 +464,7 @@ class Hydra : public IControllerPlugin, public Implementation {
               // insert new entry and increment rcc
               row_count_table[flat_bank_id][row_id]++;
               row_count_cache[rank_id][rcc_index][rcc_tag] = row_count_table[flat_bank_id][row_id];
-              
+
               if (m_is_debug) {
                 std::cout << "Hydra: Generating read request to DRAM for RCT" << std::endl
                           << "        rct_bank: " << flat_bank_id << std::endl

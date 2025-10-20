@@ -3,6 +3,7 @@
 #include <fstream>
 
 #include "frontend/frontend.h"
+#include "memory_system/memory_system.h"
 #include "base/exception.h"
 
 namespace Ramulator {

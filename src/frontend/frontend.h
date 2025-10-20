@@ -6,10 +6,11 @@
 #include <functional>
 
 #include "base/base.h"
-#include "memory_system/memory_system.h"
 
 
 namespace Ramulator {
+
+class IMemorySystem;
 
 class IFrontEnd : public Clocked<IFrontEnd>, public TopLevel<IFrontEnd> {
   RAMULATOR_REGISTER_INTERFACE(IFrontEnd, "Frontend", "The frontend that drives the simulation.");
@@ -21,8 +22,8 @@ class IFrontEnd : public Clocked<IFrontEnd>, public TopLevel<IFrontEnd> {
     uint m_clock_ratio = 1;
 
   public:
-    virtual void connect_memory_system(IMemorySystem* memory_system) { 
-      m_memory_system = memory_system; 
+    virtual void connect_memory_system(IMemorySystem* memory_system) {
+      m_memory_system = memory_system;
       m_impl->setup(this, memory_system);
       for (auto component : m_components) {
         component->setup(this, memory_system);
@@ -31,7 +32,7 @@ class IFrontEnd : public Clocked<IFrontEnd>, public TopLevel<IFrontEnd> {
 
     virtual bool is_finished() = 0;
 
-    virtual void finalize() { 
+    virtual void finalize() {
       for (auto component : m_components) {
         component->finalize();
       }
@@ -49,11 +50,11 @@ class IFrontEnd : public Clocked<IFrontEnd>, public TopLevel<IFrontEnd> {
 
     /**
      * @brief    Receives memory requests from external sources (e.g., coming from a full system simulator like GEM5)
-     * 
+     *
      * @details
      * This functions should take memory requests from external sources (e.g., coming from GEM5), generate Ramulator 2 Requests,
      * (tries to) send to the memory system, and return if this is successful
-     * 
+     *
      */
     virtual bool receive_external_requests(int req_type_id, Addr_t addr, int source_id, std::function<void(Request&)> callback) { return false; }
 };

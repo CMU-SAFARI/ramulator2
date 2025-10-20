@@ -4,3 +4,4 @@ ext/
 ramulator2
 *.so
 autobuild.sh
+.cache

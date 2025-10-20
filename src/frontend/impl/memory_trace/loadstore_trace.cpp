@@ -3,6 +3,7 @@
 #include <fstream>
 
 #include "frontend/frontend.h"
+#include "memory_system/memory_system.h"
 #include "base/exception.h"
 
 namespace Ramulator {
@@ -70,7 +71,7 @@ class LoadStoreTrace : public IFrontEnd, public Implementation {
           throw ConfigurationError("Trace {} format invalid!", file_path_str);
         }
 
-        bool is_write = false; 
+        bool is_write = false;
         if (tokens[0] == "LD") {
           is_write = false;
         } else if (tokens[0] == "ST") {
@@ -95,7 +96,7 @@ class LoadStoreTrace : public IFrontEnd, public Implementation {
 
     // TODO: FIXME
     bool is_finished() override {
-      return m_trace_count >= m_trace_length; 
+      return m_trace_count >= m_trace_length;
     };
 };
 

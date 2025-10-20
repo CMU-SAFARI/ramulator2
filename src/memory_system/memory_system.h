@@ -7,9 +7,11 @@
 #include <functional>
 
 #include "base/base.h"
-#include "frontend/frontend.h"
+
 
 namespace Ramulator {
+
+class IFrontEnd;
 
 class IMemorySystem : public TopLevel<IMemorySystem> {
   RAMULATOR_REGISTER_INTERFACE(IMemorySystem, "MemorySystem", "Memory system interface (e.g., communicates between processor and memory controller).")
@@ -21,15 +23,15 @@ class IMemorySystem : public TopLevel<IMemorySystem> {
     uint m_clock_ratio = 1;
 
   public:
-    virtual void connect_frontend(IFrontEnd* frontend) { 
-      m_frontend = frontend; 
+    virtual void connect_frontend(IFrontEnd* frontend) {
+      m_frontend = frontend;
       m_impl->setup(frontend, this);
       for (auto component : m_components) {
         component->setup(frontend, this);
       }
     };
 
-    virtual void finalize() { 
+    virtual void finalize() {
       for (auto component : m_components) {
         component->finalize();
       }
@@ -43,7 +45,7 @@ class IMemorySystem : public TopLevel<IMemorySystem> {
 
     /**
      * @brief         Tries to send the request to the memory system
-     * 
+     *
      * @param    req      The request
      * @return   true     Request is accepted by the memory system.
      * @return   false    Request is rejected by the memory system, maybe the memory controller is full?
@@ -52,20 +54,20 @@ class IMemorySystem : public TopLevel<IMemorySystem> {
 
     /**
      * @brief         Ticks the memory system
-     * 
+     *
      */
     virtual void tick() = 0;
 
     /**
-     * @brief    Returns 
-     * 
-     * @return   int 
+     * @brief    Returns
+     *
+     * @return   int
      */
     int get_clock_ratio() { return m_clock_ratio; };
 
     // /**
     //  * @brief    Get the integer id of the request type from the memory spec
-    //  * 
+    //  *
     //  */
     // virtual const SpecDef& get_supported_requests() = 0;
 

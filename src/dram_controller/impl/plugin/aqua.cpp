@@ -9,6 +9,7 @@
 #include "translation/translation.h"
 #include "addr_mapper/impl/rit.h"
 #include "dram_controller/impl/plugin/device_config/device_config.h"
+#include "frontend/frontend.h"
 
 namespace Ramulator {
 
@@ -66,7 +67,7 @@ class AQUA : public IControllerPlugin, public Implementation {
     int s_num_r_migrations = 0;
 
   public:
-    void init() override { 
+    void init() override {
       m_num_art_entries = param<int>("num_art_entries").required();
       m_num_fpt_entries = param<int>("num_fpt_entries").required();
       m_num_qrows_per_bank = param<int>("num_qrows_per_bank").required();
@@ -94,8 +95,8 @@ class AQUA : public IControllerPlugin, public Implementation {
       m_col_level = m_dram->m_levels("column");
 
       m_num_ranks = m_dram->get_level_size("rank");
-      m_num_banks_per_rank = m_dram->get_level_size("bankgroup") == -1 ? 
-                             m_dram->get_level_size("bank") : 
+      m_num_banks_per_rank = m_dram->get_level_size("bankgroup") == -1 ?
+                             m_dram->get_level_size("bank") :
                              m_dram->get_level_size("bankgroup") * m_dram->get_level_size("bank");
       m_num_rows_per_bank = m_dram->get_level_size("row");
       m_num_cls = m_dram->get_level_size("column") / 8;
@@ -114,7 +115,7 @@ class AQUA : public IControllerPlugin, public Implementation {
       m_addr_mapper->init_rit(m_num_banks_per_rank * m_num_ranks, m_num_fpt_entries * 2);
 
       reserve_rows_for_aqua();
-      
+
       // setup random number generator
       generator = std::mt19937(1337);
       distribution = std::uniform_int_distribution<int>(0, m_num_rows_per_bank-1);
@@ -155,7 +156,7 @@ class AQUA : public IControllerPlugin, public Implementation {
             accumulated_dimension *= m_dram->m_organization.count[i + 1];
             flat_bank_id += req_it->addr_vec[i] * accumulated_dimension;
           }
-          
+
           int row_id = req_it->addr_vec[m_row_level];
 
           if (m_is_debug) {
@@ -169,7 +170,7 @@ class AQUA : public IControllerPlugin, public Implementation {
             if (m_is_debug) {
               std::cout << "  └  " << "row " << row_id << " not in HRT." << std::endl;
             }
-            // if row is not in the table, check if the table is full 
+            // if row is not in the table, check if the table is full
             if (m_aggressor_row_tracker[flat_bank_id].size() < m_num_art_entries) {
               if (m_is_debug) {
                 std::cout << "  └  " << "HRT is not full, inserting with count 1." << std::endl;
@@ -218,7 +219,7 @@ class AQUA : public IControllerPlugin, public Implementation {
               }
             }
           } else {
-            if (m_is_debug) { 
+            if (m_is_debug) {
               std::cout << "  └  " << "row " << row_id << " in HRT. Incrementing its counter." << std::endl;
             }
             // if row in table, increment its activation count
@@ -229,7 +230,7 @@ class AQUA : public IControllerPlugin, public Implementation {
           //   std::cout << "==========================" << std::endl;
           //   std::cout << "HRT[" << flat_bank_id << "].size(): " << m_hot_row_tracker[flat_bank_id].size() << std::endl;
           //   for (auto entry: m_hot_row_tracker[flat_bank_id]) {
-          //     std::cout << entry.first << ":\t" << entry.second << std::endl; 
+          //     std::cout << entry.first << ":\t" << entry.second << std::endl;
           //   }
           //   std::cout << "Spillover counter: " << m_spillover_counter[flat_bank_id] << std::endl;
           //   std::cout << "==========================" << std::endl;
@@ -290,7 +291,7 @@ class AQUA : public IControllerPlugin, public Implementation {
               m_reverse_pointer_table[flat_bank_id][m_rqa_head] = row_id;
               m_addr_mapper->rit_insert_entry(flat_bank_id, row_id, m_rqa_head);
             }
-            
+
             s_num_migrations++;
             // update rqa head
             m_rqa_head = (m_rqa_head + 1) % m_num_qrows_per_bank;
@@ -306,7 +307,7 @@ class AQUA : public IControllerPlugin, public Implementation {
         addr_vec.push_back(req_it->addr_vec[i]);
       }
 
-      // Read src_row to copy buffer 
+      // Read src_row to copy buffer
       addr_vec[m_row_level] = src_row;
       for (int cl = 0; cl < m_num_cls; cl++){
         addr_vec[m_col_level] = cl << 3;

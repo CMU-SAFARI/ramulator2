@@ -3,6 +3,7 @@
 #include <fstream>
 
 #include "frontend/frontend.h"
+#include "memory_system/memory_system.h"
 #include "base/exception.h"
 
 namespace Ramulator {
@@ -32,7 +33,7 @@ class ReadWriteTrace : public IFrontEnd, public Implementation {
       m_logger = Logging::create_logger("ReadWriteTrace");
       m_logger->info("Loading trace file {} ...", trace_path_str);
       init_trace(trace_path_str);
-      m_logger->info("Loaded {} lines.", m_trace.size());      
+      m_logger->info("Loaded {} lines.", m_trace.size());
     };
 
 
@@ -65,7 +66,7 @@ class ReadWriteTrace : public IFrontEnd, public Implementation {
           throw ConfigurationError("Trace {} format invalid!", file_path_str);
         }
 
-        bool is_write = false; 
+        bool is_write = false;
         if (tokens[0] == "R") {
           is_write = false;
         } else if (tokens[0] == "W") {
@@ -92,8 +93,8 @@ class ReadWriteTrace : public IFrontEnd, public Implementation {
 
     // TODO: FIXME
     bool is_finished() override {
-      return true; 
-    };    
+      return true;
+    };
 };
 
 }        // namespace Ramulator
