@@ -1,4 +1,4 @@
-# Reproduce Mess benchmark results in our [publication](https://arxiv.link)
+# Reproduce Mess benchmark results in our [publication](https://arxiv.org/pdf/2510.15744)
 
 This can be done in two steps:
 
