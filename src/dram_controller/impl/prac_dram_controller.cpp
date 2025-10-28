@@ -235,7 +235,7 @@ private:
             auto& req = pending[0];
             if (req.depart <= m_clk) {
                 // Request received data from dram
-                if (req.depart - req.arrive > 1) {
+                if (req.depart - req.arrive >= 1) {
                     // Check if this requests accesses the DRAM or is being forwarded.
                     // TODO add the stats back
                 }
