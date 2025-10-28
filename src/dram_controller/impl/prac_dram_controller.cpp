@@ -125,6 +125,7 @@ public:
             };
             if (std::find_if(m_write_buffer.begin(), m_write_buffer.end(), compare_addr) != m_write_buffer.end()) {
                 // The request will depart at the next cycle
+                req.arrive = m_clk;
                 req.depart = m_clk + 1;
                 pending.push_back(req);
                 return true;
