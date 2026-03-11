@@ -77,16 +77,18 @@ class LPDDR5 : public IDRAM, public Implementation {
 
     inline static constexpr ImplDef m_requests = {
       "read16", "write16",
-      "all-bank-refresh", "per-bank-refresh"
+      "all-bank-refresh", "per-bank-refresh",
+      "open-row", "close-row"
     };
 
     inline static const ImplLUT m_request_translations = LUT (
       m_requests, m_commands, {
         {"read16", "RD16"}, {"write16", "WR16"}, 
         {"all-bank-refresh", "REFab"}, {"per-bank-refresh", "REFpb"},
+        {"open-row", "ACT-1"},
+        {"close-row", "PRE"},
       }
     );
-
    
   /************************************************
    *                   Timing
