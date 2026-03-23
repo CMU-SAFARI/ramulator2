@@ -1,0 +1,32 @@
+[project]
+name = "ramulator"
+version = "2.0.0"
+requires-python = ">=3.10"
+dependencies = ["pyyaml"]
+
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["python"]
+
+[tool.ruff]
+line-length = 100
+indent-width = 4
+
+[tool.ruff.format]
+quote-style = "double"
+exclude = [
+    "python/ramulator/dram/ddr*.py",
+    "python/ramulator/dram/hbm*.py",
+    "python/ramulator/dram/lpddr*.py",
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+
+[tool.ruff.lint.per-file-ignores]
+"python/ramulator/dram/ddr*.py" = ["E501", "E701"]
+"python/ramulator/dram/hbm*.py" = ["E501", "E701"]
+"python/ramulator/dram/lpddr*.py" = ["E501", "E701"]

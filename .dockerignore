@@ -1,0 +1,14 @@
+.git
+build
+ext
+ramulator2-venv
+.venv
+.pytest_cache
+.ruff_cache
+__pycache__
+*.pyc
+*.pyo
+*.egg-info
+tests/plots
+libramulator.so
+python/ramulator/_ramulator*.so

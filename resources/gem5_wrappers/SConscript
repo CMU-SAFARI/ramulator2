@@ -1,0 +1,13 @@
+Import('*')
+
+# Replace with the path to your ramulator2 build directory
+RAMULATOR2_HOME = '/path/to/ramulator2'
+
+env.Append(CPPPATH=[f'{RAMULATOR2_HOME}/src'])
+env.Append(LIBS=['ramulator'])
+env.Append(LIBPATH=[RAMULATOR2_HOME])
+env.Append(RPATH=[RAMULATOR2_HOME])
+
+SimObject('Ramulator2.py', sim_objects=['Ramulator2'])
+Source('ramulator2.cc')
+DebugFlag('Ramulator2')

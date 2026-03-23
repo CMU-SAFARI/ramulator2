@@ -1,0 +1,20 @@
+services:
+  ramulator2:
+    build:
+      context: .
+      dockerfile: .devcontainer/Dockerfile
+    init: true
+    cap_add:
+      - SYS_PTRACE
+    security_opt:
+      - seccomp=unconfined
+    environment:
+      CC: gcc
+      CXX: g++
+      VIRTUAL_ENV: /home/vscode/ramulator2-venv
+      PATH: /home/vscode/ramulator2-venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+    volumes:
+      - .:/workspace:cached
+    working_dir: /workspace
+    user: vscode
+    command: bash -c "bash .devcontainer/post-create.sh && sleep infinity"
