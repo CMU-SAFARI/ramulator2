@@ -5,7 +5,6 @@ from ramulator.dram.spec import DRAMStandard, TimingConstraint
 
 class LPDDR5(DRAMStandard):
     name = "LPDDR5"
-    channel_width = 16               # LPDDR5 x16 per die
     internal_prefetch_size = 16      # BL16
     read_latency = "nCL + nBL"
 
@@ -176,8 +175,8 @@ class LPDDR5(DRAMStandard):
 # ---- LPDDR5 JEDEC preset data ----
 
 LPDDR5.org_presets = {
-    "LPDDR5_8Gb_x16":  {"density": 8192,  "dq": 16, "rank": 1, "bankgroup": 4, "bank": 4, "row": 1<<15, "column": 1<<10},
-    "LPDDR5_16Gb_x16": {"density": 16384, "dq": 16, "rank": 1, "bankgroup": 4, "bank": 4, "row": 1<<16, "column": 1<<10},
+    "LPDDR5_8Gb_x16":  {"density": 8192,  "dq": 16, "channel_width": 16, "rank": 1, "bankgroup": 4, "bank": 4, "row": 1<<15, "column": 1<<10},
+    "LPDDR5_16Gb_x16": {"density": 16384, "dq": 16, "channel_width": 16, "rank": 1, "bankgroup": 4, "bank": 4, "row": 1<<16, "column": 1<<10},
 }
 
 # Primary timings only — secondary timings resolved by resolve_secondary_timings().

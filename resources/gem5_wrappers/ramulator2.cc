@@ -47,6 +47,12 @@ Ramulator2::Ramulator2(const Params &p) :
     });
 }
 
+Ramulator2::~Ramulator2()
+{
+    delete ramulator2_frontend;
+    delete ramulator2_memorysystem;
+}
+
 void
 Ramulator2::init()
 {
@@ -65,9 +71,8 @@ Ramulator2::init()
     ramulator2_frontend->connect_memory_system(ramulator2_memorysystem);
     ramulator2_memorysystem->connect_frontend(ramulator2_frontend);
 
-    // if (system()->cacheLineSize() != wrapper.burstSize())
-    //     fatal("Ramulator2 burst size %d does not match cache line size %d\n",
-    //           wrapper.burstSize(), system()->cacheLineSize());
+    // Request size is now passed explicitly to Ramulator via receive_external_requests(),
+    // so cache line size mismatches are handled transparently by request splitting.
 }
 
 void
@@ -97,8 +102,7 @@ Ramulator2::sendResponse()
         responseQueue.pop_front();
 
         DPRINTF(Ramulator2, "Have %d read, %d write, %d responses outstanding\n",
-                nbrOutstandingReads, nbrOutstandingWrites,
-                responseQueue.size());
+                nbrOutstandingReads, nbrOutstandingWrites, responseQueue.size());
 
         if (!responseQueue.empty() && !sendResponseEvent.scheduled())
             schedule(sendResponseEvent, curTick());
@@ -185,7 +189,7 @@ Ramulator2::recvTimingReq(PacketPtr pkt)
     {
         // Generate ramulator READ request and try to send to ramulator's memory system
         enqueue_success = ramulator2_frontend->
-            receive_external_requests(0, pkt->getAddr(), 0, 
+            receive_external_requests(0, pkt->getAddr(), 0,
             [this](Ramulator::Request& req) {
                 DPRINTF(Ramulator2, "Read to %ld completed.\n", req.addr);
                 auto& pkt_q = outstandingReads.find(req.addr)->second;
@@ -198,7 +202,8 @@ Ramulator2::recvTimingReq(PacketPtr pkt)
                 --nbrOutstandingReads;
 
                 accessAndRespond(pkt);
-            });
+            },
+            pkt->getSize());
 
         if (enqueue_success) 
         {
@@ -214,33 +219,22 @@ Ramulator2::recvTimingReq(PacketPtr pkt)
             retryReq = true;
         }
     } else if (pkt->isWrite()) {
-        // Generate ramulator WRITE request and try to send to ramulator's memory system
         enqueue_success = ramulator2_frontend->
-            receive_external_requests(1, pkt->getAddr(), 0, 
+            receive_external_requests(1, pkt->getAddr(), 0,
             [this](Ramulator::Request& req) {
                 DPRINTF(Ramulator2, "Write to %ld completed.\n", req.addr);
-                auto& pkt_q = outstandingWrites.find(req.addr)->second;
-                PacketPtr pkt = pkt_q.front();
-                pkt_q.pop_front();
-                if (!pkt_q.size())
-                    outstandingWrites.erase(req.addr);
-
-                // added counter to track requests in flight
                 --nbrOutstandingWrites;
+                if (nbrOutstanding() == 0)
+                    signalDrainDone();
+            },
+            pkt->getSize());
 
-                accessAndRespond(pkt);
-            });
-
-        if (enqueue_success) 
+        if (enqueue_success)
         {
-            outstandingWrites[pkt->getAddr()].push_back(pkt);
-
-            ++nbrOutstandingWrites;
-
-            // perform the access for writes
             accessAndRespond(pkt);
-        } 
-        else 
+            ++nbrOutstandingWrites;
+        }
+        else
         {
             retryReq = true;
         }

@@ -23,6 +23,8 @@ struct Request {
   int type_id = -1;    // Request type. -1 is the convention for internal maintenance/direct-command requests.
   int source_id = -1;  // Source identifier (e.g., which core)
 
+  int size_bytes = -1;     // Request size in bytes. Must be set explicitly by the frontend.
+
   int command = -1;        // Current command to issue to progress the request
   int final_command = -1;  // Terminal command needed to complete the request
   bool is_stat_updated = false;

@@ -12,4 +12,4 @@ from ramulator.param import Param
 
 class External(Component):
     impl = "External"
-    clock_ratio = Param(int, default=1, cpp_type="unsigned int")
+    clock_ratio = Param(int, required=True, cpp_type="unsigned int")

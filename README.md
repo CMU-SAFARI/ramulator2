@@ -16,7 +16,7 @@
 
 Ramulator 2.1 is a modern, modular, and extensible cycle-level DRAM simulator. It is the successor of Ramulator 1.0 [Kim+, CAL'16] and a major overhaul of Ramulator 2.0 [Luo+, CAL'23]. The goal of Ramulator 2.1 is to enable rapid and agile implementation and evaluation of design changes in the memory controller and DRAM to meet the increasing research effort in improving the performance, security, and reliability of memory systems. Ramulator 2.1 features a clean and modular C++ codebase with automatically generated Python wrappers that enables easy and scriptable configurations and extensions. Users can focus just on the C++ code that implements modeling and simulation logic without having to worry about manually maintaining boilerplate code.
 
-Ramulator 2.1 can either be used as a standalone simulator that takes memory traces, or be easily integrated into other simulators as a DRAM and memory controller simulation library. We currently provide gem5 wrappers that works as a drop-in component for both SE and FS mode (tested with gem5 v25.1).
+Ramulator 2.1 can either be used as a standalone simulator that takes memory traces, or be easily integrated into other simulators as a DRAM and memory controller simulation library. We currently provide gem5 wrappers that works as a drop-in component for both SE and FS mode (tested with gem5 v25.1, FS mode tested with a post-boot checkpoint).
 
 This Github repository contains the public version of Ramulator 2.1. From time to time, we will synchronize improvements of the code framework, additional functionalities, bug fixes, etc. from our internal version. Ramulator 2.1 welcomes your contribution as well as new ideas and implementations in the memory system.
 

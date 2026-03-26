@@ -1,3 +1,5 @@
+#include <stdexcept>
+
 #include <fmt/format.h>
 
 #include "ramulator/base/param.h"
@@ -15,6 +17,7 @@ class GenericDRAMSystem final : public IMemorySystem, public Implementation {
   IChannelMapper* m_channel_mapper;
   std::vector<IController*> m_controllers;
   unsigned int m_clock_ratio = 1;
+  int m_tx_bytes = 0;
 
  public:
   int s_num_read_requests = 0;
@@ -37,8 +40,8 @@ class GenericDRAMSystem final : public IMemorySystem, public Implementation {
     }
 
     // Setup channel mapper with controller info
-    int tx_bytes = m_controllers[0]->get_tx_bytes();
-    m_channel_mapper->setup(static_cast<int>(m_controllers.size()), calc_log2(tx_bytes));
+    m_tx_bytes = m_controllers[0]->get_tx_bytes();
+    m_channel_mapper->setup(static_cast<int>(m_controllers.size()), calc_log2(m_tx_bytes));
 
     m_stats.add("total_num_read_requests", s_num_read_requests);
     m_stats.add("total_num_write_requests", s_num_write_requests);
@@ -48,6 +51,13 @@ class GenericDRAMSystem final : public IMemorySystem, public Implementation {
   }
 
   bool send(Request req) override {
+    // Validate request size: must be set and fit within one transaction.
+    if (req.size_bytes <= 0 || req.size_bytes > m_tx_bytes) {
+      throw std::runtime_error(fmt::format(
+          "Request size_bytes must be set by the frontend (got {}, tx_bytes = {}).",
+          req.size_bytes, m_tx_bytes));
+    }
+
     int channel_id = m_channel_mapper->get_channel(req.addr);
     Addr_t stripped = m_channel_mapper->get_intra_channel_addr(req.addr);
     m_controllers[channel_id]->apply_mapping(stripped, req);
@@ -66,7 +76,6 @@ class GenericDRAMSystem final : public IMemorySystem, public Implementation {
         }
       }
     }
-
     return is_success;
   };
 
@@ -85,6 +94,10 @@ class GenericDRAMSystem final : public IMemorySystem, public Implementation {
       return m_controllers[0]->get_tCK();
     }
     return -1.0f;
+  }
+
+  int get_tx_bytes() override {
+    return m_tx_bytes;
   }
 };
 

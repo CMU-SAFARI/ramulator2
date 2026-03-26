@@ -5,7 +5,6 @@ from ramulator.dram.spec import DRAMStandard, TimingConstraint
 
 class DDR5(DRAMStandard):
     name = "DDR5"
-    channel_width = 32               
     internal_prefetch_size = 16      
     read_latency = "nCL + nBL"
 
@@ -62,7 +61,7 @@ class DDR5(DRAMStandard):
         TimingConstraint(level="Rank", preceding=["WR", "WRA"], following=["RD", "RDA"], latency="nCWL + nBL + nWTRS"),
         # Rank — sibling (rank switching)
         TimingConstraint(level="Rank", preceding=["RD", "RDA"], following=["RD", "RDA", "WR", "WRA"], latency="nBL + nCS", window=1, sibling=True),
-        TimingConstraint(level="Rank", preceding=["WR", "WRA"], following=["RD", "RDA"], latency="nCL + nBL + nCS - nCWL", window=1, sibling=True),
+        TimingConstraint(level="Rank", preceding=["WR", "WRA"], following=["RD", "RDA"], latency="nCWL + nBL + nCS - nCL", window=1, sibling=True),
         # Rank — CAS to PREab
         TimingConstraint(level="Rank", preceding=["RD"], following=["PREab"], latency="nRTP"),
         TimingConstraint(level="Rank", preceding=["WR"], following=["PREab"], latency="nCWL + nBL + nWR"),
@@ -170,15 +169,15 @@ class DDR5(DRAMStandard):
 # ---- DDR5 JEDEC preset data ----
 
 DDR5.org_presets = {
-    "DDR5_8Gb_x4":   {"density": 8192,  "dq": 4,  "rank": 1, "bankgroup": 8, "bank": 2, "row": 1<<16, "column": 1<<11},
-    "DDR5_8Gb_x8":   {"density": 8192,  "dq": 8,  "rank": 1, "bankgroup": 8, "bank": 2, "row": 1<<16, "column": 1<<10},
-    "DDR5_8Gb_x16":  {"density": 8192,  "dq": 16, "rank": 1, "bankgroup": 4, "bank": 2, "row": 1<<16, "column": 1<<10},
-    "DDR5_16Gb_x4":  {"density": 16384, "dq": 4,  "rank": 1, "bankgroup": 8, "bank": 4, "row": 1<<16, "column": 1<<11},
-    "DDR5_16Gb_x8":  {"density": 16384, "dq": 8,  "rank": 1, "bankgroup": 8, "bank": 4, "row": 1<<16, "column": 1<<10},
-    "DDR5_16Gb_x16": {"density": 16384, "dq": 16, "rank": 1, "bankgroup": 4, "bank": 4, "row": 1<<16, "column": 1<<10},
-    "DDR5_32Gb_x4":  {"density": 32768, "dq": 4,  "rank": 1, "bankgroup": 8, "bank": 4, "row": 1<<17, "column": 1<<11},
-    "DDR5_32Gb_x8":  {"density": 32768, "dq": 8,  "rank": 1, "bankgroup": 8, "bank": 4, "row": 1<<17, "column": 1<<10},
-    "DDR5_32Gb_x16": {"density": 32768, "dq": 16, "rank": 1, "bankgroup": 4, "bank": 4, "row": 1<<17, "column": 1<<10},
+    "DDR5_8Gb_x4":   {"density": 8192,  "dq": 4,  "channel_width": 32, "rank": 1, "bankgroup": 8, "bank": 2, "row": 1<<16, "column": 1<<11},
+    "DDR5_8Gb_x8":   {"density": 8192,  "dq": 8,  "channel_width": 32, "rank": 1, "bankgroup": 8, "bank": 2, "row": 1<<16, "column": 1<<10},
+    "DDR5_8Gb_x16":  {"density": 8192,  "dq": 16, "channel_width": 32, "rank": 1, "bankgroup": 4, "bank": 2, "row": 1<<16, "column": 1<<10},
+    "DDR5_16Gb_x4":  {"density": 16384, "dq": 4,  "channel_width": 32, "rank": 1, "bankgroup": 8, "bank": 4, "row": 1<<16, "column": 1<<11},
+    "DDR5_16Gb_x8":  {"density": 16384, "dq": 8,  "channel_width": 32, "rank": 1, "bankgroup": 8, "bank": 4, "row": 1<<16, "column": 1<<10},
+    "DDR5_16Gb_x16": {"density": 16384, "dq": 16, "channel_width": 32, "rank": 1, "bankgroup": 4, "bank": 4, "row": 1<<16, "column": 1<<10},
+    "DDR5_32Gb_x4":  {"density": 32768, "dq": 4,  "channel_width": 32, "rank": 1, "bankgroup": 8, "bank": 4, "row": 1<<17, "column": 1<<11},
+    "DDR5_32Gb_x8":  {"density": 32768, "dq": 8,  "channel_width": 32, "rank": 1, "bankgroup": 8, "bank": 4, "row": 1<<17, "column": 1<<10},
+    "DDR5_32Gb_x16": {"density": 32768, "dq": 16, "channel_width": 32, "rank": 1, "bankgroup": 4, "bank": 4, "row": 1<<17, "column": 1<<10},
 }
 
 # Primary timings only — secondary timings (nRRDS, nRRDL, nFAW, nRFC, nREFI)

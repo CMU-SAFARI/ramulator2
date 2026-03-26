@@ -76,7 +76,6 @@ class DRAMStandard(Component):
     timing_constraints = []  # type: list[TimingConstraint]
     command_cycles = {}  # type: dict[str, float] — CA bus cycles per command (default 1 CK)
     tick_multiplier = 1  # ticks per CK cycle (e.g. 2 for HBM3 half-CK ticks)
-    channel_width = 64
     internal_prefetch_size = 8
     read_latency = "nCL + nBL"
     row_commands = []  # type: list[str]  — commands on the row bus (dual-bus standards)
@@ -127,8 +126,10 @@ class DRAMStandard(Component):
                 f"multi-channel is configured at the system level, "
                 f"not in the DRAM spec."
             )
+        # channel_width is an org-level param (alongside dq)
+        org_names = level_names | {"channel_width"}
         for name in list(overrides):
-            if name in level_names:
+            if name in org_names:
                 org_dict[name] = overrides.pop(name)
 
         # Build timing dict from preset
@@ -157,6 +158,14 @@ class DRAMStandard(Component):
             raise ValueError(
                 f"{cls.name}: unresolved timings {unresolved}. Set them explicitly via overrides."
             )
+
+        # Validate channel_width
+        cw = org_dict["channel_width"]
+        dq = org_dict["dq"]
+        if cw <= 0 or (cw & (cw - 1)) != 0:
+            raise ValueError(f"{cls.name}: channel_width must be a positive power of 2, got {cw}")
+        if cw % dq != 0:
+            raise ValueError(f"{cls.name}: channel_width ({cw}) must be a multiple of dq ({dq})")
 
         # ---- Single-place CK → tick conversion ----
         # All Python-facing values (presets, command_cycles, constraint
@@ -226,7 +235,7 @@ class DRAMStandard(Component):
                                 for name in list(cls.levels)[1:]],
             },
             "timing": [timing_dict[k] for k in cls.timing_params],
-            "channel_width": cls.channel_width,
+            "channel_width": org_dict["channel_width"],
             "read_latency": cls._eval_expr(cls.read_latency, timing_dict),
             "timing_constraints": constraints,
         }

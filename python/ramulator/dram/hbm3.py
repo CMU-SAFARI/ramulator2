@@ -5,7 +5,6 @@ from ramulator.dram.spec import DRAMStandard, TimingConstraint
 
 class HBM3(DRAMStandard):
     name = "HBM3"
-    channel_width = 32               
     internal_prefetch_size = 8       # BL8
     tick_multiplier = 2              # 1 tick = half CK (models half-cycle row cmds)
     read_latency = "nCL + nBL"
@@ -222,12 +221,12 @@ class HBM3(DRAMStandard):
 # ---- HBM3 JEDEC data ----
 HBM3.org_presets = {
     # 16 banks (4 BG x 4 banks) — 4-High typical
-    "HBM3_4Gb":  {"density": 2048, "dq": 32, "pseudochannel": 2, "bankgroup": 4, "bank": 4, "row": 1<<14, "column": 1<<5},
-    "HBM3_8Gb":  {"density": 4096, "dq": 32, "pseudochannel": 2, "bankgroup": 4, "bank": 4, "row": 1<<15, "column": 1<<5},
-    "HBM3_16Gb": {"density": 8192, "dq": 32, "pseudochannel": 2, "bankgroup": 4, "bank": 4, "row": 1<<16, "column": 1<<5},
+    "HBM3_4Gb":  {"density": 2048, "dq": 32, "channel_width": 32, "pseudochannel": 2, "bankgroup": 4, "bank": 4, "row": 1<<14, "column": 1<<5},
+    "HBM3_8Gb":  {"density": 4096, "dq": 32, "channel_width": 32, "pseudochannel": 2, "bankgroup": 4, "bank": 4, "row": 1<<15, "column": 1<<5},
+    "HBM3_16Gb": {"density": 8192, "dq": 32, "channel_width": 32, "pseudochannel": 2, "bankgroup": 4, "bank": 4, "row": 1<<16, "column": 1<<5},
     # 32 banks (8 BG x 4 banks) — 8-High typical
-    "HBM3_8Gb_32B":  {"density": 4096, "dq": 32, "pseudochannel": 2, "bankgroup": 8, "bank": 4, "row": 1<<14, "column": 1<<5},
-    "HBM3_16Gb_32B": {"density": 8192, "dq": 32, "pseudochannel": 2, "bankgroup": 8, "bank": 4, "row": 1<<15, "column": 1<<5},
+    "HBM3_8Gb_32B":  {"density": 4096, "dq": 32, "channel_width": 32, "pseudochannel": 2, "bankgroup": 8, "bank": 4, "row": 1<<14, "column": 1<<5},
+    "HBM3_16Gb_32B": {"density": 8192, "dq": 32, "channel_width": 32, "pseudochannel": 2, "bankgroup": 8, "bank": 4, "row": 1<<15, "column": 1<<5},
 }
 
 # Timing presets — primary timings only (all in CK cycles).

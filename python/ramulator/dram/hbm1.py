@@ -5,7 +5,6 @@ from ramulator.dram.spec import DRAMStandard, TimingConstraint
 
 class HBM1(DRAMStandard):
     name = "HBM1"
-    channel_width = 128              # 128-bit channel
     internal_prefetch_size = 2       # BL2
     read_latency = "nCL + nBL"
 
@@ -171,9 +170,9 @@ class HBM1(DRAMStandard):
 
 # ---- HBM1 presets ----
 HBM1.org_presets = {
-    "HBM1_1Gb":  {"density": 1024, "dq": 128, "bankgroup": 4, "bank": 2, "row": 1<<13, "column": 1<<6},
-    "HBM1_2Gb":  {"density": 2048, "dq": 128, "bankgroup": 4, "bank": 2, "row": 1<<14, "column": 1<<6},
-    "HBM1_4Gb":  {"density": 4096, "dq": 128, "bankgroup": 4, "bank": 2, "row": 1<<15, "column": 1<<6},
+    "HBM1_1Gb":  {"density": 1024, "dq": 128, "channel_width": 128, "bankgroup": 4, "bank": 2, "row": 1<<13, "column": 1<<6},
+    "HBM1_2Gb":  {"density": 2048, "dq": 128, "channel_width": 128, "bankgroup": 4, "bank": 2, "row": 1<<14, "column": 1<<6},
+    "HBM1_4Gb":  {"density": 4096, "dq": 128, "channel_width": 128, "bankgroup": 4, "bank": 2, "row": 1<<15, "column": 1<<6},
 }
 
 # Timing presets — primary timings only.

@@ -140,6 +140,9 @@ struct DRAMSpec {
     return organization.level_sizes[get_level_id(name)];
   }
 
+  // Bytes per DRAM transaction (one burst across the full channel width).
+  int get_tx_bytes() const { return internal_prefetch_size * channel_width / 8; }
+
 
   // Helper for populating name maps + reverse vectors in subclass constructors.
   void set_names(std::unordered_map<std::string, int>& map, std::vector<std::string>& name_vec,

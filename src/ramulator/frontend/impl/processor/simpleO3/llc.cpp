@@ -143,6 +143,7 @@ bool SimpleO3LLC::send(Request req) {
     m_receive_requests[req.addr] = _req_v;
 
     // Add to the miss request list
+    req.size_bytes = static_cast<int>(m_linesize_bytes);
     m_miss_list.push_back(std::make_pair(m_clk + m_latency, req));
 
     return true;
@@ -206,6 +207,7 @@ void SimpleO3LLC::evict_line(CacheSet_t& set, CacheSet_t::iterator victim_it) {
   // Generate writeback request if victim line is dirty
   if (victim_it->dirty) {
     Request writeback_req(victim_it->addr, Request::Type::Write);
+    writeback_req.size_bytes = static_cast<int>(m_linesize_bytes);
     m_miss_list.push_back(std::make_pair(m_clk + m_latency, writeback_req));
 
     DEBUG_LOG(m_logger, "Writeback Request will be issued at Clk={}.", m_clk + m_latency);

@@ -29,7 +29,7 @@ void ControllerBase::apply_mapping(Addr_t stripped_addr, Request& req) {
 }
 
 int ControllerBase::get_tx_bytes() const {
-  return m_device.m_spec->internal_prefetch_size * m_device.m_spec->channel_width / 8;
+  return m_device.m_spec->get_tx_bytes();
 }
 
 int ControllerBase::get_num_levels() const {
@@ -207,7 +207,12 @@ void ControllerBase::retire_request(ReqBuffer::iterator& req_it, ReqBuffer& buff
     m_pending.push_back(*req_it);
     s_num_read_reqs_served++;
   } else if (req_it->type_id == Request::Type::Write) {
-    // Writes complete immediately — no read-latency tracking needed
+    // Write: For now we call the callback here.
+    // TODO: We could also do it after a write_latency (e.g., nCWL+nBL)
+    // similarily as reads
+    if (req_it->callback) {
+      req_it->callback(*req_it);
+    }
     s_num_write_reqs_served++;
   } else if (req_it->type_id == -1) {
     s_num_maintenance_reqs_served++;

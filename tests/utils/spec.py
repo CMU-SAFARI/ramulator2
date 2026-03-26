@@ -45,7 +45,7 @@ def resolve_spec(std_name):
     time_unit_ns = tCK_ns / tick_mult  # ns per simulation tick
 
     # Bytes per request
-    channel_width = std_cls.channel_width
+    channel_width = org_dict["channel_width"]
     prefetch = std_cls.internal_prefetch_size
     bytes_per_req = channel_width * prefetch // 8
 

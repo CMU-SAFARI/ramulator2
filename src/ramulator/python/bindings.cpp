@@ -373,6 +373,10 @@ class HarnessMemorySystem final : public IMemorySystem, public Implementation {
     return m_controller->get_tCK();
   }
 
+  int get_tx_bytes() override {
+    return m_controller->get_tx_bytes();
+  }
+
   IController* controller() const {
     return m_controller;
   }

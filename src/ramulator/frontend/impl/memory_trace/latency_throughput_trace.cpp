@@ -80,6 +80,12 @@ class LatencyThroughputTrace : public IFrontEnd, public Implementation {
 
     m_rng.seed(m_seed);
 
+    // Validate streaming_only + num_streaming_requests coupling
+    if (m_streaming_only && m_num_streaming_requests <= 0) {
+      throw std::runtime_error(
+          "LatencyThroughputTrace: num_streaming_requests must be set when streaming_only=true");
+    }
+
     m_stats.add("streaming_requests_sent", s_streaming_sent);
     m_stats.add("probe_requests_completed", s_probes_completed);
     m_stats.add("total_probe_latency", s_total_probe_latency);
@@ -215,6 +221,7 @@ class LatencyThroughputTrace : public IFrontEnd, public Implementation {
     }
     req.addr = static_cast<Addr_t>(bank_flat * m_num_rows * m_num_cols + av[m_row_pos] * m_num_cols + av[m_col_pos]);
     req.source_id = source_id;
+    req.size_bytes = m_memory_system->get_tx_bytes();
     return req;
   }
 

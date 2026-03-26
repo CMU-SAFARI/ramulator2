@@ -5,7 +5,6 @@ from ramulator.dram.spec import DRAMStandard, TimingConstraint
 
 class HBM2(DRAMStandard):
     name = "HBM2"
-    channel_width = 64               
     internal_prefetch_size = 4       
     read_latency = "nCL + nBL"
 
@@ -187,10 +186,10 @@ class HBM2(DRAMStandard):
 
 # ---- HBM2 preset data ----
 HBM2.org_presets = {
-    "HBM2_1Gb":  {"density": 1024, "dq": 64, "pseudochannel": 2, "bankgroup": 4, "bank": 4, "row": 1<<13, "column": 1<<5},
-    "HBM2_2Gb":  {"density": 2048, "dq": 64, "pseudochannel": 2, "bankgroup": 4, "bank": 4, "row": 1<<14, "column": 1<<5},
-    "HBM2_4Gb":  {"density": 4096, "dq": 64, "pseudochannel": 2, "bankgroup": 4, "bank": 4, "row": 1<<15, "column": 1<<5},
-    "HBM2_8Gb":  {"density": 8192, "dq": 64, "pseudochannel": 2, "bankgroup": 4, "bank": 4, "row": 1<<16, "column": 1<<5},
+    "HBM2_1Gb":  {"density": 1024, "dq": 64, "channel_width": 64, "pseudochannel": 2, "bankgroup": 4, "bank": 4, "row": 1<<13, "column": 1<<5},
+    "HBM2_2Gb":  {"density": 2048, "dq": 64, "channel_width": 64, "pseudochannel": 2, "bankgroup": 4, "bank": 4, "row": 1<<14, "column": 1<<5},
+    "HBM2_4Gb":  {"density": 4096, "dq": 64, "channel_width": 64, "pseudochannel": 2, "bankgroup": 4, "bank": 4, "row": 1<<15, "column": 1<<5},
+    "HBM2_8Gb":  {"density": 8192, "dq": 64, "channel_width": 64, "pseudochannel": 2, "bankgroup": 4, "bank": 4, "row": 1<<16, "column": 1<<5},
 }
 
 # Timing presets — primary timings only.

@@ -5,7 +5,6 @@ from ramulator.dram.spec import DRAMStandard, TimingConstraint
 
 class DDR3(DRAMStandard):
     name = "DDR3"
-    channel_width = 64
     internal_prefetch_size = 8
     read_latency = "nCL + nBL"
 
@@ -43,14 +42,14 @@ class DDR3(DRAMStandard):
         TimingConstraint(level="Channel", preceding=["RD", "RDA"], following=["RD", "RDA"], latency="nBL"),
         TimingConstraint(level="Channel", preceding=["WR", "WRA"], following=["WR", "WRA"], latency="nBL"),
 
-        # Rank — CAS timing (unified nCCD, nWTR — no S/L split)
+        # Rank — CAS timing
         TimingConstraint(level="Rank", preceding=["RD", "RDA"], following=["RD", "RDA"], latency="nCCD"),
         TimingConstraint(level="Rank", preceding=["WR", "WRA"], following=["WR", "WRA"], latency="nCCD"),
         TimingConstraint(level="Rank", preceding=["RD", "RDA"], following=["WR", "WRA"], latency="nCL + nBL + 2 - nCWL"),
         TimingConstraint(level="Rank", preceding=["WR", "WRA"], following=["RD", "RDA"], latency="nCWL + nBL + nWTR"),
         # Rank — sibling (rank switching)
         TimingConstraint(level="Rank", preceding=["RD", "RDA"], following=["RD", "RDA", "WR", "WRA"], latency="nBL + nCS", window=1, sibling=True),
-        TimingConstraint(level="Rank", preceding=["WR", "WRA"], following=["RD", "RDA"], latency="nCL + nBL + nCS - nCWL", window=1, sibling=True),
+        TimingConstraint(level="Rank", preceding=["WR", "WRA"], following=["RD", "RDA"], latency="nCWL + nBL + nCS - nCL", window=1, sibling=True),
         # Rank — CAS to PREab
         TimingConstraint(level="Rank", preceding=["RD"], following=["PREab"], latency="nRTP"),
         TimingConstraint(level="Rank", preceding=["WR"], following=["PREab"], latency="nCWL + nBL + nWR"),
@@ -135,18 +134,18 @@ class DDR3(DRAMStandard):
 # ---- DDR3 JEDEC preset data ----
 
 DDR3.org_presets = {
-    "DDR3_1Gb_x4":  {"density": 1024, "dq": 4,  "rank": 1, "bank": 8, "row": 1<<14, "column": 1<<11},
-    "DDR3_1Gb_x8":  {"density": 1024, "dq": 8,  "rank": 1, "bank": 8, "row": 1<<14, "column": 1<<10},
-    "DDR3_1Gb_x16": {"density": 1024, "dq": 16, "rank": 1, "bank": 8, "row": 1<<13, "column": 1<<10},
-    "DDR3_2Gb_x4":  {"density": 2048, "dq": 4,  "rank": 1, "bank": 8, "row": 1<<15, "column": 1<<11},
-    "DDR3_2Gb_x8":  {"density": 2048, "dq": 8,  "rank": 1, "bank": 8, "row": 1<<15, "column": 1<<10},
-    "DDR3_2Gb_x16": {"density": 2048, "dq": 16, "rank": 1, "bank": 8, "row": 1<<14, "column": 1<<10},
-    "DDR3_4Gb_x4":  {"density": 4096, "dq": 4,  "rank": 1, "bank": 8, "row": 1<<16, "column": 1<<11},
-    "DDR3_4Gb_x8":  {"density": 4096, "dq": 8,  "rank": 1, "bank": 8, "row": 1<<16, "column": 1<<10},
-    "DDR3_4Gb_x16": {"density": 4096, "dq": 16, "rank": 1, "bank": 8, "row": 1<<15, "column": 1<<10},
-    "DDR3_8Gb_x4":  {"density": 8192, "dq": 4,  "rank": 1, "bank": 8, "row": 1<<17, "column": 1<<11},
-    "DDR3_8Gb_x8":  {"density": 8192, "dq": 8,  "rank": 1, "bank": 8, "row": 1<<17, "column": 1<<10},
-    "DDR3_8Gb_x16": {"density": 8192, "dq": 16, "rank": 1, "bank": 8, "row": 1<<16, "column": 1<<10},
+    "DDR3_1Gb_x4":  {"density": 1024, "dq": 4,  "channel_width": 64, "rank": 1, "bank": 8, "row": 1<<14, "column": 1<<11},
+    "DDR3_1Gb_x8":  {"density": 1024, "dq": 8,  "channel_width": 64, "rank": 1, "bank": 8, "row": 1<<14, "column": 1<<10},
+    "DDR3_1Gb_x16": {"density": 1024, "dq": 16, "channel_width": 64, "rank": 1, "bank": 8, "row": 1<<13, "column": 1<<10},
+    "DDR3_2Gb_x4":  {"density": 2048, "dq": 4,  "channel_width": 64, "rank": 1, "bank": 8, "row": 1<<15, "column": 1<<11},
+    "DDR3_2Gb_x8":  {"density": 2048, "dq": 8,  "channel_width": 64, "rank": 1, "bank": 8, "row": 1<<15, "column": 1<<10},
+    "DDR3_2Gb_x16": {"density": 2048, "dq": 16, "channel_width": 64, "rank": 1, "bank": 8, "row": 1<<14, "column": 1<<10},
+    "DDR3_4Gb_x4":  {"density": 4096, "dq": 4,  "channel_width": 64, "rank": 1, "bank": 8, "row": 1<<16, "column": 1<<11},
+    "DDR3_4Gb_x8":  {"density": 4096, "dq": 8,  "channel_width": 64, "rank": 1, "bank": 8, "row": 1<<16, "column": 1<<10},
+    "DDR3_4Gb_x16": {"density": 4096, "dq": 16, "channel_width": 64, "rank": 1, "bank": 8, "row": 1<<15, "column": 1<<10},
+    "DDR3_8Gb_x4":  {"density": 8192, "dq": 4,  "channel_width": 64, "rank": 1, "bank": 8, "row": 1<<17, "column": 1<<11},
+    "DDR3_8Gb_x8":  {"density": 8192, "dq": 8,  "channel_width": 64, "rank": 1, "bank": 8, "row": 1<<17, "column": 1<<10},
+    "DDR3_8Gb_x16": {"density": 8192, "dq": 16, "channel_width": 64, "rank": 1, "bank": 8, "row": 1<<16, "column": 1<<10},
 }
 
 # Primary timings only — secondary timings (nRRD, nFAW, nRFC, nREFI)

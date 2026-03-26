@@ -8,7 +8,7 @@ class ExternalFrontEnd : public IFrontEnd, public Implementation {
 
  public:
   void init() override {
-    RAMULATOR_PARSE_PARAM(m_clock_ratio, unsigned int, "clock_ratio").default_val(1);
+    RAMULATOR_PARSE_PARAM(m_clock_ratio, unsigned int, "clock_ratio").required();
   }
 
   void tick() override {}
@@ -16,8 +16,10 @@ class ExternalFrontEnd : public IFrontEnd, public Implementation {
   bool is_finished() override { return false; }
 
   bool receive_external_requests(int req_type_id, Addr_t addr, int source_id,
-                                 std::function<void(Request&)> callback) override {
+                                 std::function<void(Request&)> callback,
+                                 int size_bytes) override {
     Request req(addr, req_type_id, source_id, std::move(callback));
+    req.size_bytes = size_bytes;
     return m_memory_system->send(req);
   }
 };

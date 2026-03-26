@@ -61,7 +61,6 @@ class Ramulator2 : public AbstractMemory
     bool retryResp;
     Tick startTick;
     std::unordered_map<Addr, std::deque<PacketPtr>> outstandingReads;
-    std::unordered_map<Addr, std::deque<PacketPtr>> outstandingWrites;
 
     /**
      * Count the number of outstanding transactions so that we can
@@ -117,6 +116,7 @@ class Ramulator2 : public AbstractMemory
 
     typedef Ramulator2Params Params;
     Ramulator2(const Params &p);
+    ~Ramulator2();
 
     DrainState drain() override;
 
