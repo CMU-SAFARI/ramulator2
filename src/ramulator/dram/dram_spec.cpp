@@ -52,8 +52,22 @@ void DRAMSpec::load_config(const ConfigNode& config) {
   }
 }
 
-std::unique_ptr<DRAMSpec> create_dram_spec(const std::string& name, const ConfigNode& config) {
-  return DRAMSpec::create(name, config);
+std::map<std::string, DRAMSpec::Creator>& DRAMSpec::registry() {
+  static std::map<std::string, Creator> r;
+  return r;
+}
+
+bool DRAMSpec::register_standard(const std::string& name, Creator c) {
+  registry()[name] = std::move(c);
+  return true;
+}
+
+std::unique_ptr<DRAMSpec> DRAMSpec::create(const std::string& name, const ConfigNode& config) {
+  auto it = registry().find(name);
+  if (it == registry().end()) {
+    throw std::runtime_error("Unknown DRAM standard: " + name);
+  }
+  return it->second(config);
 }
 
 }  // namespace Ramulator

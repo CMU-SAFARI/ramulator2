@@ -226,13 +226,22 @@ class DRAMStandard(Component):
         bus = cls._generate_bus_constraints(cmd_idx, cmd_cycles, tick_mult)
         constraints = bus + constraints
 
+        # Validate all required org levels are present
+        org_counts = []
+        for name in list(cls.levels)[1:]:  # skip Channel
+            key = name.lower()
+            if key not in org_dict:
+                raise ValueError(
+                    f"{cls.name}: org preset '{self.org_preset}' missing required level '{name}'"
+                )
+            org_counts.append(org_dict[key])
+
         return {
             "impl": cls.name,
             "org": {
                 "dq": org_dict["dq"],
                 # Channel count is always 1 — multi-channel is system-level
-                "count": [1] + [org_dict.get(name.lower(), 1)
-                                for name in list(cls.levels)[1:]],
+                "count": [1] + org_counts,
             },
             "timing": [timing_dict[k] for k in cls.timing_params],
             "channel_width": org_dict["channel_width"],
@@ -288,7 +297,12 @@ class DRAMStandard(Component):
             return name
 
         substituted = re.sub(r"[a-zA-Z_]\w*", replace_param, expr)
-        result = eval(substituted)
+        try:
+            result = eval(substituted)
+        except NameError as e:
+            raise ValueError(
+                f"{cls.name}: unresolved parameter in expression '{expr}': {e}"
+            ) from e
         return int(result) if result == int(result) else result
 
     @classmethod

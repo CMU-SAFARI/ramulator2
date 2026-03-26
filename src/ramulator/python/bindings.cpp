@@ -3,6 +3,7 @@
 #include <nanobind/stl/string.h>
 #include <nanobind/stl/vector.h>
 
+#include <fmt/format.h>
 #include <map>
 #include <memory>
 #include <sstream>
@@ -208,7 +209,7 @@ class DeviceUnderTestCpp {
   explicit DeviceUnderTestCpp(nb::dict dram_config) {
     std::string impl = nb::cast<std::string>(dram_config["impl"]);
     ConfigNode cfg = wrap_interface_config("dram", py_to_confignode(dram_config));
-    m_device.init(create_dram_spec(impl, cfg));
+    m_device.init(DRAMSpec::create(impl, cfg));
   }
 
   std::vector<std::string> level_names() const {
@@ -555,7 +556,8 @@ class ControllerUnderTestCpp {
     for (int level = 0; level < spec().level_count; level++) {
       int count = spec().organization.level_sizes[level];
       if (count <= 0) {
-        count = 1;
+        throw std::runtime_error(fmt::format(
+            "synthesize_addr: level {} has invalid size {}", level, count));
       }
       addr = addr * count + addr_vec[level];
     }

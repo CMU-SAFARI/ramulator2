@@ -34,14 +34,14 @@ class SimpleO3 final : public IFrontEnd, public Implementation {
   std::vector<std::unique_ptr<SimpleO3Core>> m_cores;
   std::unique_ptr<SimpleO3LLC> m_llc;
 
-  int m_num_expected_insts = 0;
+  int m_num_expected_insts;
   std::vector<std::string> m_traces;
-  int m_ipc = 4;
-  int m_depth = 128;
-  int m_llc_latency = 47;
-  int m_llc_linesize_bytes = 64;
-  int m_llc_associativity = 8;
-  int m_llc_num_mshr_per_core = 16;
+  int m_ipc;
+  int m_depth;
+  int m_llc_latency;
+  int m_llc_linesize_bytes;
+  int m_llc_associativity;
+  int m_llc_num_mshr_per_core;
   std::string m_llc_capacity_str;
 
  public:

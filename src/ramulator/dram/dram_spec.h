@@ -163,26 +163,10 @@ struct DRAMSpec {
   // Factory registry — maps DRAM standard name (e.g., "DDR4") to creator.
   using Creator = std::function<std::unique_ptr<DRAMSpec>(const ConfigNode&)>;
 
-  static std::map<std::string, Creator>& registry() {
-    static std::map<std::string, Creator> r;
-    return r;
-  }
-
-  static bool register_standard(const std::string& name, Creator c) {
-    registry()[name] = std::move(c);
-    return true;
-  }
-
-  static std::unique_ptr<DRAMSpec> create(const std::string& name, const ConfigNode& config) {
-    auto it = registry().find(name);
-    if (it == registry().end()) {
-      throw std::runtime_error("Unknown DRAM standard: " + name);
-    }
-    return it->second(config);
-  }
+  static std::map<std::string, Creator>& registry();
+  static bool register_standard(const std::string& name, Creator c);
+  static std::unique_ptr<DRAMSpec> create(const std::string& name, const ConfigNode& config);
 };
-
-std::unique_ptr<DRAMSpec> create_dram_spec(const std::string& name, const ConfigNode& config);
 
 }  // namespace Ramulator
 
