@@ -80,8 +80,12 @@ Ramulator2::startup()
 {
     startTick = curTick();
 
-    // kick off the clock ticks
-    schedule(tickEvent, clockEdge());
+    // // kick off the clock ticks
+    // schedule(tickEvent, clockEdge());
+    // The below fixes crashing during full FS bootup, credits: @sangjae4309
+    // please check https://github.com/CMU-SAFARI/ramulator2/pull/79 and
+    // https://github.com/sangjae4309/gem5-ramulator2/issues/5 for details
+    schedule(tickEvent, 13121004000177);
 }
 
 void
