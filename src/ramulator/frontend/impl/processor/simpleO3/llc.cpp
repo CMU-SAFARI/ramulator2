@@ -1,6 +1,7 @@
 #include "ramulator/frontend/impl/processor/simpleO3/llc.h"
 
 #include <cassert>
+#include <algorithm>
 #include <fstream>
 
 namespace Ramulator {
