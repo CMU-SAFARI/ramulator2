@@ -2,8 +2,8 @@
 
 import pytest
 
+from tests.smoke.runner import run_single
 from tests.smoke.testcases import STANDARDS
-from tests.smoke.utils import run_single
 
 
 @pytest.mark.smoke

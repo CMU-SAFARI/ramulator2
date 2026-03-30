@@ -1,7 +1,7 @@
 import pytest
 
 import ramulator
-import ramulator.device_timings
+import tests.device_timings.harness as device_timings
 
 
 pytestmark = pytest.mark.device_timings
@@ -10,7 +10,7 @@ pytestmark = pytest.mark.device_timings
 def test_device_under_test_example_flow():
     # Build a normal DRAM object first, then wrap it in DeviceUnderTest.
     dram = ramulator.dram.DDR4(org_preset="DDR4_8Gb_x8", timing_preset="DDR4_2400R", rank=1)
-    dut = ramulator.device_timings.DeviceUnderTest(dram)
+    dut = device_timings.DeviceUnderTest(dram)
 
     # Named address construction keeps short protocol tests readable.
     a = dut.addr_vec(Rank=0, BankGroup=0, Bank=0, Row=12, Column=0)

@@ -5,7 +5,8 @@ target_sources(
   i_memory_system.h
 
   channel_mapper/i_channel_mapper.h
-  channel_mapper/impl/channel_mappers.cpp
+  channel_mapper/impl/cache_line_interleave.cpp
+  channel_mapper/impl/passthrough_channel_mapper.cpp
 
   impl/generic_dram_system.cpp
 )

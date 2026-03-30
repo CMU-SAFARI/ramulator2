@@ -24,7 +24,7 @@ target_sources(
   addr_mapper/impl/ch_ra_ba_ro_co.cpp
   addr_mapper/impl/ro_ba_ra_co_ch.cpp
   addr_mapper/impl/mop4clxor.cpp
-  addr_mapper/impl/direct_mapper.cpp
+  addr_mapper/impl/passthrough_addr_mapper.cpp
 
   plugin/i_controller_plugin.h
   plugin/controller_validation_hook.h

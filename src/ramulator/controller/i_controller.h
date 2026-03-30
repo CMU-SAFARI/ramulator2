@@ -22,7 +22,6 @@ class IController {
   virtual bool priority_send(Request& req) = 0;
   virtual void tick() = 0;
 
-  virtual void apply_mapping(Addr_t stripped_addr, Request& req) = 0;
   virtual int get_tx_bytes() const = 0;
   virtual int get_num_levels() const = 0;
   virtual float get_tCK() const = 0;
@@ -50,6 +49,14 @@ struct ReqBuffer {
   bool enqueue(const Request& request) {
     if (buffer.size() < max_size) {
       buffer.push_back(request);
+      return true;
+    }
+    return false;
+  }
+
+  bool enqueue(Request&& request) {
+    if (buffer.size() < max_size) {
+      buffer.push_back(std::move(request));
       return true;
     }
     return false;

@@ -34,7 +34,7 @@ option(YAML_BUILD_SHARED_LIBS "Build yaml-cpp as a shared library" OFF)
 FetchContent_Declare(
   yaml-cpp                             
   GIT_REPOSITORY https://github.com/jbeder/yaml-cpp.git
-  GIT_TAG        yaml-cpp-0.7.0                        
+  GIT_TAG        yaml-cpp-0.9.0                        
   SOURCE_DIR     ${CMAKE_CURRENT_SOURCE_DIR}/ext/yaml-cpp
 )
 FetchContent_MakeAvailable(yaml-cpp)
@@ -79,7 +79,7 @@ target_include_directories(ramulator PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
 target_link_libraries(
   ramulator
   PRIVATE fmt::fmt
-  PRIVATE yaml-cpp
+  PRIVATE yaml-cpp::yaml-cpp
 )
 
 add_subdirectory(src/ramulator)
@@ -114,6 +114,13 @@ if(RAMULATOR_PYTHON_BINDINGS)
   target_link_libraries(_ramulator PRIVATE ramulator)
   target_include_directories(_ramulator PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
   set_target_properties(_ramulator PROPERTIES
+    LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/python/ramulator
+  )
+
+  nanobind_add_module(_ramulator_test tests/cpp/test_harness.cpp)
+  target_link_libraries(_ramulator_test PRIVATE ramulator)
+  target_include_directories(_ramulator_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+  set_target_properties(_ramulator_test PROPERTIES
     LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/python/ramulator
   )
 endif()

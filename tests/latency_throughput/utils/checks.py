@@ -7,7 +7,7 @@ single source of truth.
 Each check returns a result dict with expected, measured, and % deviation.
 """
 
-from tests.utils.spec import resolve_spec
+from tests.latency_throughput.utils.spec import resolve_spec
 
 
 def check_unloaded_latency(curves, std_name):

@@ -2,8 +2,8 @@
 #define RAMULATOR_DRAM_NODE_H
 
 #include <deque>
-#include <map>
 #include <memory>
+#include <unordered_map>
 #include <vector>
 
 #include "ramulator/base/type.h"
@@ -34,7 +34,7 @@ struct DRAMNode {
   std::vector<Clk_t> m_cmd_ready_clk;            // The next cycle that each command can be issued again at this level
   std::vector<std::deque<Clk_t>> m_cmd_history;  // Issue-history of each command at this level
 
-  std::map<int, int> m_row_state;  // The state of the rows, if I am a bank-ish node
+  std::unordered_map<int, int> m_row_state;  // The state of the rows, if I am a bank-ish node
 
   DRAMNode(DRAMSpec* spec, DRAMNode* parent, int level, int id);
 

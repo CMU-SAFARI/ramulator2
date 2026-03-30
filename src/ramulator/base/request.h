@@ -12,6 +12,7 @@ namespace Ramulator {
 
 struct Request {
   Addr_t addr = -1;
+  Addr_t intra_channel_addr = -1;  // Flat address with channel bits stripped
   AddrVec_t addr_vec{};
 
   // Universal built-in external request types — always Read = 0, Write = 1.

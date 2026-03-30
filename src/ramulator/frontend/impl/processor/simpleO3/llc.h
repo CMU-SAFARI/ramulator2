@@ -69,7 +69,7 @@ class SimpleO3LLC {
   };
 
   void tick();
-  bool send(Request req);
+  bool send(Request& req);
   void receive(Request& req);
 
   void serialize(std::string serialization_filename);

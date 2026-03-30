@@ -47,13 +47,51 @@ class DRAMDevice {
   bool check_node_open(int command, const AddrVec_t& addr_vec, Clk_t clk);
 
   // Compute flat bank index from addr_vec
-  int flat_bank_id(const AddrVec_t& addr_vec) const;
+  int get_flat_bank_id(const AddrVec_t& addr_vec) const;
 
   // Check if a bank node matches an addr_vec pattern (wildcards are -1)
   static bool bank_matches(DRAMNode* bank, const AddrVec_t& addr_vec);
 
-  // Get indices into m_bank_nodes for the target banks of a command
+  // Get indices into m_bank_nodes for the target banks of a command (cold-path wrapper)
   std::vector<int> get_target_banks(int command, const AddrVec_t& addr_vec) const;
+
+  /// Visit target bank(s) for a command with early-exit support.
+  /// Visitor signature: bool(int bank_id) — return true to continue, false to stop.
+  /// Returns true if all banks were visited, false if visitor short-circuited.
+  template <class Visitor>
+  bool for_each_target_bank_while(int command, const AddrVec_t& addr_vec, Visitor&& visitor) const {
+    switch (m_spec->bank_targets[command]) {
+      case BankTarget::Single:
+        return visitor(get_flat_bank_id(addr_vec));
+
+      case BankTarget::All:
+        for (int i = 0; i < static_cast<int>(m_bank_nodes.size()); ++i) {
+          if (!bank_matches(m_bank_nodes[i], addr_vec)) continue;
+          if (!visitor(i)) return false;
+        }
+        return true;
+
+      case BankTarget::SameBank: {
+        const int target_bank_id = addr_vec[m_bank_level];
+        for (int i = 0; i < static_cast<int>(m_bank_nodes.size()); ++i) {
+          if (m_bank_nodes[i]->m_node_id != target_bank_id) continue;
+          if (!bank_matches(m_bank_nodes[i], addr_vec)) continue;
+          if (!visitor(i)) return false;
+        }
+        return true;
+      }
+    }
+    return true;
+  }
+
+  /// Visit all target bank(s) for a command. Visitor signature: void(int bank_id).
+  template <class Visitor>
+  void for_each_target_bank(int command, const AddrVec_t& addr_vec, Visitor&& visitor) const {
+    for_each_target_bank_while(command, addr_vec, [&](int bank_id) {
+      visitor(bank_id);
+      return true;
+    });
+  }
 
  private:
   // Flat bank dispatch — apply action to target banks

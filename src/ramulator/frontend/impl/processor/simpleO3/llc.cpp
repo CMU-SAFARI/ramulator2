@@ -57,7 +57,7 @@ void SimpleO3LLC::tick() {
   }
 };
 
-bool SimpleO3LLC::send(Request req) {
+bool SimpleO3LLC::send(Request& req) {
   CacheSet_t& set = get_set(req.addr);
 
   if (req.type_id == Request::Type::Read) {

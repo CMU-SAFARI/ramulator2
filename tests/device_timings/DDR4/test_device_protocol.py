@@ -1,7 +1,7 @@
 import pytest
 
 import ramulator
-import ramulator.device_timings
+import tests.device_timings.harness as device_timings
 
 
 pytestmark = pytest.mark.device_timings
@@ -9,7 +9,7 @@ pytestmark = pytest.mark.device_timings
 
 def make_dut():
     dram = ramulator.dram.DDR4(org_preset="DDR4_8Gb_x8", timing_preset="DDR4_2400R", rank=1)
-    return ramulator.device_timings.DeviceUnderTest(dram)
+    return device_timings.DeviceUnderTest(dram)
 
 
 def test_rd_on_closed_bank_requires_act():

@@ -21,16 +21,15 @@ bool DRAMDevice::check_timing(int command, const AddrVec_t& addr_vec, Clk_t clk)
 
 int DRAMDevice::get_preq_command(int command, const AddrVec_t& addr_vec, Clk_t clk) {
   auto preq_fn = m_spec->funcs.preqs[command];
-  if (!preq_fn) {
-    return command;
-  }
-  for (int bid : get_target_banks(command, addr_vec)) {
-    int preq = preq_fn(m_bank_nodes[bid], command, addr_vec, clk);
-    if (preq != command) {
-      return preq;
-    }
-  }
-  return command;
+  if (!preq_fn) return command;
+
+  int resolved = command;
+  for_each_target_bank_while(command, addr_vec, [&](int flat_bank_id) {
+    int preq = preq_fn(m_bank_nodes[flat_bank_id], command, addr_vec, clk);
+    if (preq != command) { resolved = preq; return false; }
+    return true;
+  });
+  return resolved;
 }
 
 bool DRAMDevice::check_rowbuffer_hit(int command, const AddrVec_t& addr_vec, Clk_t clk) {
@@ -38,8 +37,8 @@ bool DRAMDevice::check_rowbuffer_hit(int command, const AddrVec_t& addr_vec, Clk
   if (!rowhit_fn) {
     return false;
   }
-  int bid = flat_bank_id(addr_vec);
-  return rowhit_fn(m_bank_nodes[bid], command, addr_vec, clk);
+  int flat_bank_id = get_flat_bank_id(addr_vec);
+  return rowhit_fn(m_bank_nodes[flat_bank_id], command, addr_vec, clk);
 }
 
 bool DRAMDevice::check_node_open(int command, const AddrVec_t& addr_vec, Clk_t clk) {
@@ -47,11 +46,11 @@ bool DRAMDevice::check_node_open(int command, const AddrVec_t& addr_vec, Clk_t c
   if (!rowopen_fn) {
     return false;
   }
-  int bid = flat_bank_id(addr_vec);
-  return rowopen_fn(m_bank_nodes[bid], command, addr_vec, clk);
+  int flat_bank_id = get_flat_bank_id(addr_vec);
+  return rowopen_fn(m_bank_nodes[flat_bank_id], command, addr_vec, clk);
 }
 
-int DRAMDevice::flat_bank_id(const AddrVec_t& addr_vec) const {
+int DRAMDevice::get_flat_bank_id(const AddrVec_t& addr_vec) const {
   int id = 0;
   for (int lvl = 1; lvl <= m_bank_level; lvl++) {
     id = id * m_spec->organization.level_sizes[lvl] + addr_vec[lvl];
@@ -69,40 +68,17 @@ bool DRAMDevice::bank_matches(DRAMNode* bank, const AddrVec_t& addr_vec) {
 }
 
 std::vector<int> DRAMDevice::get_target_banks(int command, const AddrVec_t& addr_vec) const {
-  switch (m_spec->bank_targets[command]) {
-    case BankTarget::Single:
-      return {flat_bank_id(addr_vec)};
-    case BankTarget::All: {
-      std::vector<int> ids;
-      for (int i = 0; i < static_cast<int>(m_bank_nodes.size()); i++) {
-        if (bank_matches(m_bank_nodes[i], addr_vec)) {
-          ids.push_back(i);
-        }
-      }
-      return ids;
-    }
-    case BankTarget::SameBank: {
-      int target_bank_id = addr_vec[m_bank_level];
-      std::vector<int> ids;
-      for (int i = 0; i < static_cast<int>(m_bank_nodes.size()); i++) {
-        if (m_bank_nodes[i]->m_node_id == target_bank_id && bank_matches(m_bank_nodes[i], addr_vec)) {
-          ids.push_back(i);
-        }
-      }
-      return ids;
-    }
-  }
-  return {};
+  std::vector<int> ids;
+  for_each_target_bank(command, addr_vec, [&](int id) { ids.push_back(id); });
+  return ids;
 }
 
 void DRAMDevice::apply_action(int command, const AddrVec_t& addr_vec, Clk_t clk) {
   auto action_fn = m_spec->funcs.actions[command];
-  if (!action_fn) {
-    return;
-  }
-  for (int bid : get_target_banks(command, addr_vec)) {
-    action_fn(m_bank_nodes[bid], command, addr_vec, clk);
-  }
+  if (!action_fn) return;
+  for_each_target_bank(command, addr_vec, [&](int flat_bank_id) {
+    action_fn(m_bank_nodes[flat_bank_id], command, addr_vec, clk);
+  });
 }
 
 }  // namespace Ramulator

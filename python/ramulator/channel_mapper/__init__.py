@@ -5,5 +5,6 @@
 # Regenerate:   python -m ramulator codegen
 ###############################################################################
 from .cache_line_interleave import CacheLineInterleave
+from .pass_through_channel_mapper import PassThroughChannelMapper
 
-__all__ = ['CacheLineInterleave']
+__all__ = ['CacheLineInterleave', 'PassThroughChannelMapper']

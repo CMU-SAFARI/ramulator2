@@ -40,7 +40,7 @@ class IMemorySystem : public TopLevel<IMemorySystem> {
   void print_stats(std::ostream& os) { m_impl->print_stats(os); }
   ConfigNode collect_stats() const { return m_impl->collect_stats(); }
 
-  virtual bool send(Request req) = 0;
+  virtual bool send(Request& req) = 0;
   virtual void tick() = 0;
 
   // Returns the clock ratio for the memory system (forwarded from controllers).

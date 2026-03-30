@@ -19,36 +19,39 @@ class FRFCFSScheduler : public IScheduler, public Implementation {
       return buffer.end();
     }
 
-    for (auto& req : buffer) {
-      req.command = m_ctrl->get_preq_command(req.final_command, req.addr_vec);
-    }
-
     auto candidate = buffer.end();
+    bool cand_timing_ok = false;
+
     for (auto it = buffer.begin(); it != buffer.end(); it++) {
+      // Derive the current command (prerequisite resolution)
+      it->command = m_ctrl->get_preq_command(it->final_command, it->addr_vec);
+
+      // Apply eligibility filter
       if (filter && !filter(*it)) {
         continue;
       }
+
+      // First eligible candidate — take it, check timing once
       if (candidate == buffer.end()) {
         candidate = it;
+        cand_timing_ok = m_ctrl->check_timing(it->command, it->addr_vec);
         continue;
       }
-      candidate = compare_native(candidate, it);
+
+      // Compare challenger against incumbent (incumbent timing is cached)
+      bool it_timing_ok = m_ctrl->check_timing(it->command, it->addr_vec);
+      if (cand_timing_ok != it_timing_ok) {
+        if (it_timing_ok) {
+          candidate = it;
+          cand_timing_ok = true;
+        }
+      } else if (it->arrive < candidate->arrive) {
+        candidate = it;
+        // cand_timing_ok unchanged — both had same readiness
+      }
     }
 
     return candidate;
-  }
-
- private:
-  ReqBuffer::iterator compare_native(ReqBuffer::iterator req1, ReqBuffer::iterator req2) {
-    bool timing_ok1 = m_ctrl->check_timing(req1->command, req1->addr_vec);
-    bool timing_ok2 = m_ctrl->check_timing(req2->command, req2->addr_vec);
-
-    if (timing_ok1 ^ timing_ok2) {
-      return timing_ok1 ? req1 : req2;
-    }
-
-    // Fallback to FCFS
-    return (req1->arrive <= req2->arrive) ? req1 : req2;
   }
 };
 

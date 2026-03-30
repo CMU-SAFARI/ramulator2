@@ -3,6 +3,7 @@
 
 #include <deque>
 #include <string>
+#include <unordered_set>
 #include <vector>
 
 #include "ramulator/controller/addr_mapper/i_addr_mapper.h"
@@ -31,7 +32,6 @@ class ControllerBase : public IController, public Implementation {
   int get_preq_command(int command, const AddrVec_t& addr_vec);
 
   // IController overrides
-  void apply_mapping(Addr_t stripped_addr, Request& req) override;
   int get_tx_bytes() const override;
   int get_num_levels() const override;
   float get_tCK() const override;
@@ -64,6 +64,8 @@ class ControllerBase : public IController, public Implementation {
   ReqBuffer m_priority_buffer;
   ReqBuffer m_read_buffer;
   ReqBuffer m_write_buffer;
+  // Efficiently tracks addresses of buffered write requests for write-forwarding
+  std::unordered_set<Addr_t> m_buffered_write_addrs;
 
   // Buffer config
   int m_read_buffer_size;

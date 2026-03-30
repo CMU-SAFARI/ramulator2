@@ -77,8 +77,17 @@ void DRAMNode::update_timing(int command, const AddrVec_t& addr_vec, Clk_t clk) 
     return;
   }
 
-  for (auto& child : m_child_nodes) {
-    child->update_timing(command, addr_vec, clk);
+  // Skip traversal that does not have sibling timing constraints
+  int child_level = m_level + 1;
+  int target_child_id = addr_vec[child_level];
+  bool children_have_sibling_cons = m_spec->has_sibling_cons[child_level][command];
+
+  if (children_have_sibling_cons || target_child_id == -1) {
+    for (auto& child : m_child_nodes) {
+      child->update_timing(command, addr_vec, clk);
+    }
+  } else {
+    m_child_nodes[target_child_id]->update_timing(command, addr_vec, clk);
   }
 }
 

@@ -8,7 +8,7 @@ import time
 from collections import defaultdict
 from concurrent.futures import ProcessPoolExecutor, as_completed
 
-from tests.utils.sim import run_single
+from tests.latency_throughput.runner import run_single
 
 
 def run_sweep(
@@ -66,7 +66,7 @@ def extract_curves(raw_results, std_name):
         }
     }
     """
-    from tests.utils.spec import resolve_spec
+    from tests.latency_throughput.utils.spec import resolve_spec
 
     spec = resolve_spec(std_name)
     time_unit_ns = spec["time_unit_ns"]

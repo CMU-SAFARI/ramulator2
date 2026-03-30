@@ -216,17 +216,14 @@ bool LPDDR5Controller::cas_would_block_deadline() const {
 
 bool LPDDR5Controller::would_block_activating(int cmd, const AddrVec_t& addr_vec) const {
   const auto& meta = m_device.m_spec->command_meta[cmd];
-  if (!meta.is_closing && !meta.is_refreshing) {
-    return false;
-  }
+  if (!meta.is_closing && !meta.is_refreshing) return false;
 
-  for (int bank_id : m_device.get_target_banks(cmd, addr_vec)) {
-    if (m_act2_owner_valid[bank_id]) {
-      return true;
-    }
-  }
-
-  return false;
+  bool blocked = false;
+  m_device.for_each_target_bank_while(cmd, addr_vec, [&](int bank_id) {
+    if (m_act2_owner_valid[bank_id]) { blocked = true; return false; }
+    return true;
+  });
+  return blocked;
 }
 
 bool LPDDR5Controller::is_owned_act2_candidate(const Request& req) const {
@@ -234,8 +231,8 @@ bool LPDDR5Controller::is_owned_act2_candidate(const Request& req) const {
     return true;
   }
 
-  int bank_id = m_device.flat_bank_id(req.addr_vec);
-  assert(m_act2_owner_valid[bank_id]);
+  int flat_bank_id = m_device.get_flat_bank_id(req.addr_vec);
+  assert(m_act2_owner_valid[flat_bank_id]);
 
   // Only the owner request stored in m_activating_buffer may issue ACT2.
   return false;
@@ -263,10 +260,10 @@ ControllerBase::Candidate LPDDR5Controller::pick_urgent_act2() {
   Clk_t best_deadline = -1;
 
   for (auto it = m_activating_buffer.begin(); it != m_activating_buffer.end(); it++) {
-    int bank_id = m_device.flat_bank_id(it->addr_vec);
-    assert(m_act2_owner_valid[bank_id]);
+    int flat_bank_id = m_device.get_flat_bank_id(it->addr_vec);
+    assert(m_act2_owner_valid[flat_bank_id]);
 
-    Clk_t deadline = m_act2_deadline[bank_id];
+    Clk_t deadline = m_act2_deadline[flat_bank_id];
     assert(deadline >= 0);
 
     it->command = m_cmd_act2;
@@ -293,10 +290,10 @@ ControllerBase::Candidate LPDDR5Controller::pick_deferred_act2() {
   Clk_t best_deadline = -1;
 
   for (auto it = m_activating_buffer.begin(); it != m_activating_buffer.end(); it++) {
-    int bank_id = m_device.flat_bank_id(it->addr_vec);
-    assert(m_act2_owner_valid[bank_id]);
+    int flat_bank_id = m_device.get_flat_bank_id(it->addr_vec);
+    assert(m_act2_owner_valid[flat_bank_id]);
 
-    Clk_t deadline = m_act2_deadline[bank_id];
+    Clk_t deadline = m_act2_deadline[flat_bank_id];
     assert(deadline >= 0);
 
     it->command = m_cmd_act2;
@@ -320,10 +317,10 @@ void LPDDR5Controller::issue_owned_act2(Candidate cand, Act2IssueKind kind) {
   assert(cand.buffer == &m_activating_buffer);
   assert(cand.it->command == m_cmd_act2);
 
-  int bank_id = m_device.flat_bank_id(cand.it->addr_vec);
-  assert(m_act2_owner_valid[bank_id]);
-  assert(m_act2_deadline[bank_id] >= 0);
-  assert(m_clk <= m_act2_deadline[bank_id]);
+  int flat_bank_id = m_device.get_flat_bank_id(cand.it->addr_vec);
+  assert(m_act2_owner_valid[flat_bank_id]);
+  assert(m_act2_deadline[flat_bank_id] >= 0);
+  assert(m_clk <= m_act2_deadline[flat_bank_id]);
 
   m_device.issue_command(m_cmd_act2, cand.it->addr_vec, m_clk);
 
@@ -386,10 +383,10 @@ void LPDDR5Controller::issue_standard_candidate(Candidate cand) {
 
   m_rowpolicy->try_upgrade_command(*cand.it);
   int cmd = cand.it->command;
-  int bank_id = m_device.flat_bank_id(cand.it->addr_vec);
+  int flat_bank_id = m_device.get_flat_bank_id(cand.it->addr_vec);
 
   if (cmd == m_cmd_act1) {
-    assert(!m_act2_owner_valid[bank_id]);
+    assert(!m_act2_owner_valid[flat_bank_id]);
   }
 
   if (is_access_cmd(cmd)) {
@@ -418,28 +415,35 @@ void LPDDR5Controller::issue_standard_candidate(Candidate cand) {
 }
 
 void LPDDR5Controller::move_to_activating(ReqBuffer::iterator& req_it, ReqBuffer& buffer) {
-  int bank_id = m_device.flat_bank_id(req_it->addr_vec);
-  assert(!m_act2_owner_valid[bank_id]);
+  int flat_bank_id = m_device.get_flat_bank_id(req_it->addr_vec);
+  assert(!m_act2_owner_valid[flat_bank_id]);
 
   bool enqueued = m_activating_buffer.enqueue(*req_it);
   assert(enqueued);
 
+  // Erase from write-forwarding set before removing from the source buffer.
+  // Without this, the address leaks in the set (the request moves through
+  // m_activating_buffer -> m_active_buffer, neither of which triggers the
+  // erase guard in promote_to_active/retire_request).
+  if (&buffer == &m_write_buffer) {
+    m_buffered_write_addrs.erase(req_it->addr);
+  }
   buffer.remove(req_it);
-  m_act2_owner_valid[bank_id] = true;
-  m_act2_deadline[bank_id] = m_clk + m_nAAD;
+  m_act2_owner_valid[flat_bank_id] = true;
+  m_act2_deadline[flat_bank_id] = m_clk + m_nAAD;
 }
 
 void LPDDR5Controller::promote_from_activating(ReqBuffer::iterator& req_it, ReqBuffer& buffer) {
-  int bank_id = m_device.flat_bank_id(req_it->addr_vec);
-  assert(m_act2_owner_valid[bank_id]);
-  assert(m_clk <= m_act2_deadline[bank_id]);
+  int flat_bank_id = m_device.get_flat_bank_id(req_it->addr_vec);
+  assert(m_act2_owner_valid[flat_bank_id]);
+  assert(m_clk <= m_act2_deadline[flat_bank_id]);
 
   size_t old_size = m_active_buffer.size();
   promote_to_active(req_it, buffer);
   assert(m_active_buffer.size() == old_size + 1);
 
-  m_act2_owner_valid[bank_id] = false;
-  m_act2_deadline[bank_id] = -1;
+  m_act2_owner_valid[flat_bank_id] = false;
+  m_act2_deadline[flat_bank_id] = -1;
 }
 
 }  // namespace Ramulator

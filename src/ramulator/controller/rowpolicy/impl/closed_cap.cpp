@@ -55,12 +55,12 @@ class ClosedCAPRowPolicy : public IRowPolicy, public Implementation {
       return;
     }
 
-    int bank_id = m_device->flat_bank_id(req.addr_vec);
-    if (bank_id < 0 || bank_id >= static_cast<int>(m_col_accesses.size())) {
+    int flat_bank_id = m_device->get_flat_bank_id(req.addr_vec);
+    if (flat_bank_id < 0 || flat_bank_id >= static_cast<int>(m_col_accesses.size())) {
       return;
     }
 
-    if (m_col_accesses[bank_id] < m_cap) {
+    if (m_col_accesses[flat_bank_id] < m_cap) {
       return;
     }
 
@@ -80,17 +80,17 @@ class ClosedCAPRowPolicy : public IRowPolicy, public Implementation {
 
     // Closing command (PREpb/PREab/RDA/WRA/etc.) resets CAP tracking for target banks.
     if (meta.is_closing) {
-      for (int id : m_device->get_target_banks(req.command, req.addr_vec)) {
+      m_device->for_each_target_bank(req.command, req.addr_vec, [&](int id) {
         m_col_accesses[id] = 0;
         m_prepb_injected[id] = false;
-      }
+      });
     }
 
     // Access command increments CAP counter.
     if (meta.is_accessing && !meta.is_closing && !req.addr_vec.empty()) {
-      int bid = m_device->flat_bank_id(req.addr_vec);
-      if (bid >= 0 && bid < static_cast<int>(m_col_accesses.size())) {
-        m_col_accesses[bid]++;
+      int flat_bank_id = m_device->get_flat_bank_id(req.addr_vec);
+      if (flat_bank_id >= 0 && flat_bank_id < static_cast<int>(m_col_accesses.size())) {
+        m_col_accesses[flat_bank_id]++;
       }
     }
   }

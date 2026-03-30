@@ -50,7 +50,7 @@ class GenericDRAMSystem final : public IMemorySystem, public Implementation {
   void setup(IFrontEnd* frontend, IMemorySystem* memory_system) override {
   }
 
-  bool send(Request req) override {
+  bool send(Request& req) override {
     // Validate request size: must be set and fit within one transaction.
     if (req.size_bytes <= 0 || req.size_bytes > m_tx_bytes) {
       throw std::runtime_error(fmt::format(
@@ -58,10 +58,10 @@ class GenericDRAMSystem final : public IMemorySystem, public Implementation {
           req.size_bytes, m_tx_bytes));
     }
 
-    int channel_id = m_channel_mapper->get_channel(req.addr);
-    Addr_t stripped = m_channel_mapper->get_intra_channel_addr(req.addr);
-    m_controllers[channel_id]->apply_mapping(stripped, req);
-    req.addr_vec[0] = channel_id;
+    // Channel mapper sets req.addr_vec[0] and req.intra_channel_addr.
+    // Controller::send() handles address mapping internally.
+    m_channel_mapper->apply(req);
+    int channel_id = req.addr_vec[0];
     bool is_success = m_controllers[channel_id]->send(req);
 
     if (is_success) {

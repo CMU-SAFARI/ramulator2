@@ -50,6 +50,19 @@ void DRAMSpec::load_config(const ConfigNode& config) {
       }
     }
   }
+
+  // Precompute sibling-constraint flags to skip unnecessary traversal
+  has_sibling_cons.assign(level_count, std::vector<int8_t>(command_count, 0));
+  for (int lvl = 0; lvl < level_count; ++lvl) {
+    for (int cmd = 0; cmd < command_count; ++cmd) {
+      for (const auto& t : timing_cons[lvl][cmd]) {
+        if (t.sibling) {
+          has_sibling_cons[lvl][cmd] = 1;
+          break;
+        }
+      }
+    }
+  }
 }
 
 std::map<std::string, DRAMSpec::Creator>& DRAMSpec::registry() {

@@ -23,11 +23,6 @@ int ControllerBase::get_preq_command(int command, const AddrVec_t& addr_vec) {
   return m_device.get_preq_command(command, addr_vec, m_clk);
 }
 
-void ControllerBase::apply_mapping(Addr_t stripped_addr, Request& req) {
-  req.addr_vec.resize(m_device.m_spec->level_count, -1);
-  m_addr_mapper->apply(stripped_addr, req.addr_vec);
-}
-
 int ControllerBase::get_tx_bytes() const {
   return m_device.m_spec->get_tx_bytes();
 }
@@ -126,12 +121,16 @@ void ControllerBase::setup_base(IFrontEnd* frontend, IMemorySystem* memory_syste
 // ── IController overrides ───────────────────────────────────────────────
 
 bool ControllerBase::send(Request& req) {
+  // Address mapping: addr mapper populates addr_vec from intra_channel_addr.
+  // PassThroughAddrMapper is a no-op (addr_vec already set by frontend).
+  m_addr_mapper->apply(req);
+  req.addr_vec[0] = m_channel_id;
+
   req.final_command = m_device.m_spec->supported_requests[req.type_id];
 
   // Forward existing write requests to incoming read requests
   if (req.type_id == Request::Type::Read) {
-    auto compare_addr = [req](const Request& wreq) { return wreq.addr == req.addr; };
-    if (std::find_if(m_write_buffer.begin(), m_write_buffer.end(), compare_addr) != m_write_buffer.end()) {
+    if (m_buffered_write_addrs.count(req.addr)) {
       // The request will depart at the next cycle
       req.arrive = m_clk;
       req.depart = m_clk + 1;
@@ -147,7 +146,18 @@ bool ControllerBase::send(Request& req) {
   if (req.type_id == Request::Type::Read) {
     is_success = m_read_buffer.enqueue(req);
   } else if (req.type_id == Request::Type::Write) {
+    // Coalesce: if a write to the same address is already buffered, absorb this one
+    // immediately instead of occupying another buffer slot.
+    if (m_buffered_write_addrs.count(req.addr)) {
+      if (req.callback) {
+        req.callback(req);
+      }
+      s_num_write_reqs++;
+      s_num_write_reqs_served++;
+      return true;
+    }
     is_success = m_write_buffer.enqueue(req);
+    if (is_success) m_buffered_write_addrs.insert(req.addr);
   } else {
     throw std::runtime_error(fmt::format(
         "ControllerBase only supports Read (0) and Write (1) request types, got type_id {}", req.type_id));
@@ -198,7 +208,10 @@ void ControllerBase::tick_prologue() {
 
 void ControllerBase::retire_request(ReqBuffer::iterator& req_it, ReqBuffer& buffer) {
   if (&buffer == &m_active_buffer) {
-    m_active_per_bank[m_device.flat_bank_id(req_it->addr_vec)]--;
+    m_active_per_bank[m_device.get_flat_bank_id(req_it->addr_vec)]--;
+  }
+  if (&buffer == &m_write_buffer) {
+    m_buffered_write_addrs.erase(req_it->addr);
   }
 
   if (req_it->type_id == Request::Type::Read) {
@@ -223,7 +236,10 @@ void ControllerBase::retire_request(ReqBuffer::iterator& req_it, ReqBuffer& buff
 
 void ControllerBase::promote_to_active(ReqBuffer::iterator& req_it, ReqBuffer& buffer) {
   if (m_active_buffer.enqueue(*req_it)) {
-    m_active_per_bank[m_device.flat_bank_id(req_it->addr_vec)]++;
+    m_active_per_bank[m_device.get_flat_bank_id(req_it->addr_vec)]++;
+    if (&buffer == &m_write_buffer) {
+      m_buffered_write_addrs.erase(req_it->addr);
+    }
     buffer.remove(req_it);
   }
 }
@@ -296,7 +312,7 @@ bool ControllerBase::would_close_active(const Request& req) const {
 
   // Hot path: single-bank close (PREpb, RDA, WRA) — O(1) lookup.
   if (target == BankTarget::Single) {
-    return m_active_per_bank[m_device.flat_bank_id(req.addr_vec)] > 0;
+    return m_active_per_bank[m_device.get_flat_bank_id(req.addr_vec)] > 0;
   }
 
   // All / SameBank: scan occupied banks with proper scope checking.

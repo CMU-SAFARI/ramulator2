@@ -1,7 +1,7 @@
 import pytest
 
 import ramulator
-import ramulator.controller_scheduling as cs
+import tests.controller_scheduling.harness as cs
 
 
 pytestmark = pytest.mark.controller_scheduling

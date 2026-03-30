@@ -4,7 +4,7 @@ import pytest
 
 from tests.latency_throughput.testcases import STANDARDS
 from tests.latency_throughput.utils.checks import check_streaming_bandwidth
-from tests.utils.sim import run_streaming_only
+from tests.latency_throughput.runner import run_streaming_only
 
 
 @pytest.mark.latency_throughput_full

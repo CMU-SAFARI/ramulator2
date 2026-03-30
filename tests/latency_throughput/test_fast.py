@@ -10,7 +10,7 @@ from tests.latency_throughput.utils.checks import (
 )
 from tests.latency_throughput.utils.plot import plot_lat_tp
 from tests.latency_throughput.utils.sweep import extract_curves, run_sweep
-from tests.utils.sim import run_streaming_only
+from tests.latency_throughput.runner import run_streaming_only
 
 # Sweep parameters
 CI_READ_RATIOS = [100, 90, 80, 70, 60, 50]
