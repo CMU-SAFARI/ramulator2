@@ -117,7 +117,7 @@ if(RAMULATOR_PYTHON_BINDINGS)
     LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/python/ramulator
   )
 
-  nanobind_add_module(_ramulator_test tests/cpp/test_harness.cpp)
+  nanobind_add_module(_ramulator_test tests/utils/test_harness.cpp)
   target_link_libraries(_ramulator_test PRIVATE ramulator)
   target_include_directories(_ramulator_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
   set_target_properties(_ramulator_test PROPERTIES
