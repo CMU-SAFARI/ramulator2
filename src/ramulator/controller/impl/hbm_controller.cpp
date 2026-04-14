@@ -74,12 +74,12 @@ void HBMController::tick() {
       cand.it->command = original_cmd;
     }
 
-    // Issue to DRAM
-    m_device.issue_command(cand.it->command, cand.it->addr_vec, m_clk);
-
     if (!cand.it->is_stat_updated) {
       update_request_stats(cand.it);
     }
+
+    // Issue to DRAM
+    m_device.issue_command(cand.it->command, cand.it->addr_vec, m_clk);
 
     // On-issue: observe the command while iterator is still valid
     m_rowpolicy->on_issue(*cand.it);
