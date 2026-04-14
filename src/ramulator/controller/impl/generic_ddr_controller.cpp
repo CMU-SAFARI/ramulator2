@@ -51,12 +51,12 @@ void GenericDDRController::tick() {
     // Rowpolicy *may* upgrade the command to AutoPrecharge version
     m_rowpolicy->try_upgrade_command(*cand.it);
 
-    // Issue command to DRAM device
-    m_device.issue_command(cand.it->command, cand.it->addr_vec, m_clk);
-
     if (!cand.it->is_stat_updated) {
       update_request_stats(cand.it);
     }
+
+    // Issue command to DRAM device
+    m_device.issue_command(cand.it->command, cand.it->addr_vec, m_clk);
 
     // Notify row policy and plugins of the issued command
     m_rowpolicy->on_issue(*cand.it);

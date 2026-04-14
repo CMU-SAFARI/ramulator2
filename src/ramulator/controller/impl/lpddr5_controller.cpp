@@ -135,11 +135,11 @@ void LPDDR5Controller::tick() {
       extend_wck_expiry(m_cas_req_it->command);
       s_cas_issued++;
 
-      m_device.issue_command(m_cas_req_it->command, m_cas_req_it->addr_vec, m_clk);
-
       if (!m_cas_req_it->is_stat_updated) {
         update_request_stats(m_cas_req_it);
       }
+
+      m_device.issue_command(m_cas_req_it->command, m_cas_req_it->addr_vec, m_clk);
 
       m_rowpolicy->on_issue(*m_cas_req_it);
       for (auto* p : m_plugins) {
@@ -322,11 +322,11 @@ void LPDDR5Controller::issue_owned_act2(Candidate cand, Act2IssueKind kind) {
   assert(m_act2_deadline[flat_bank_id] >= 0);
   assert(m_clk <= m_act2_deadline[flat_bank_id]);
 
-  m_device.issue_command(m_cmd_act2, cand.it->addr_vec, m_clk);
-
   if (!cand.it->is_stat_updated) {
     update_request_stats(cand.it);
   }
+
+  m_device.issue_command(m_cmd_act2, cand.it->addr_vec, m_clk);
 
   m_rowpolicy->on_issue(*cand.it);
   for (auto* p : m_plugins) {
@@ -394,11 +394,11 @@ void LPDDR5Controller::issue_standard_candidate(Candidate cand) {
     s_cas_skipped++;
   }
 
-  m_device.issue_command(cmd, cand.it->addr_vec, m_clk);
-
   if (!cand.it->is_stat_updated) {
     update_request_stats(cand.it);
   }
+
+  m_device.issue_command(cmd, cand.it->addr_vec, m_clk);
 
   m_rowpolicy->on_issue(*cand.it);
   for (auto* p : m_plugins) {
