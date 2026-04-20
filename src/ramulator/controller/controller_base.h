@@ -105,6 +105,8 @@ class ControllerBase : public IController, public Implementation {
   size_t s_num_read_reqs_served = 0;
   size_t s_num_write_reqs_served = 0;
   size_t s_num_maintenance_reqs_served = 0;
+  size_t s_num_read_reqs_forwarded = 0;
+  size_t s_num_write_reqs_coalesced = 0;
   size_t s_queue_len = 0;
   size_t s_read_queue_len = 0;
   size_t s_write_queue_len = 0;
@@ -116,6 +118,10 @@ class ControllerBase : public IController, public Implementation {
 
   size_t s_read_latency = 0;
   float s_avg_read_latency = 0;
+
+  float s_read_throughput_MBps = 0;
+  float s_write_throughput_MBps = 0;
+  float s_total_throughput_MBps = 0;
 
   // Common tick preamble: advance clock, accumulate queue stats,
   // drain completed reads.

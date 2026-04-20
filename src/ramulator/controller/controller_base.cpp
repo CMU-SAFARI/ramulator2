@@ -105,6 +105,8 @@ void ControllerBase::setup_base(IFrontEnd* frontend, IMemorySystem* memory_syste
   m_stats.add("num_read_reqs_served", s_num_read_reqs_served);
   m_stats.add("num_write_reqs_served", s_num_write_reqs_served);
   m_stats.add("num_maintenance_reqs_served", s_num_maintenance_reqs_served);
+  m_stats.add("num_read_reqs_forwarded", s_num_read_reqs_forwarded);
+  m_stats.add("num_write_reqs_coalesced", s_num_write_reqs_coalesced);
   m_stats.add("queue_len", s_queue_len);
   m_stats.add("read_queue_len", s_read_queue_len);
   m_stats.add("write_queue_len", s_write_queue_len);
@@ -116,6 +118,10 @@ void ControllerBase::setup_base(IFrontEnd* frontend, IMemorySystem* memory_syste
 
   m_stats.add("read_latency", s_read_latency);
   m_stats.add("avg_read_latency", s_avg_read_latency);
+
+  m_stats.add("read_throughput_MBps", s_read_throughput_MBps);
+  m_stats.add("write_throughput_MBps", s_write_throughput_MBps);
+  m_stats.add("total_throughput_MBps", s_total_throughput_MBps);
 }
 
 // ── IController overrides ───────────────────────────────────────────────
@@ -136,6 +142,7 @@ bool ControllerBase::send(Request& req) {
       req.depart = m_clk + 1;
       m_pending.push_back(req);
       s_num_read_reqs++;
+      s_num_read_reqs_forwarded++;
       return true;
     }
   }
@@ -153,7 +160,7 @@ bool ControllerBase::send(Request& req) {
         req.callback(req);
       }
       s_num_write_reqs++;
-      s_num_write_reqs_served++;
+      s_num_write_reqs_coalesced++;
       return true;
     }
     is_success = m_write_buffer.enqueue(req);
@@ -406,6 +413,12 @@ void ControllerBase::finalize() {
   s_read_queue_len_avg = (m_clk > 0) ? (float)s_read_queue_len / (float)m_clk : 0;
   s_write_queue_len_avg = (m_clk > 0) ? (float)s_write_queue_len / (float)m_clk : 0;
   s_priority_queue_len_avg = (m_clk > 0) ? (float)s_priority_queue_len / (float)m_clk : 0;
+
+  int tx_bytes = m_device.m_spec->get_tx_bytes();
+  float time_ps = static_cast<float>(m_clk) * m_tCK_ps;
+  s_read_throughput_MBps = s_num_read_reqs_served * tx_bytes * 1e6f / time_ps;
+  s_write_throughput_MBps = s_num_write_reqs_served * tx_bytes * 1e6f / time_ps;
+  s_total_throughput_MBps = s_read_throughput_MBps + s_write_throughput_MBps;
 }
 
 }  // namespace Ramulator
