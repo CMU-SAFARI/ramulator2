@@ -49,6 +49,13 @@ class GenericDRAMController final : public IDRAMController, public Implementatio
     size_t s_read_latency = 0;
     float s_avg_read_latency = 0;
 
+    size_t s_num_read_reqs_served = 0;
+    size_t s_num_write_reqs_served = 0;
+
+    float s_read_throughput_MBps = 0;
+    float s_write_throughput_MBps = 0;
+    float s_total_throughput_MBps = 0;
+
     size_t s_num_strided_read_reqs = 0;
     size_t s_num_random_read_reqs = 0;
 
@@ -158,6 +165,12 @@ class GenericDRAMController final : public IDRAMController, public Implementatio
 
       register_stat(s_read_latency).name("read_latency_{}", m_channel_id);
       register_stat(s_avg_read_latency).name("avg_read_latency_{}", m_channel_id);
+
+      register_stat(s_num_read_reqs_served).name("num_read_reqs_served_{}", m_channel_id);
+      register_stat(s_num_write_reqs_served).name("num_write_reqs_served_{}", m_channel_id);
+      register_stat(s_read_throughput_MBps).name("read_throughput_MBps_{}", m_channel_id);
+      register_stat(s_write_throughput_MBps).name("write_throughput_MBps_{}", m_channel_id);
+      register_stat(s_total_throughput_MBps).name("total_throughput_MBps_{}", m_channel_id);
 
       register_stat(s_avg_queue_time_random).name("avg_queue_time_random{}", m_channel_id);
       register_stat(s_avg_queue_time_stream).name("avg_queue_time_stream{}", m_channel_id);
@@ -312,7 +325,7 @@ class GenericDRAMController final : public IDRAMController, public Implementatio
             req_it->depart = m_clk + m_dram->m_read_latency;
             pending.push_back(*req_it);
           } else if (req_it->type_id == Request::Type::Write) {
-            // TODO: Add code to update statistics
+            s_num_write_reqs_served++;
           }
           if (req_it->dequeued == -1) {
             req_it->dequeued = m_clk;
@@ -412,6 +425,7 @@ class GenericDRAMController final : public IDRAMController, public Implementatio
             // Check if this requests accesses the DRAM or is being forwarded.
             // TODO add the stats back
             s_read_latency += req.depart - req.arrive;
+            s_num_read_reqs_served++;
             if (req.request_type == 0) {
               s_random_read_latency += req.depart - req.arrive;
             } else if (req.request_type == 1) {
@@ -523,6 +537,13 @@ class GenericDRAMController final : public IDRAMController, public Implementatio
       s_read_queue_len_avg = (float)s_read_queue_len / (float)m_clk;
       s_write_queue_len_avg = (float)s_write_queue_len / (float)m_clk;
       s_priority_queue_len_avg = (float)s_priority_queue_len / (float)m_clk;
+
+      int tx_bytes = (m_dram->m_channel_width / 8) * m_dram->m_internal_prefetch_size;
+      int tCK_ps = m_dram->m_timing_vals("tCK_ps");
+      float time_ps = static_cast<float>(m_clk) * tCK_ps;
+      s_read_throughput_MBps  = s_num_read_reqs_served  * tx_bytes * 1e6f / time_ps;
+      s_write_throughput_MBps = s_num_write_reqs_served * tx_bytes * 1e6f / time_ps;
+      s_total_throughput_MBps = s_read_throughput_MBps + s_write_throughput_MBps;
 
       return;
     }
