@@ -41,6 +41,12 @@ class IFrontEnd : public TopLevel<IFrontEnd> {
     }
   }
 
+  void reset_stats_recursive() {
+    m_impl->reset_stats();
+    for (auto component : m_components) {
+      component->reset_stats();
+    }
+  }
   void print_stats(std::ostream& os) { m_impl->print_stats(os); }
   ConfigNode collect_stats() const { return m_impl->collect_stats(); }
 

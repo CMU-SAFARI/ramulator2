@@ -82,7 +82,7 @@ void ControllerBase::setup_base(IFrontEnd* frontend, IMemorySystem* memory_syste
   s_read_row_misses_per_core.resize(m_num_cores, 0);
   s_read_row_conflicts_per_core.resize(m_num_cores, 0);
 
-  m_stats.add("cycles", m_clk);
+  m_stats.add("cycles", m_measured_clk);
   m_stats.add("row_hits", s_row_hits);
   m_stats.add("row_misses", s_row_misses);
   m_stats.add("row_conflicts", s_row_conflicts);
@@ -202,6 +202,7 @@ bool ControllerBase::priority_send(Request& req) {
 
 void ControllerBase::tick_prologue() {
   m_clk++;
+  m_measured_clk++;
 
   s_queue_len += m_read_buffer.size() + m_write_buffer.size() + m_priority_buffer.size();
   s_read_queue_len += m_read_buffer.size();
@@ -409,16 +410,58 @@ void ControllerBase::set_write_mode() {
 void ControllerBase::finalize() {
   s_avg_read_latency = (s_num_read_reqs_served > 0) ? (float)s_read_latency / (float)s_num_read_reqs_served : 0;
 
-  s_queue_len_avg = (m_clk > 0) ? (float)s_queue_len / (float)m_clk : 0;
-  s_read_queue_len_avg = (m_clk > 0) ? (float)s_read_queue_len / (float)m_clk : 0;
-  s_write_queue_len_avg = (m_clk > 0) ? (float)s_write_queue_len / (float)m_clk : 0;
-  s_priority_queue_len_avg = (m_clk > 0) ? (float)s_priority_queue_len / (float)m_clk : 0;
+  s_queue_len_avg = (m_measured_clk > 0) ? (float)s_queue_len / (float)m_measured_clk : 0;
+  s_read_queue_len_avg = (m_measured_clk > 0) ? (float)s_read_queue_len / (float)m_measured_clk : 0;
+  s_write_queue_len_avg = (m_measured_clk > 0) ? (float)s_write_queue_len / (float)m_measured_clk : 0;
+  s_priority_queue_len_avg = (m_measured_clk > 0) ? (float)s_priority_queue_len / (float)m_measured_clk : 0;
 
   int tx_bytes = m_device.m_spec->get_tx_bytes();
-  float time_ps = static_cast<float>(m_clk) * m_tCK_ps;
-  s_read_throughput_MBps = s_num_read_reqs_served * tx_bytes * 1e6f / time_ps;
-  s_write_throughput_MBps = s_num_write_reqs_served * tx_bytes * 1e6f / time_ps;
+  float time_ps = static_cast<float>(m_measured_clk) * m_tCK_ps;
+  s_read_throughput_MBps = (time_ps > 0) ? s_num_read_reqs_served * tx_bytes * 1e6f / time_ps : 0;
+  s_write_throughput_MBps = (time_ps > 0) ? s_num_write_reqs_served * tx_bytes * 1e6f / time_ps : 0;
   s_total_throughput_MBps = s_read_throughput_MBps + s_write_throughput_MBps;
+}
+
+void ControllerBase::reset_stats() {
+  m_measured_clk = 0;
+
+  s_row_hits = 0;
+  s_row_misses = 0;
+  s_row_conflicts = 0;
+  s_read_row_hits = 0;
+  s_read_row_misses = 0;
+  s_read_row_conflicts = 0;
+  s_write_row_hits = 0;
+  s_write_row_misses = 0;
+  s_write_row_conflicts = 0;
+
+  std::fill(s_read_row_hits_per_core.begin(), s_read_row_hits_per_core.end(), 0);
+  std::fill(s_read_row_misses_per_core.begin(), s_read_row_misses_per_core.end(), 0);
+  std::fill(s_read_row_conflicts_per_core.begin(), s_read_row_conflicts_per_core.end(), 0);
+
+  s_num_read_reqs = 0;
+  s_num_write_reqs = 0;
+  s_num_maintenance_reqs = 0;
+  s_num_read_reqs_served = 0;
+  s_num_write_reqs_served = 0;
+  s_num_maintenance_reqs_served = 0;
+  s_num_read_reqs_forwarded = 0;
+  s_num_write_reqs_coalesced = 0;
+
+  s_queue_len = 0;
+  s_read_queue_len = 0;
+  s_write_queue_len = 0;
+  s_priority_queue_len = 0;
+  s_queue_len_avg = 0;
+  s_read_queue_len_avg = 0;
+  s_write_queue_len_avg = 0;
+  s_priority_queue_len_avg = 0;
+
+  s_read_latency = 0;
+  s_avg_read_latency = 0;
+  s_read_throughput_MBps = 0;
+  s_write_throughput_MBps = 0;
+  s_total_throughput_MBps = 0;
 }
 
 }  // namespace Ramulator

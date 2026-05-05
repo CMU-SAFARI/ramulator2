@@ -1,22 +1,27 @@
-"""Per-standard testcase data for latency-throughput tests.
+"""Per-standard dictionaries for latency-throughput tests.
 
-Single source of truth for all DRAM standard test configurations.
+Drop a new file (e.g. ddr6.py) in this directory that defines a
+module-level `config = {...}` and it will be picked up automatically.
+Files starting with `_` are ignored.
 """
 
-from tests.latency_throughput.testcases.ddr3 import CONFIG as DDR3_CONFIG
-from tests.latency_throughput.testcases.ddr4 import CONFIG as DDR4_CONFIG
-from tests.latency_throughput.testcases.ddr5 import CONFIG as DDR5_CONFIG
-from tests.latency_throughput.testcases.hbm import CONFIG as HBM1_CONFIG
-from tests.latency_throughput.testcases.hbm2 import CONFIG as HBM2_CONFIG
-from tests.latency_throughput.testcases.hbm3 import CONFIG as HBM3_CONFIG
-from tests.latency_throughput.testcases.lpddr5 import CONFIG as LPDDR5_CONFIG
+import importlib
+import pkgutil
 
-STANDARDS = {
-    "DDR3": DDR3_CONFIG,
-    "DDR4": DDR4_CONFIG,
-    "DDR5": DDR5_CONFIG,
-    "HBM1": HBM1_CONFIG,
-    "HBM2": HBM2_CONFIG,
-    "HBM3": HBM3_CONFIG,
-    "LPDDR5": LPDDR5_CONFIG,
-}
+STANDARDS = {}
+for module_info in pkgutil.iter_modules(__path__):
+    if module_info.name.startswith("_"):
+        continue
+    mod = importlib.import_module(f".{module_info.name}", __package__)
+    if not hasattr(mod, "config"):
+        raise ImportError(
+            f"tests/latency_throughput/testcases/{module_info.name}.py: "
+            f"must define module-level `config = {{...}}`"
+        )
+    config = mod.config
+    if not isinstance(config, dict) or "name" not in config:
+        raise ImportError(
+            f"tests/latency_throughput/testcases/{module_info.name}.py: "
+            f"`config` must be a dict with a `name` field"
+        )
+    STANDARDS[config["name"]] = config

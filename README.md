@@ -47,7 +47,7 @@ What has changed from Ramulator 2.0:
 
 ## 2. Using Ramulator 2.1
 
-We highly recommend to use our container (Dockerfile available at `.devcontainer/Dockerfile`) to avoid any dependency issues. The repository is also configured to be able to be one-click opened as a Dev Container with all the dependencies already installed. The easiest way to start using and developing Ramulator 2.1 is to directly create a Codespace on the Github page of the Ramulator 2.1 repository. If you are using Visual Studio Code, it should automatically prompt you to reopen the repository in a Dev Container after you clone and open the repo for the first time. 
+We highly recommend to use our container (Dockerfile available at `.devcontainer/Dockerfile`) to avoid any dependency issues. The repository is also configured to be able to be one-click opened as a Dev Container with all the dependencies already installed. The easiest way to start using and developing Ramulator 2.1 is to directly create a Codespace on the GitHub page of the Ramulator 2.1 repository. If you are using Visual Studio Code, it should automatically prompt you to reopen the repository in a Dev Container after you clone and open the repo for the first time.
 
 If you want to set up the container locally, you can do the following steps:
 ```bash
@@ -170,7 +170,7 @@ frontend = ramulator.frontend.SimpleO3(
 
 # Create DRAM configuration
 ddr4 = ramulator.dram.DDR4(org_preset="DDR4_8Gb_x8", timing_preset="DDR4_2400R", rank=1)
-# Instantiate the memory controller with the DRAM configuation
+# Instantiate the memory controller with the DRAM configuration
 ctrl = ramulator.controller.GenericDDR(
     dram=ddr4,
     scheduler=ramulator.scheduler.FRFCFS(),
@@ -192,16 +192,19 @@ sim.run()
 # sim.stats returns a nested Python dict of all simulation statistics
 stats = sim.stats
 
-# Controller stats are under memory_system → controller
-ctrl_stats = stats["memory_system"]["controller"]
+# Guard here for `ramulator export`, which captures the configuration without
+# running the simulation.
+if stats:
+    # Controller stats are under memory_system → controller
+    ctrl_stats = stats["memory_system"]["controller"]
 
-print(f"Controller cycles:     {ctrl_stats['cycles']}")
-print(f"Avg read latency:      {ctrl_stats['avg_read_latency']:.1f} cycles")
-print(f"Read requests:         {ctrl_stats['num_read_reqs']}")
-print(f"Write requests:        {ctrl_stats['num_write_reqs']}")
-print(f"Row hits:              {ctrl_stats['row_hits']}")
-print(f"Row misses:            {ctrl_stats['row_misses']}")
-print(f"Row conflicts:         {ctrl_stats['row_conflicts']}")
+    print(f"Controller cycles:     {ctrl_stats['cycles']}")
+    print(f"Avg read latency:      {ctrl_stats['avg_read_latency']:.1f} cycles")
+    print(f"Read requests:         {ctrl_stats['num_read_reqs']}")
+    print(f"Write requests:        {ctrl_stats['num_write_reqs']}")
+    print(f"Row hits:              {ctrl_stats['row_hits']}")
+    print(f"Row misses:            {ctrl_stats['row_misses']}")
+    print(f"Row conflicts:         {ctrl_stats['row_conflicts']}")
 ```
 
 There are two top-level components in Ramulator 2.1:
@@ -281,8 +284,8 @@ Controller cycles:     81302
 Avg read latency:      45.2 cycles
 Read requests:         6
 Write requests:        0
-Row hits:              6
-Row misses:            0
+Row hits:              3
+Row misses:            3
 Row conflicts:         0
 ```
 
@@ -439,7 +442,7 @@ This is the fastest confidence check after a build or a local code change.
 
 ### 5.3 Fast Latency-Throughput
 
-Fast latency-throughput is the main modeling-fidelity check used in day-to-day development. It should finish in just a few minutes.
+Fast latency-throughput is the main modeling-fidelity check used in regular development. It should finish in just a few minutes.
 
 ```bash
 PYTHONPATH=python pytest tests/latency_throughput/test_fast.py -v -s
@@ -465,10 +468,18 @@ PYTHONPATH=python pytest tests/latency_throughput/test_fast.py -v -s -k DDR4
 
 ### 5.4 Full Latency-Throughput
 
-Full latency-throughput is a longer run with refresh enabled:
+Full latency-throughput is a longer refresh-enabled sweep. It uses the same
+latency-throughput curve shape as the fast suite, but runs each point with the
+full profile's request count:
 
 ```bash
 PYTHONPATH=python pytest tests/latency_throughput/test_full.py -v -s
+```
+
+It writes plots to:
+
+```text
+tests/latency_throughput/plots/full/
 ```
 
 ### 5.5 Device Timings
@@ -565,10 +576,10 @@ A minimal `DeviceUnderTest` example looks like this:
 
 ```python
 import ramulator
-import ramulator.device_timings
+import tests.device_timings.harness as device_timings
 
 dram = ramulator.dram.DDR4(org_preset="DDR4_8Gb_x8", timing_preset="DDR4_2400R", rank=1)
-dut = ramulator.device_timings.DeviceUnderTest(dram)
+dut = device_timings.DeviceUnderTest(dram)
 a = dut.addr_vec(Rank=0, BankGroup=0, Bank=0, Row=12, Column=0)
 
 assert dut.probe("RD", a, clk=0).preq == "ACT"
@@ -600,10 +611,10 @@ A minimal `ControllerUnderTest` example looks like this:
 
 ```python
 import ramulator
-import ramulator.controller_scheduling
+import tests.controller_scheduling.harness as cs
 
 dram = ramulator.dram.DDR4(org_preset="DDR4_8Gb_x8", timing_preset="DDR4_2400R", rank=1)
-dut = ramulator.controller_scheduling.ControllerUnderTest.make_generic_ddr(dram)
+dut = cs.ControllerUnderTest.make_generic_ddr(dram)
 
 row0 = dut.addr_vec(Rank=0, BankGroup=0, Bank=0, Row=0, Column=0)
 row1 = dut.addr_vec(Rank=0, BankGroup=0, Bank=0, Row=1, Column=0)
@@ -758,19 +769,37 @@ The typical flow is:
 4. Send memory requests via `receive_external_requests()`
 5. Tick the memory system at the DRAM clock rate
 
-Export the config like this:
-
-```bash
-python3 -m ramulator export examples/example_config.py -o config.yaml
-```
-
-Note that the generated YAML is fully equivalent to the Python configuration that exports it (from Ramulator's perspective). It is less readable than the Python configuration becauses it is intended solely for Ramulator to parse. You are not expected to manually edit the YAML files.
-
-The exported YAML must use `External` as the frontend implementation. When building the Python config for export, replace your usual frontend with:
+Create a Python config script that uses the `External` frontend, then export it:
 
 ```python
+import ramulator
+
 frontend = ramulator.frontend.External(clock_ratio=1)
+
+dram = ramulator.dram.DDR4(org_preset="DDR4_8Gb_x8", timing_preset="DDR4_2400R", rank=1)
+ctrl = ramulator.controller.GenericDDR(
+    dram=dram,
+    scheduler=ramulator.scheduler.FRFCFS(),
+    refresh_manager=ramulator.refresh_manager.AllBank(scope="Rank"),
+    row_policy=ramulator.row_policy.Open(),
+    addr_mapper=ramulator.addr_mapper.RoBaRaCoCh(),
+)
+mem = ramulator.memory_system.GenericDRAM(
+    clock_ratio=3,
+    controllers=[ctrl],
+    channel_mapper=ramulator.channel_mapper.CacheLineInterleave(),
+)
+
+sim = ramulator.Simulation(frontend, mem)
 ```
+
+Then run:
+
+```bash
+python3 -m ramulator export external_config.py -o config.yaml
+```
+
+The generated YAML is fully equivalent to the Python configuration that exports it from Ramulator's perspective. It is less readable than the Python configuration because it is intended for Ramulator to parse. You are not expected to manually edit the YAML files.
 
 ### 7.2 Minimal C++ Integration Skeleton
 
@@ -795,13 +824,15 @@ memory_system->connect_frontend(frontend);
 //    addr:        byte address
 //    source_id:   identifies which core or source (0 for single-core)
 //    callback:    called when the request completes
+//    size_bytes:  request size in bytes
 bool accepted = frontend->receive_external_requests(
     Ramulator::Request::Type::Read,   // read request
     0x1000,                           // address
     0,                                // source id
     [](Ramulator::Request& req) {
       // Request completed — req.depart has the completion cycle
-    }
+    },
+    64                                // size_bytes
 );
 
 // If accepted is false, the memory system's queue is full.
@@ -822,6 +853,7 @@ The `External` frontend's `tick()` is a no-op — your simulator controls when a
 - Exported configs are fully expanded. The C++ side expects resolved values, not symbolic Python presets.
 - `libramulator.so` is the library you link against.
 - `receive_external_requests()` returns `false` when the controller's request queue is full. The caller must retry on a subsequent cycle.
+- `size_bytes` must be set for every external request and must not exceed the DRAM transaction size returned by `memory_system->get_tx_bytes()`.
 - Request type IDs are `0` (read) and `1` (write), matching `Request::Type::Read` and `Request::Type::Write`.
 - For a complete working integration, see the gem5 wrapper in `resources/gem5_wrappers/` or the gem5 integration section above.
 
@@ -989,25 +1021,16 @@ After the DRAM definition exists, add a testcase file in `tests/latency_throughp
 The current latency-throughput flow expects a config shape like this:
 
 ```python
-import ramulator
-
-CONFIG = dict(
-    dram_class="MyStandard",
-    org_preset="MyOrgPreset",
-    timing_preset="MyTimingPreset",
-    dram_kwargs=dict(),
-    controller_class="GenericDDR",
-    fast_ctrl_extra_kwargs=dict(
-        refresh_manager=ramulator.refresh_manager.NoRefresh(),
-    ),
-    full_ctrl_extra_kwargs=dict(
-        refresh_manager=ramulator.refresh_manager.AllBank(scope="Rank"),
-    ),
-    full_streaming_requests=1_000_000,
-    frontend_clock_ratio=4,
-    stream_cols=8,
-    nop_counters=[1, 10, 100, 1000],
-)
+config = {
+    "name": "MyStandard",
+    "dram_class": "MyStandard",
+    "org_preset": "MyOrgPreset",
+    "timing_preset": "MyTimingPreset",
+    "controller_class": "GenericDDR",
+    "refresh_scope": "Rank",
+    "stream_cls": 8,
+    "nop_counters": (1, 10, 100, 1000),
+}
 ```
 
 The exact controller class depends on the standard. For example, LPDDR5 uses `LPDDR5`, and HBM-family standards use `HBM`.
@@ -1022,7 +1045,7 @@ PYTHONPATH=python pytest tests/latency_throughput/test_full.py -v -s -k MyStanda
 
 ## 9. How Ramulator Works Internally
 
-This section is here so that the guide remains useful after you gets your hands on with the codebase. If you only want to run experiments, you can stop earlier and come back when you need the deeper model.
+This section describes the implementation contracts behind the public configuration and extension APIs. If you only want to run experiments, you can stop earlier and come back when you need the deeper model.
 
 ### 9.1 Interface and Component Framework
 
@@ -1081,13 +1104,13 @@ The controller owns a `DRAMDevice`, and that device is where Ramulator turns a D
 - A hierarchy of nodes for timing
 - A flat bank-oriented view for command semantics
 
-That split is deliberate. DRAM timing rules are written at different scopes. Some live at the bank level, some at bank group or rank, and some at the channel or pseudo-channel level. Functional state, on the other hand, is usually easiest to answer from the point of view of a specific bank. Ramulator uses the hierarchy where scope matters, and the flat bank view where direct bank-local answers are faster and clearer.
+DRAM timing rules are written at different scopes. Some live at the bank level, some at bank group or rank, and some at the channel or pseudo-channel level. Functional state is usually answered from the point of view of a specific bank. Ramulator uses the hierarchy for scoped timing rules and the flat bank view for direct bank-local command semantics.
 
-Another important point is ownership of time. The device does not keep its own free-running clock. The controller owns `m_clk` and passes the current cycle into every device query and every issued command. That is why `DRAMDevice::check_timing`, `DRAMDevice::get_preq_command`, and `DRAMDevice::issue_command` all take `clk` as an argument.
+The device does not keep its own free-running clock. The controller owns `m_clk` and passes the current cycle into every device query and every issued command. That is why `DRAMDevice::check_timing`, `DRAMDevice::get_preq_command`, and `DRAMDevice::issue_command` all take `clk` as an argument.
 
 #### 9.3.1 Where The Model Comes From
 
-The model starts in Python, not in C++. Each DRAM standard is a `DRAMStandard` subclass under `python/ramulator/dram/`. That class is the single source of truth for:
+The model starts in Python, not in C++. Each DRAM standard is a `DRAMStandard` subclass under `python/ramulator/dram/`. That class defines:
 
 - The hierarchy, through `levels`
 - The legal command set, through `commands`
@@ -1110,7 +1133,7 @@ The model starts in Python, not in C++. Each DRAM standard is a `DRAMStandard` s
 
 By the time the config reaches C++, the symbolic DRAM description is already fully resolved. The C++ `DRAMSpec` does not re-derive JEDEC tables on the fly. It stores the resolved names, timing values, timing constraints, command metadata, bank-targeting mode, and function pointers for command behavior.
 
-That design keeps the runtime lean. All the expensive symbolic work happens once during config creation instead of every tick.
+Runtime code works with resolved integer IDs, timing values, and command metadata instead of re-evaluating the symbolic Python definition on each tick.
 
 #### 9.3.2 What Gets Instantiated At Runtime
 
@@ -1132,7 +1155,7 @@ For HBM3 it is:
 Channel -> PseudoChannel -> BankGroup -> Bank
 ```
 
-One subtle detail matters here. The tree stops before the `Row` level. Ramulator does not instantiate one node per physical row, because that would explode the runtime footprint for no practical benefit. Instead, it tracks row state lazily inside the bank-ish node that owns those rows.
+The tree stops before the `Row` level. Ramulator does not instantiate one node per physical row. Instead, it tracks row state lazily inside the bank-like node that owns those rows.
 
 Each `DRAMNode` stores four kinds of state:
 
@@ -1250,7 +1273,6 @@ Each command may provide up to four bank-level handlers:
 - `rowopen`
   Answers whether some row is already open in the target bank
 
-These handlers are bank-level on purpose. They receive a bank node, not the full hierarchy. The controller already knows how to find the relevant bank or banks, and bank-local command semantics are usually where the functional state machine is easiest to express.
 
 For a normal DDR-style access, the command chain is driven by `preq`:
 
@@ -1292,7 +1314,7 @@ It helps to walk through one ordinary read request on a closed DDR4 bank.
 
 If the bank had been open to the wrong row, the same flow would insert `PREpb` before `ACT`, and only then reach `RD`. The controller does not hardcode that sequence. It falls out of repeated prerequisite checks against current bank state.
 
-That is the key modeling idea. A request is not expanded into a fixed command script ahead of time. Instead, each cycle the controller asks the device, "Given the state right now, what is the next legal command for this request?"
+A request is not expanded into a fixed command script ahead of time. Each cycle, the controller asks the device, "Given the state right now, what is the next legal command for this request?"
 
 
 ### 9.4 Controller Tick Flow
@@ -1344,6 +1366,6 @@ If you want to understand the codebase without getting lost, this order works we
 4. `src/ramulator/controller/impl/generic_ddr_controller.cpp`
 5. `src/ramulator/controller/controller_base.cpp`
 6. `src/ramulator/dram/device.h` and `src/ramulator/dram/node.cpp`
-7. One DRAM definition in `python/ramulator/dram/impl`, such as DDR4
+7. One DRAM definition in `python/ramulator/dram/`, such as `ddr4.py`
 
 That path starts from the public API, then drops into the execution path, then finally into the deeper modeling machinery.

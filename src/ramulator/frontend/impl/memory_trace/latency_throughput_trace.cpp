@@ -21,7 +21,9 @@ class LatencyThroughputTrace : public IFrontEnd, public Implementation {
   int m_col_pos;  // addr_vec slot index
   int m_num_rows;
   int m_num_cols;
-  int m_stream_cols;  // columns accessed per row (to avoid starving probes, do not set this too high)
+  int m_internal_prefetch_size;
+  int m_num_cls;
+  int m_stream_cls;  // request-sized column slots accessed per row
 
   // Streaming state (MESS-style alternation with NOP-based rate control)
   int m_nop_counter;  // NOP: interval between consequtive streaming requests to adjust load
@@ -38,6 +40,8 @@ class LatencyThroughputTrace : public IFrontEnd, public Implementation {
   // Pointer-chasing state
   int m_num_probe_requests;
   int m_warmup_cycles;
+  bool m_warmup_enabled = false;
+  bool m_warmup_reset_done = false;
   bool m_probe_inflight = false;
 
   // Retry state (MESS-style: retry same request on backpressure)
@@ -62,7 +66,7 @@ class LatencyThroughputTrace : public IFrontEnd, public Implementation {
     RAMULATOR_PARSE_PARAM(m_num_probe_requests, int, "num_probe_requests").required();
     RAMULATOR_PARSE_PARAM(m_streaming_only, bool, "streaming_only").default_val(false);
     RAMULATOR_PARSE_PARAM(m_num_streaming_requests, int, "num_streaming_requests").default_val(0);
-    RAMULATOR_PARSE_PARAM(m_stream_cols, int, "stream_cols").default_val(8);
+    RAMULATOR_PARSE_PARAM(m_stream_cls, int, "stream_cls").default_val(8);
     RAMULATOR_PARSE_PARAM(m_warmup_cycles, int, "warmup_cycles").default_val(10000);
     RAMULATOR_PARSE_PARAM(m_read_ratio, int, "read_ratio").default_val(100);
     RAMULATOR_PARSE_PARAM(m_seed, uint64_t, "seed").default_val(12345ULL);
@@ -74,11 +78,14 @@ class LatencyThroughputTrace : public IFrontEnd, public Implementation {
     RAMULATOR_PARSE_PARAM(m_col_pos, int, "col_pos").required();
     RAMULATOR_PARSE_PARAM(m_num_rows, int, "num_rows").required();
     RAMULATOR_PARSE_PARAM(m_num_cols, int, "num_cols").required();
+    RAMULATOR_PARSE_PARAM(m_internal_prefetch_size, int, "internal_prefetch_size").required();
+    RAMULATOR_PARSE_PARAM(m_num_cls, int, "num_cls").required();
 
     RAMULATOR_PARSE_PARAM(m_bank_positions, std::vector<int>, "bank_positions").required();
     RAMULATOR_PARSE_PARAM(m_bank_counts, std::vector<int>, "bank_counts").required();
 
     m_rng.seed(m_seed);
+    m_warmup_enabled = (m_warmup_cycles > 0);
 
     // Validate streaming_only + num_streaming_requests coupling
     if (m_streaming_only && m_num_streaming_requests <= 0) {
@@ -101,6 +108,8 @@ class LatencyThroughputTrace : public IFrontEnd, public Implementation {
 
   void tick() override {
     m_clk++;
+
+    maybe_reset_warmup_stats();
 
     if (m_streaming_only) {
       // Streaming-only mode: no NOP rate-limiting, no probes.
@@ -125,6 +134,9 @@ class LatencyThroughputTrace : public IFrontEnd, public Implementation {
   }
 
   bool is_finished() override {
+    if (m_warmup_enabled && !m_warmup_reset_done) {
+      return false;
+    }
     if (m_streaming_only) {
       return static_cast<int>(s_streaming_sent) >= m_num_streaming_requests;
     }
@@ -137,7 +149,23 @@ class LatencyThroughputTrace : public IFrontEnd, public Implementation {
     }
   }
 
+  void reset_stats() override {
+    s_streaming_sent = 0;
+    s_probes_completed = 0;
+    s_total_probe_latency = 0;
+    s_avg_probe_latency = 0.0f;
+  }
+
  private:
+  void maybe_reset_warmup_stats() {
+    if (!m_warmup_enabled || m_warmup_reset_done || m_clk <= m_warmup_cycles) {
+      return;
+    }
+    m_warmup_reset_done = true;
+    reset_stats_recursive();
+    m_memory_system->reset_stats_recursive();
+  }
+
   // Returns true if this tick should be skipped (NOP rate-limiting).
   // NOP skips only apply to stream turns: skip N-1 out of every N stream turns.
   bool tick_nop() {
@@ -155,7 +183,7 @@ class LatencyThroughputTrace : public IFrontEnd, public Implementation {
   // Handle probe turn: issue a random-address read to measure latency under load.
   // On backpressure, the request is held in m_retry_probe_req for the next attempt.
   void tick_probe() {
-    bool want_probe = (m_clk > m_warmup_cycles && s_probes_completed < m_num_probe_requests);
+    bool want_probe = ((!m_warmup_enabled || m_warmup_reset_done) && s_probes_completed < m_num_probe_requests);
     if (!want_probe) {
       m_issue_probe = false;
       return;
@@ -219,20 +247,21 @@ class LatencyThroughputTrace : public IFrontEnd, public Implementation {
     for (size_t i = 0; i < m_bank_positions.size(); i++) {
       bank_flat = bank_flat * m_bank_counts[i] + av[m_bank_positions[i]];
     }
-    req.addr = static_cast<Addr_t>(bank_flat * m_num_rows * m_num_cols + av[m_row_pos] * m_num_cols + av[m_col_pos]);
+    int cls = av[m_col_pos] / m_internal_prefetch_size;
+    req.addr = static_cast<Addr_t>(bank_flat * m_num_rows * m_num_cls + av[m_row_pos] * m_num_cls + cls);
     req.source_id = source_id;
     req.size_bytes = m_memory_system->get_tx_bytes();
     return req;
   }
 
-  // Streaming pattern: bank(fastest) -> column -> row(slowest).
-  // Uses m_stream_cols (not full m_num_cols) to limit row-hit sequence length,
-  // giving probe reads more scheduling opportunities during row transitions.
+  // Streaming pattern: bank(fastest) -> cacheline slot -> row(slowest).
+  // Uses m_stream_cls (not full m_num_cls) to limit row-hit sequence length.
   AddrVec_t streaming_addr_vec(size_t idx) {
     AddrVec_t av(m_addr_vec_size, 0);
     int flat_bank = static_cast<int>(idx % m_total_bank_units);
-    int col = static_cast<int>((idx / m_total_bank_units) % m_stream_cols);
-    int row = static_cast<int>((idx / m_total_bank_units / m_stream_cols) % m_num_rows);
+    int cls = static_cast<int>((idx / m_total_bank_units) % m_stream_cls);
+    int col = cls * m_internal_prefetch_size;
+    int row = static_cast<int>((idx / m_total_bank_units / m_stream_cls) % m_num_rows);
     decompose_bank(flat_bank, av);
     av[m_row_pos] = row;
     av[m_col_pos] = col;
@@ -247,9 +276,9 @@ class LatencyThroughputTrace : public IFrontEnd, public Implementation {
       av[m_bank_positions[i]] = dist(m_rng);
     }
     std::uniform_int_distribution<int> row_dist(0, m_num_rows - 1);
-    std::uniform_int_distribution<int> col_dist(0, m_num_cols - 1);
+    std::uniform_int_distribution<int> cls_dist(0, m_num_cls - 1);
     av[m_row_pos] = row_dist(m_rng);
-    av[m_col_pos] = col_dist(m_rng);
+    av[m_col_pos] = cls_dist(m_rng) * m_internal_prefetch_size;
     return av;
   }
 

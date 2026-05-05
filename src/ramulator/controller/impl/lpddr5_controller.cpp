@@ -23,6 +23,7 @@ class LPDDR5Controller : public ControllerBase {
   void init() override;
   void setup(IFrontEnd* frontend, IMemorySystem* memory_system) override;
   void tick() override;
+  void reset_stats() override;
 
  private:
   enum class Act2IssueKind {
@@ -112,6 +113,14 @@ void LPDDR5Controller::setup(IFrontEnd* frontend, IMemorySystem* memory_system) 
   m_stats.add("cas_skipped", s_cas_skipped);
   m_stats.add("act2_deadline_forced", s_act2_deadline_forced);
   m_stats.add("act2_deferred", s_act2_deferred);
+}
+
+void LPDDR5Controller::reset_stats() {
+  ControllerBase::reset_stats();
+  s_cas_issued = 0;
+  s_cas_skipped = 0;
+  s_act2_deadline_forced = 0;
+  s_act2_deferred = 0;
 }
 
 void LPDDR5Controller::tick() {

@@ -52,3 +52,4 @@ gprof*/
 bench_all_standards.py
 build-bench/
 build-perf/
+AGENTS.md

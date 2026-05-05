@@ -55,8 +55,6 @@ class Ramulator2 : public AbstractMemory
     Ramulator::IFrontEnd* ramulator2_frontend;
     Ramulator::IMemorySystem* ramulator2_memorysystem;
 
-    // std::function<void(Ramulator::Request&)> read_callback;
-    // std::function<void(Ramulator::Request&)> write_callback;
     bool retryReq;
     bool retryResp;
     Tick startTick;

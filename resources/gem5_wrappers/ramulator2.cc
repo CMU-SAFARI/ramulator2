@@ -71,8 +71,8 @@ Ramulator2::init()
     ramulator2_frontend->connect_memory_system(ramulator2_memorysystem);
     ramulator2_memorysystem->connect_frontend(ramulator2_frontend);
 
-    // Request size is now passed explicitly to Ramulator via receive_external_requests(),
-    // so cache line size mismatches are handled transparently by request splitting.
+    // gem5 packet size is passed through to Ramulator; the memory system
+    // validates that each request fits in one DRAM transaction.
 }
 
 void
@@ -202,7 +202,6 @@ Ramulator2::recvTimingReq(PacketPtr pkt)
                 if (!pkt_q.size())
                     outstandingReads.erase(req.addr);
 
-                // added counter to track requests in flight
                 --nbrOutstandingReads;
 
                 accessAndRespond(pkt);

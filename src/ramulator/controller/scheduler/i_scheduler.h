@@ -13,13 +13,6 @@ using RequestFilterRef = FunctionRef<bool(const Request&)>;
 class IScheduler {
   RAMULATOR_REGISTER_INTERFACE(IScheduler, "scheduler")
  public:
-  // TODO: If a future controller needs more than eligibility filtering,
-  // add an optional scoring callback here. "Scoring" means assigning each
-  // eligible request a numeric priority so the scheduler picks the highest
-  // score before falling back to its native ordering (e.g. FRFCFS tie-breaks).
-  // We are intentionally not adding that complexity yet because current
-  // LPDDR5 and HBM use-cases only need filtered selection.
-  //
   // Contract:
   //   - The scheduler derives req.command from req.final_command before
   //     invoking filter, so controller predicates can reason about the current

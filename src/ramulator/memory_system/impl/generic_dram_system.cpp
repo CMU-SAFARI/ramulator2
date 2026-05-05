@@ -85,6 +85,11 @@ class GenericDRAMSystem final : public IMemorySystem, public Implementation {
     }
   };
 
+  void reset_stats() override {
+    s_num_read_requests = 0;
+    s_num_write_requests = 0;
+  }
+
   int get_clock_ratio() override {
     return m_clock_ratio;
   }

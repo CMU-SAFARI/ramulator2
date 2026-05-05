@@ -69,6 +69,9 @@ class Implementation {
   virtual void finalize() {
     return;
   };
+  virtual void reset_stats() {
+    return;
+  };
 
   template <class T>
   T* cast_parent() {

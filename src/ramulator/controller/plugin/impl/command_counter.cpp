@@ -55,6 +55,12 @@ class CommandCounter : public IControllerPlugin, public Implementation {
     }
   }
 
+  void reset_stats() override {
+    for (auto& [cmd_id, count] : m_counters) {
+      count = 0;
+    }
+  }
+
  private:
   ControllerBase* m_ctrl = nullptr;
   std::vector<std::string> m_commands_to_count;

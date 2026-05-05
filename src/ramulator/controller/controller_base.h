@@ -40,6 +40,7 @@ class ControllerBase : public IController, public Implementation {
   bool priority_send(Request& req) override;
 
   void finalize() override;
+  void reset_stats() override;
 
  protected:
   ControllerBase(const ConfigNode& config, Implementation* parent)
@@ -84,6 +85,8 @@ class ControllerBase : public IController, public Implementation {
   std::vector<int> m_active_per_bank;
 
   // Stats
+  Clk_t m_measured_clk = 0;
+
   size_t s_row_hits = 0;
   size_t s_row_misses = 0;
   size_t s_row_conflicts = 0;

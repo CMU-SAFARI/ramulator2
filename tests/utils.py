@@ -14,7 +14,8 @@ def extract_dram_layout(dram):
 
     Takes a Python DRAM spec object and returns a dict of kwargs to pass
     to LatencyThroughputTrace (addr_vec_size, bank_positions, bank_counts,
-    total_bank_units, row_pos, col_pos, num_rows, num_cols).
+    total_bank_units, row_pos, col_pos, num_rows, num_cols,
+    internal_prefetch_size, num_cls).
     """
     cls = type(dram)
     level_names = list(cls.levels.keys())
@@ -55,6 +56,9 @@ def extract_dram_layout(dram):
     for c in bank_counts:
         total_bank_units *= c
 
+    internal_prefetch_size = cls.internal_prefetch_size
+    num_cols = org_counts[col_idx]
+
     return {
         "addr_vec_size": len(level_names),
         "bank_positions": bank_positions,
@@ -63,5 +67,7 @@ def extract_dram_layout(dram):
         "row_pos": row_idx,
         "col_pos": col_idx,
         "num_rows": org_counts[row_idx],
-        "num_cols": org_counts[col_idx],
+        "num_cols": num_cols,
+        "internal_prefetch_size": internal_prefetch_size,
+        "num_cls": num_cols // internal_prefetch_size,
     }

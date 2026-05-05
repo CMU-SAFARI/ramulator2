@@ -10,5 +10,5 @@ CONFIG = dict(
         refresh_manager=ramulator.refresh_manager.NoRefresh(),
     ),
     frontend_clock_ratio=4,
-    stream_cols=8,
+    stream_cls=8,
 )

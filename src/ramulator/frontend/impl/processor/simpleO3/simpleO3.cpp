@@ -104,7 +104,7 @@ class SimpleO3 final : public IFrontEnd, public Implementation {
   void receive(Request& req) {
     m_llc->receive(req);
 
-    // TODO: LLC latency for the core to receive the request?
+    // Completed LLC requests are returned to their source cores.
     for (auto r : m_llc->m_receive_requests[req.addr]) {
       r.arrive = req.arrive;
       r.depart = req.depart;
