@@ -170,9 +170,9 @@ class HBM1(DRAMStandard):
 
 # ---- HBM1 presets ----
 HBM1.org_presets = {
-    "HBM1_1Gb":  {"density": 1024, "dq": 128, "channel_width": 128, "bankgroup": 4, "bank": 2, "row": 1<<13, "column": 1<<6},
-    "HBM1_2Gb":  {"density": 2048, "dq": 128, "channel_width": 128, "bankgroup": 4, "bank": 2, "row": 1<<14, "column": 1<<6},
-    "HBM1_4Gb":  {"density": 4096, "dq": 128, "channel_width": 128, "bankgroup": 4, "bank": 2, "row": 1<<15, "column": 1<<6},
+    "HBM1_1Gb":  {"density": 1024, "dq": 128, "channel_width": 128, "bankgroup": 4, "bank": 2, "row": 1<<13, "column": (1<<6) << 1},    # HBM CA already takes BL into account
+    "HBM1_2Gb":  {"density": 2048, "dq": 128, "channel_width": 128, "bankgroup": 4, "bank": 2, "row": 1<<14, "column": (1<<6) << 1},    # HBM CA already takes BL into account
+    "HBM1_4Gb":  {"density": 4096, "dq": 128, "channel_width": 128, "bankgroup": 4, "bank": 2, "row": 1<<15, "column": (1<<6) << 1},    # HBM CA already takes BL into account
 }
 
 # Timing presets — primary timings only.
