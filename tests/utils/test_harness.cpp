@@ -22,10 +22,11 @@
 
 class DeviceUnderTestCpp {
  public:
-  explicit DeviceUnderTestCpp(nb::dict dram_config) {
+  explicit DeviceUnderTestCpp(nb::dict dram_config, int channel_id) {
     ConfigNode cfg = py_to_confignode(dram_config);
     std::string dram_impl = cfg["impl"].as<std::string>();
     m_device.init(DRAMSpec::create(dram_impl, ConfigNode(ConfigNode::Map{{"dram", std::move(cfg)}})));
+    m_device.set_channel_id(channel_id);
   }
 
   std::vector<std::string> level_names() const {
@@ -349,7 +350,7 @@ NB_MODULE(_ramulator_test, m) {
   m.doc() = "Ramulator2 test harness bindings";
 
   nb::class_<DeviceUnderTestCpp>(m, "_DeviceUnderTest")
-      .def(nb::init<nb::dict>(), nb::arg("dram_config"))
+      .def(nb::init<nb::dict, int>(), nb::arg("dram_config"), nb::arg("channel_id") = 0)
       .def_prop_ro("level_names", &DeviceUnderTestCpp::level_names)
       .def_prop_ro("command_names", &DeviceUnderTestCpp::command_names)
       .def_prop_ro("timings", &DeviceUnderTestCpp::timings)

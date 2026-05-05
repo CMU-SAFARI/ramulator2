@@ -32,6 +32,7 @@ class ControllerBase : public IController, public Implementation {
   int get_preq_command(int command, const AddrVec_t& addr_vec);
 
   // IController overrides
+  void set_channel_id(int channel_id) override;
   int get_tx_bytes() const override;
   int get_num_levels() const override;
   float get_tCK() const override;

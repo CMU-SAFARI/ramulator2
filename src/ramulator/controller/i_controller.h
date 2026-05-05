@@ -18,6 +18,10 @@ class IController {
   void print_stats(std::ostream& os) { m_impl->print_stats(os); }
   ConfigNode collect_stats() const { return m_impl->collect_stats(); }
 
+  virtual void set_channel_id(int channel_id) {
+    m_channel_id = channel_id;
+  }
+
   virtual bool send(Request& req) = 0;
   virtual bool priority_send(Request& req) = 0;
   virtual void tick() = 0;

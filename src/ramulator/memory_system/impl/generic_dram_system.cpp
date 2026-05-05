@@ -35,7 +35,7 @@ class GenericDRAMSystem final : public IMemorySystem, public Implementation {
     }
     for (size_t i = 0; i < m_controllers.size(); i++) {
       dynamic_cast<Implementation*>(m_controllers[i])->set_id(fmt::format("Channel {}", i));
-      m_controllers[i]->m_channel_id = static_cast<int>(i);
+      m_controllers[i]->set_channel_id(static_cast<int>(i));
       m_controllers[i]->m_clock_ratio = m_clock_ratio;
     }
 

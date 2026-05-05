@@ -7,9 +7,9 @@ import tests.device_timings.harness as device_timings
 pytestmark = pytest.mark.device_timings
 
 
-def make_dut():
+def make_dut(channel_id=0):
     dram = ramulator.dram.DDR4(org_preset="DDR4_8Gb_x8", timing_preset="DDR4_2400R", rank=1)
-    return device_timings.DeviceUnderTest(dram)
+    return device_timings.DeviceUnderTest(dram, channel_id=channel_id)
 
 
 def test_rd_on_closed_bank_requires_act():
@@ -41,6 +41,24 @@ def test_act_rd_gap_respects_nrcd():
     assert early.row_open is True
 
     assert ontime.timing_OK is True
+    assert ontime.ready is True
+
+
+def test_nonzero_channel_act_rd_gap_respects_nrcd():
+    dut = make_dut(channel_id=1)
+    a = dut.addr_vec(Channel=1, Rank=0, BankGroup=0, Bank=0, Row=12, Column=0)
+
+    dut.issue("ACT", a, clk=0)
+
+    early = dut.probe("RD", a, clk=dut.timings["nRCD"] - 1)
+    ontime = dut.probe("RD", a, clk=dut.timings["nRCD"])
+
+    assert early.preq == "RD"
+    assert early.timing_OK is False
+    assert early.ready is False
+    assert early.row_hit is True
+    assert early.row_open is True
+
     assert ontime.ready is True
 
 

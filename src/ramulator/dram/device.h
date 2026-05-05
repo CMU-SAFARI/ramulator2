@@ -30,6 +30,7 @@ class DRAMDevice {
   int m_bank_level = -1;                   // Cached level ID for "Bank" (hot-path use)
 
   void init(std::unique_ptr<DRAMSpec> spec);
+  void set_channel_id(int channel_id);
 
   // Issue a command: update timing (hierarchical) then apply state (flat bank dispatch)
   void issue_command(int command, const AddrVec_t& addr_vec, Clk_t clk);

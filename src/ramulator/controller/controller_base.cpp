@@ -15,6 +15,11 @@ namespace Ramulator {
 
 // ── Forwarding methods ──────────────────────────────────────────────────
 
+void ControllerBase::set_channel_id(int channel_id) {
+  IController::set_channel_id(channel_id);
+  m_device.set_channel_id(channel_id);
+}
+
 bool ControllerBase::check_timing(int command, const AddrVec_t& addr_vec) {
   return m_device.check_timing(command, addr_vec, m_clk);
 }

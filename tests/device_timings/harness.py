@@ -23,9 +23,9 @@ class ProbeResult:
 class DeviceUnderTest:
     ALL = -1
 
-    def __init__(self, dram):
+    def __init__(self, dram, channel_id: int = 0):
         self.dram = dram
-        self._cpp = _CppDeviceUnderTest(dram.to_config())
+        self._cpp = _CppDeviceUnderTest(dram.to_config(), channel_id=channel_id)
 
         metadata = _metadata_from_dram(dram, self._cpp)
         self.level_names = metadata["level_names"]

@@ -10,6 +10,10 @@ void DRAMDevice::init(std::unique_ptr<DRAMSpec> spec) {
   m_root->for_each_at_level(m_bank_level, [&](DRAMNode* bank) { m_bank_nodes.push_back(bank); });
 }
 
+void DRAMDevice::set_channel_id(int channel_id) {
+  m_root->m_node_id = channel_id;
+}
+
 void DRAMDevice::issue_command(int command, const AddrVec_t& addr_vec, Clk_t clk) {
   m_root->update_timing(command, addr_vec, clk);
   apply_action(command, addr_vec, clk);
