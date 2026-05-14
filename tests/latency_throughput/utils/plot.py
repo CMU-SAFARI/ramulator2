@@ -130,6 +130,7 @@ def plot_curves_annotated(
     line is drawn.
     """
     fig, ax = _draw_base_plot(curves, cfg)
+    x_refs = [bw_result["max_theoretical_bw"]]
 
     ax.axvline(
         bw_result["max_theoretical_bw"],
@@ -140,6 +141,7 @@ def plot_curves_annotated(
         label="Max. Theoretical Throughput",
     )
     if "max_achievable_bw" in bw_result:
+        x_refs.append(bw_result["max_achievable_bw"])
         ax.axvline(
             bw_result["max_achievable_bw"],
             color="#228833",
@@ -149,6 +151,7 @@ def plot_curves_annotated(
             label="Refresh-Adjusted Achievable Throughput",
         )
     if streaming_result is not None:
+        x_refs.append(streaming_result["measured_streaming_bw"])
         ax.axvline(
             streaming_result["measured_streaming_bw"],
             color="#4477AA", linestyle="-.", linewidth=1.5, alpha=0.7,
@@ -159,6 +162,8 @@ def plot_curves_annotated(
         color="#AA3377", linestyle=":", linewidth=1.5, alpha=0.7,
         label="Unloaded Latency (Ideal)",
     )
+    curve_max_bw = max(max(c["bw"]) for c in curves.values())
+    ax.set_xlim(left=0, right=max(curve_max_bw, *x_refs) * 1.08)
 
     legend = ax.legend(
         fontsize=10, frameon=True, edgecolor="#666",

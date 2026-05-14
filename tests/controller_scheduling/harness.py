@@ -49,6 +49,40 @@ class ControllerUnderTest:
         )
         return cls(controller, num_cores=num_cores)
 
+    @classmethod
+    def make_hbm(
+        cls,
+        dram,
+        *,
+        controller_cls=None,
+        scheduler=None,
+        row_policy=None,
+        refresh_manager=None,
+        addr_mapper=None,
+        controller_plugins=None,
+        num_cores: int = 1,
+        **kwargs,
+    ):
+        controller_cls = controller_cls or ramulator.controller.HBM12
+        controller = controller_cls(
+            scheduler=scheduler or ramulator.scheduler.FRFCFS(),
+            refresh_manager=refresh_manager or ramulator.refresh_manager.NoRefresh(),
+            row_policy=row_policy or ramulator.row_policy.Open(),
+            addr_mapper=addr_mapper or ramulator.addr_mapper.PassThroughAddrMapper(),
+            dram=dram,
+            controller_plugins=controller_plugins or [],
+            **kwargs,
+        )
+        return cls(controller, num_cores=num_cores)
+
+    @classmethod
+    def make_hbm12(cls, dram, **kwargs):
+        return cls.make_hbm(dram, controller_cls=ramulator.controller.HBM12, **kwargs)
+
+    @classmethod
+    def make_hbm34(cls, dram, **kwargs):
+        return cls.make_hbm(dram, controller_cls=ramulator.controller.HBM34, **kwargs)
+
     def __init__(self, controller, num_cores: int = 1):
         if not hasattr(controller, "dram"):
             raise TypeError("ControllerUnderTest requires a controller component with a dram child")

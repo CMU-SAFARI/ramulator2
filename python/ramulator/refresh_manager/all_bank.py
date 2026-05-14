@@ -7,9 +7,7 @@
 # Regenerate:   python -m ramulator codegen
 ###############################################################################
 from ramulator.components import Component
-from ramulator.param import Param
 
 
 class AllBank(Component):
     impl = "AllBank"
-    scope = Param(str, required=True)

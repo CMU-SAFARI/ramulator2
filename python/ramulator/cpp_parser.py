@@ -62,8 +62,10 @@ _RE_CREATE_OPTIONAL_CHILD_LIST = re.compile(
     r"RAMULATOR_CREATE_OPTIONAL_CHILD_LIST\s*\(\s*\w+\s*,\s*(\w+)\s*\)"
 )
 
-# Find class definition to locate base class source file
-_RE_CLASS_DEF = re.compile(r"class\s+(\w+)\s*(?:final\s*)?:")
+# Find class definition and an ordinary public base, if present.
+_RE_CLASS_DEF = re.compile(
+    r"class\s+(\w+)\s*(?:final\s*)?(?:\s*:\s*public\s+(\w+)(?:\s*,[^{]+)?)?\s*\{"
+)
 
 
 def _scan_files(src_dir, extensions=(".cpp", ".h")):
@@ -95,6 +97,17 @@ def _find_class_sources(src_dir, class_name):
                         sources.append(cpp_path)
                 break
     return sources
+
+
+def _find_class_base(src_dir, class_name):
+    """Find the first ordinary public base class for class_name, if any."""
+    for filepath in _scan_files(src_dir):
+        with open(filepath) as f:
+            content = f.read()
+        for m in _RE_CLASS_DEF.finditer(content):
+            if m.group(1) == class_name:
+                return m.group(2)
+    return None
 
 
 def parse_interface_keys(src_dir):
@@ -191,34 +204,61 @@ def parse_children(filepath, interface_keys):
     return children
 
 
-def parse_params_with_inheritance(filepath, base_class, src_dir, interface_keys):
-    """Parse params from both concrete file and base class (if any).
+def _merge_params_and_children(params, children, next_params, next_children):
+    existing_names = {p["name"] for p in params}
+    for p in next_params:
+        if p["name"] not in existing_names:
+            params.append(p)
+            existing_names.add(p["name"])
 
-    Returns (params, children) with base class contributions merged first.
-    """
+    existing_child_keys = {c["config_key"] for c in children}
+    for c in next_children:
+        if c["config_key"] not in existing_child_keys:
+            children.append(c)
+            existing_child_keys.add(c["config_key"])
+
+
+def _parse_class_with_bases(class_name, src_dir, interface_keys, visited):
+    """Parse params/children for class_name and ordinary C++ bases first."""
+    if not class_name or class_name in visited:
+        return [], []
+    if class_name == "Implementation":
+        return [], []
+    visited.add(class_name)
+
     params = []
     children = []
 
-    # Parse base class first (if DERIVED registration)
-    if base_class:
-        for base_source in _find_class_sources(src_dir, base_class):
-            params.extend(parse_params(base_source))
-            children.extend(parse_children(base_source, interface_keys))
+    base_class = _find_class_base(src_dir, class_name)
+    base_params, base_children = _parse_class_with_bases(
+        base_class, src_dir, interface_keys, visited
+    )
+    _merge_params_and_children(params, children, base_params, base_children)
 
-    # Parse concrete implementation (may add more params/children)
-    concrete_params = parse_params(filepath)
-    concrete_children = parse_children(filepath, interface_keys)
+    for source in _find_class_sources(src_dir, class_name):
+        _merge_params_and_children(
+            params,
+            children,
+            parse_params(source),
+            parse_children(source, interface_keys),
+        )
 
-    # Merge: concrete overrides base if same param name
-    existing_names = {p["name"] for p in params}
-    for p in concrete_params:
-        if p["name"] not in existing_names:
-            params.append(p)
+    return params, children
 
-    existing_child_keys = {c["config_key"] for c in children}
-    for c in concrete_children:
-        if c["config_key"] not in existing_child_keys:
-            children.append(c)
+
+def parse_params_with_inheritance(filepath, base_class, src_dir, interface_keys):
+    """Parse params from concrete file and recursive ordinary C++ bases.
+
+    Returns (params, children) with base class contributions merged first.
+    """
+    params, children = _parse_class_with_bases(base_class, src_dir, interface_keys, set())
+
+    _merge_params_and_children(
+        params,
+        children,
+        parse_params(filepath),
+        parse_children(filepath, interface_keys),
+    )
 
     return params, children
 

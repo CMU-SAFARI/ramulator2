@@ -80,7 +80,9 @@ std::unique_ptr<DRAMSpec> DRAMSpec::create(const std::string& name, const Config
   if (it == registry().end()) {
     throw std::runtime_error("Unknown DRAM standard: " + name);
   }
-  return it->second(config);
+  auto spec = it->second(config);
+  spec->standard_name = name;
+  return spec;
 }
 
 }  // namespace Ramulator

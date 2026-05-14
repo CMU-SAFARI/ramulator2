@@ -1,7 +1,7 @@
 """Formula-based validation checks for DRAM simulation results.
 
 All expected values are computed from JEDEC timing parameters via
-DRAMStandard.resolve() (see spec.py).  No stored baselines are used.
+DRAMStandard.resolve() (see spec.py).
 
 Each check returns a result dict with expected, measured, and % deviation
 fields, suitable for printing or feeding into the annotated plot.

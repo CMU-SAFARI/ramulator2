@@ -20,7 +20,7 @@ Usage in a gem5 config script::
     ctrl = ramulator.controller.GenericDDR(
         dram=ddr4,
         scheduler=ramulator.scheduler.FRFCFS(),
-        refresh_manager=ramulator.refresh_manager.AllBank(scope="Rank"),
+        refresh_manager=ramulator.refresh_manager.AllBank(),
         row_policy=ramulator.row_policy.Open(),
         addr_mapper=ramulator.addr_mapper.RoBaRaCoCh(),
     )

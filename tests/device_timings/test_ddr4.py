@@ -7,8 +7,14 @@ import tests.device_timings.harness as device_timings
 pytestmark = pytest.mark.device_timings
 
 
-def make_dut(channel_id=0):
-    dram = ramulator.dram.DDR4(org_preset="DDR4_8Gb_x8", timing_preset="DDR4_2400R", rank=1)
+def make_dut(*, channel_id=0, **overrides):
+    """DDR4 8Gb x8 @ 2400R, rank=1. Override via kwargs (e.g. nFAW=60)."""
+    dram = ramulator.dram.DDR4(**{
+        "org_preset": "DDR4_8Gb_x8",
+        "timing_preset": "DDR4_2400R",
+        "rank": 1,
+        **overrides,
+    })
     return device_timings.DeviceUnderTest(dram, channel_id=channel_id)
 
 
@@ -120,12 +126,7 @@ def test_fifth_activate_within_nfaw_is_blocked():
     for i in range(4):
         dut.issue("ACT", banks[i], clk=i * act_gap)
 
-    blocked = dut.probe("ACT", banks[4], clk=4 * act_gap)
-    allowed = dut.probe("ACT", banks[4], clk=dut.timings["nFAW"])
-
-    assert blocked.timing_OK is False
-    assert blocked.ready is False
-    assert allowed.ready is True
+    dut.assert_earliest_ready_at("ACT", banks[4], dut.timings["nFAW"])
 
 
 def test_ddr4_bankgroup_spacing_differs_between_same_and_different_groups():
@@ -133,17 +134,13 @@ def test_ddr4_bankgroup_spacing_differs_between_same_and_different_groups():
     a0 = same_group.addr_vec(Rank=0, BankGroup=0, Bank=0, Row=0, Column=0)
     a1 = same_group.addr_vec(Rank=0, BankGroup=0, Bank=1, Row=1, Column=0)
     same_group.issue("ACT", a0, clk=0)
-
-    assert same_group.probe("ACT", a1, clk=same_group.timings["nRRDL"] - 1).timing_OK is False
-    assert same_group.probe("ACT", a1, clk=same_group.timings["nRRDL"]).ready is True
+    same_group.assert_earliest_ready_at("ACT", a1, same_group.timings["nRRDL"])
 
     diff_group = make_dut()
     b0 = diff_group.addr_vec(Rank=0, BankGroup=0, Bank=0, Row=0, Column=0)
     b1 = diff_group.addr_vec(Rank=0, BankGroup=1, Bank=0, Row=1, Column=0)
     diff_group.issue("ACT", b0, clk=0)
-
-    assert diff_group.probe("ACT", b1, clk=diff_group.timings["nRRDS"] - 1).timing_OK is False
-    assert diff_group.probe("ACT", b1, clk=diff_group.timings["nRRDS"]).ready is True
+    diff_group.assert_earliest_ready_at("ACT", b1, diff_group.timings["nRRDS"])
 
 
 def test_addr_vec_rejects_unknown_levels_and_none():

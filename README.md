@@ -22,11 +22,12 @@ This Github repository contains the public version of Ramulator 2.1. From time t
 
 Currently, Ramulator 2.1 provides the DRAM device and memory controller models for the following standards:
 - DDR3, DDR4, DDR5
+- GDDR6
 - LPDDR5 (with WCK2CK sync and expiry tracking and tAAD deadline aware scheduling for separate ACT1 and ACT2)
-- HBM, HBM2, HBM3 (Row and column command dual-issue and pseudochannels)
+- HBM1, HBM2, HBM3, HBM4 (Row and column command dual-issue and pseudochannels)
 
 What has changed from Ramulator 2.0:
-- Aggregated bug fixes (identified from both Github issues and internal testing)
+- Aggregated bug fixes
 - More comprehensive support for newer DRAM & controller features
 - More comprehensive sets of test and validation workflows
 - Significantly improved the ease of use, configuration, and extension
@@ -174,7 +175,7 @@ ddr4 = ramulator.dram.DDR4(org_preset="DDR4_8Gb_x8", timing_preset="DDR4_2400R",
 ctrl = ramulator.controller.GenericDDR(
     dram=ddr4,
     scheduler=ramulator.scheduler.FRFCFS(),
-    refresh_manager=ramulator.refresh_manager.AllBank(scope="Rank"),
+    refresh_manager=ramulator.refresh_manager.AllBank(),
     row_policy=ramulator.row_policy.Open(),
     addr_mapper=ramulator.addr_mapper.RoBaRaCoCh(),
 )
@@ -255,13 +256,13 @@ If you want to understand what this object turns into at runtime, section 9.3 wa
 ctrl = ramulator.controller.GenericDDR(
     dram=ddr4,
     scheduler=ramulator.scheduler.FRFCFS(),
-    refresh_manager=ramulator.refresh_manager.AllBank(scope="Rank"),
+    refresh_manager=ramulator.refresh_manager.AllBank(),
     row_policy=ramulator.row_policy.Open(),
     addr_mapper=ramulator.addr_mapper.RoBaRaCoCh(),
 )
 ```
 
-This configures a GenericDDR memory controller for our just configured `ddr4` DRAM. It has an `FRFCFS` (First-Ready First-Come-First-Served) scheduler, an all-bank refresh that happens at the rank-level (`AllBank(scope="Rank")`), an `Open` row policy, and a `RoBaRaCoCh` address mapper.
+This configures a GenericDDR memory controller for our just configured `ddr4` DRAM. It has an `FRFCFS` (First-Ready First-Come-First-Served) scheduler, an all-bank refresh, an `Open` row policy, and a `RoBaRaCoCh` address mapper.
 
 #### Memory system
 
@@ -348,10 +349,10 @@ ctrl = ramulator.controller.LPDDR5(dram=dram,...)
 
 ```python
 dram = ramulator.dram.HBM2(org_preset="HBM2_2Gb", timing_preset="HBM2_2000Mbps")
-ctrl = ramulator.controller.HBM(dram=dram,...)
+ctrl = ramulator.controller.HBM12(dram=dram,...)
 ```
 
-Use the controller that matches the standard you want to model. DDR3, DDR4, and DDR5 use `GenericDDR`. LPDDR5 uses `LPDDR5`. HBM1, HBM2, and HBM3 use `HBM`.
+Use the controller that matches the standard you want to model. DDR3, DDR4, DDR5, and GDDR6 use `GenericDDR`. LPDDR5 uses `LPDDR5`. HBM1 and HBM2 use `HBM12`; HBM3 and HBM4 use `HBM34`.
 
 #### Change rank count or other DRAM overrides
 
@@ -376,7 +377,7 @@ One controller corresponds to one channel.
 ctrl = ramulator.controller.GenericDDR(
     dram=ramulator.dram.DDR4(org_preset="DDR4_8Gb_x8", timing_preset="DDR4_2400R", rank=2),
     scheduler=ramulator.scheduler.FRFCFS(),
-    refresh_manager=ramulator.refresh_manager.AllBank(scope="Rank"),
+    refresh_manager=ramulator.refresh_manager.AllBank(),
     row_policy=ramulator.row_policy.Open(),
     addr_mapper=ramulator.addr_mapper.RoBaRaCoCh(),
 )
@@ -497,12 +498,14 @@ It focuses on cases that are too small and specific for a throughput sweep:
 
 Use it when you change command semantics or device timing enforcement.
 
-`DeviceUnderTest` gives you two complementary operations:
+`DeviceUnderTest` gives you three complementary operations:
 
 - `probe(command, addr_vec, clk)`
   A read-only query. It asks, "if I wanted this command at this cycle, what would the device say?" It does not change device state.
 - `issue(command, addr_vec, clk)`
   A state-mutating operation. It actually issues the command into the device and updates timing/state. It throws if the command is not fully legal at that cycle.
+- `assert_earliest_ready_at(command, addr_vec, clk)`
+  A read-only assertion. It probes at `clk - 1` and asserts the command is *not* ready, then probes at `clk` and asserts it *is* ready. Use this to verify a timing gate is tight: legal as soon as possible, not earlier. The failure messages include `preq` and `timing_OK` so you can tell at a glance whether a regression is state-related or timing-related.
 
 `probe()` returns five pieces of information:
 
@@ -707,7 +710,7 @@ ddr4 = ramulator.dram.DDR4(org_preset="DDR4_8Gb_x8", timing_preset="DDR4_2400R",
 ctrl = ramulator.controller.GenericDDR(
     dram=ddr4,
     scheduler=ramulator.scheduler.FRFCFS(),
-    refresh_manager=ramulator.refresh_manager.AllBank(scope="Rank"),
+    refresh_manager=ramulator.refresh_manager.AllBank(),
     row_policy=ramulator.row_policy.Open(),
     addr_mapper=ramulator.addr_mapper.RoBaRaCoCh(),
 )
@@ -780,7 +783,7 @@ dram = ramulator.dram.DDR4(org_preset="DDR4_8Gb_x8", timing_preset="DDR4_2400R",
 ctrl = ramulator.controller.GenericDDR(
     dram=dram,
     scheduler=ramulator.scheduler.FRFCFS(),
-    refresh_manager=ramulator.refresh_manager.AllBank(scope="Rank"),
+    refresh_manager=ramulator.refresh_manager.AllBank(),
     row_policy=ramulator.row_policy.Open(),
     addr_mapper=ramulator.addr_mapper.RoBaRaCoCh(),
 )
@@ -916,7 +919,7 @@ Then add that file to the relevant `CMakeLists.txt`, rebuild, and use it from Py
 ctrl = ramulator.controller.GenericDDR(
     dram=dram,
     scheduler=ramulator.scheduler.FooBar(weight=8), # New scheduler!
-    refresh_manager=ramulator.refresh_manager.AllBank(scope="Rank"),
+    refresh_manager=ramulator.refresh_manager.AllBank(),
     row_policy=ramulator.row_policy.Open(),
     addr_mapper=ramulator.addr_mapper.RoBaRaCoCh(),
 )
@@ -951,7 +954,7 @@ Example:
 ctrl = ramulator.controller.GenericDDR(
     dram=dram,
     scheduler=ramulator.scheduler.FRFCFS(),
-    refresh_manager=ramulator.refresh_manager.AllBank(scope="Rank"),
+    refresh_manager=ramulator.refresh_manager.AllBank(),
     row_policy=ramulator.row_policy.Open(),
     addr_mapper=ramulator.addr_mapper.RoBaRaCoCh(),
     controller_plugins=[
@@ -1027,13 +1030,12 @@ config = {
     "org_preset": "MyOrgPreset",
     "timing_preset": "MyTimingPreset",
     "controller_class": "GenericDDR",
-    "refresh_scope": "Rank",
     "stream_cls": 8,
     "nop_counters": (1, 10, 100, 1000),
 }
 ```
 
-The exact controller class depends on the standard. For example, LPDDR5 uses `LPDDR5`, and HBM-family standards use `HBM`.
+The exact controller class depends on the standard. For example, DDR3/DDR4/DDR5/GDDR6 use `GenericDDR`, LPDDR5 uses `LPDDR5`, HBM1/HBM2 use `HBM12`, and HBM3/HBM4 use `HBM34`.
 
 Then run:
 

@@ -22,7 +22,9 @@ target_sources(
   impl/HBM1.cpp
   impl/HBM2.cpp
   impl/HBM3.cpp
+  impl/HBM4.cpp
   impl/LPDDR5.cpp
+  impl/GDDR6.cpp
 )
 
 target_link_libraries(

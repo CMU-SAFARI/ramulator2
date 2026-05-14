@@ -55,7 +55,7 @@ def resolve_spec(cfg: dict) -> Spec:
     # Two time references:
     #   tCK_ns       — ns per CK cycle (use for theoretical formulas using timing_dict)
     #   time_unit_ns — ns per simulation tick (use for converting simulation cycle counts)
-    # When tick_multiplier > 1 (HBM3), to_config() divides tCK_ps and multiplies all
+    # When tick_multiplier > 1 (HBM3/HBM4), to_config() divides tCK_ps and multiplies all
     # timing params by tick_multiplier.  resolve() returns the original (pre-mult) values.
     tick_mult = getattr(std_cls, "tick_multiplier", 1)
     tCK_ns = timing_dict["tCK_ps"] / 1000.0

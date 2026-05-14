@@ -88,6 +88,7 @@ struct DRAMSpec {
   int timing_count = -1;
 
   // Constants
+  std::string standard_name;
   int internal_prefetch_size = -1;
   int channel_width = -1;
   Clk_t read_latency = -1;

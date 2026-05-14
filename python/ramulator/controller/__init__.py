@@ -5,7 +5,8 @@
 # Regenerate:   python -m ramulator codegen
 ###############################################################################
 from .generic_ddr import GenericDDR
-from .hbm import HBM
+from .hbm12 import HBM12
+from .hbm34 import HBM34
 from .lpddr5 import LPDDR5
 
-__all__ = ['GenericDDR', 'HBM', 'LPDDR5']
+__all__ = ['GenericDDR', 'HBM12', 'HBM34', 'LPDDR5']

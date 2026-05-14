@@ -43,3 +43,14 @@ def test_device_under_test_example_flow():
 
     # The actual read can now issue.
     dut.issue("RD", a, clk=dut.timings["nRCD"])
+
+    # The "probe at clk-1 is blocked, probe at clk is ready" pair is the
+    # canonical "this timing gate is tight" check. assert_earliest_ready_at
+    # bundles both probes into a single self-describing assertion.
+    # Here: PREpb after RD must wait for both nRTP (RD→PRE) and nRAS (ACT→PRE).
+    t_pre = max(
+        dut.timings["nRCD"] + dut.timings["nRTP"],
+        dut.timings["nRAS"],
+    )
+    dut.assert_earliest_ready_at("PREpb", a, t_pre)
+    dut.issue("PREpb", a, clk=t_pre)

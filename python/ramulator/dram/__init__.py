@@ -7,9 +7,11 @@
 from .ddr3 import DDR3
 from .ddr4 import DDR4
 from .ddr5 import DDR5
+from .gddr6 import GDDR6
 from .hbm1 import HBM1
 from .hbm2 import HBM2
 from .hbm3 import HBM3
+from .hbm4 import HBM4
 from .lpddr5 import LPDDR5
 
-__all__ = ['DDR3', 'DDR4', 'DDR5', 'HBM1', 'HBM2', 'HBM3', 'LPDDR5']
+__all__ = ['DDR3', 'DDR4', 'DDR5', 'GDDR6', 'HBM1', 'HBM2', 'HBM3', 'HBM4', 'LPDDR5']

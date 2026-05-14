@@ -47,7 +47,7 @@ def run_simulation(
     )
 
     refresh_manager = (
-        ramulator.refresh_manager.AllBank(scope=cfg["refresh_scope"])
+        ramulator.refresh_manager.AllBank()
         if refresh_enabled
         else ramulator.refresh_manager.NoRefresh()
     )

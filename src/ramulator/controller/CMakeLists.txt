@@ -12,6 +12,7 @@ target_sources(
   refresh/i_refresh_manager.h
   refresh/impl/all_bank.cpp
   refresh/impl/per_bank.cpp
+  refresh/impl/hbm34_per_bank_refresh.cpp
   refresh/impl/no_refresh.cpp
 
   rowpolicy/i_row_policy.h
@@ -34,7 +35,10 @@ target_sources(
 
   impl/generic_ddr_controller.cpp
   impl/lpddr5_controller.cpp
-  impl/hbm_controller.cpp
+  impl/hbm_controller_base.h
+  impl/hbm_controller_base.cpp
+  impl/hbm12_controller.cpp
+  impl/hbm34_controller.cpp
 )
 
 target_link_libraries(

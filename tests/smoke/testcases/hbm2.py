@@ -5,7 +5,7 @@ CONFIG = dict(
     org_preset="HBM2_2Gb",
     timing_preset="HBM2_2000Mbps",
     dram_kwargs={},
-    controller_class="HBM",
+    controller_class="HBM12",
     fast_ctrl_extra_kwargs=dict(
         refresh_manager=ramulator.refresh_manager.NoRefresh(),
     ),

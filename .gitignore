@@ -24,32 +24,5 @@ tests/plots/
 sweep_log.txt
 .ipynb_checkpoints/tests/plots/
 
-.claude/
-CLAUDE.md
-docs/
-legacy/
-jedec/
-local_notes/
-
-internal/
-
-build-perf/
-visualize_profiling.py
-
-# Profiling/benchmarking
-BOTTLENECK_QUICK_REFERENCE.md
-PROFILING_ANALYSIS.md
-PROFILING_SUMMARY.md
-PROFILING_METHODOLOGY.md
-callgrind.out
-profile_run.py
-src/ramulator/bench/
-verify_cycle_counts.py
-gprof*/
-
 *.out
 *.json
-bench_all_standards.py
-build-bench/
-build-perf/
-AGENTS.md
