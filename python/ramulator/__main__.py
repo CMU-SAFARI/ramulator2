@@ -9,6 +9,9 @@ Usage:
     python -m ramulator codegen                          # generate C++ from Python DSL
     python -m ramulator codegen DDR4                     # generate specific standard
     python -m ramulator codegen --dry-run                # print without writing
+    python -m ramulator visualize                        # start the trace visualizer
+    python -m ramulator visualize --port 4000            # custom port
+    python -m ramulator visualize --dev                  # development server with hot-reload
 """
 
 import runpy
@@ -60,6 +63,25 @@ def export_main(args):
         sys.stdout.write(text)
 
 
+def visualize_main(args):
+    """Start the trace visualizer server."""
+    import argparse
+
+    from ramulator.visualizer import VisualizerServer
+
+    parser = argparse.ArgumentParser(
+        prog="python -m ramulator visualize",
+        description="Start the Ramulator trace visualizer.",
+    )
+    parser.add_argument("-p", "--port", type=int, default=None, help="Port (default: 3000 or RAMULATOR_VISUALIZER_PORT)")
+    parser.add_argument("--dev", action="store_true", help="Run the dev server with hot-reload instead of the production build")
+    opts = parser.parse_args(args)
+
+    server = VisualizerServer(port=opts.port, dev=opts.dev)
+    server.start()
+    server.wait()
+
+
 def main():
     if len(sys.argv) < 2:
         print(__doc__.strip(), file=sys.stderr)
@@ -72,6 +94,8 @@ def main():
         from ramulator.codegen import codegen_main
 
         codegen_main(sys.argv[2:])
+    elif cmd == "visualize":
+        visualize_main(sys.argv[2:])
     elif cmd == "run":
         run_main(sys.argv[2:])
     else:

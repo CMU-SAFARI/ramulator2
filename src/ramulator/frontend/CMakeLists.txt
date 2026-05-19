@@ -12,6 +12,10 @@ target_sources(
   impl/processor/simpleO3/simpleO3.cpp
   impl/processor/simpleO3/core.h      impl/processor/simpleO3/core.cpp
   impl/processor/simpleO3/llc.h       impl/processor/simpleO3/llc.cpp
+
+  impl/processor/bhO3/bhO3.cpp
+  impl/processor/bhO3/bhcore.h        impl/processor/bhO3/bhcore.cpp
+  impl/processor/bhO3/bhllc.h         impl/processor/bhO3/bhllc.cpp
 )
 
 target_link_libraries(

@@ -244,6 +244,7 @@ class DRAMStandard(Component):
                 "count": [1] + org_counts,
             },
             "timing": [timing_dict[k] for k in cls.timing_params],
+            "command_cycles": [cmd_cycles.get(cmd, tick_mult) for cmd in cls.commands],
             "channel_width": org_dict["channel_width"],
             "read_latency": cls._eval_expr(cls.read_latency, timing_dict),
             "timing_constraints": constraints,

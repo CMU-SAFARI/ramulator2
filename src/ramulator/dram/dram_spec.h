@@ -98,6 +98,7 @@ struct DRAMSpec {
   std::vector<int> init_states;         // per level
   std::vector<int> supported_requests;  // per request type
   std::vector<int> timing_vals;         // per timing parameter
+  std::vector<int> command_cycles;      // per command: CA bus cycles (ticks)
   TimingCons timing_cons;                // per level x command
   std::vector<std::vector<int8_t>> has_sibling_cons;  // [level][cmd] → has sibling timing constraint
   std::vector<DRAMCommandMeta> command_meta;

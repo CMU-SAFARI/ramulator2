@@ -31,7 +31,7 @@ def run_simulation(
     dram = dram_cls(org_preset=cfg["org_preset"], timing_preset=cfg["timing_preset"])
     layout = extract_dram_layout(dram)
     if stream_cls is None:
-        stream_cls = layout["num_cls"] if streaming_only else cfg["stream_cls"]
+        stream_cls = cfg.get("stream_cls", layout["num_cls"])
 
     frontend = ramulator.frontend.LatencyThroughputTrace(
         clock_ratio=frontend_clock_ratio,
@@ -58,6 +58,7 @@ def run_simulation(
         row_policy=ramulator.row_policy.Open(),
         addr_mapper=ramulator.addr_mapper.PassThroughAddrMapper(),
         refresh_manager=refresh_manager,
+        **cfg.get("controller_kwargs", {}),
     )
 
     mem = ramulator.memory_system.GenericDRAM(

@@ -218,6 +218,21 @@ def _merge_params_and_children(params, children, next_params, next_children):
             existing_child_keys.add(c["config_key"])
 
 
+def _parse_file_with_companion(filepath, interface_keys):
+    params = parse_params(filepath)
+    children = parse_children(filepath, interface_keys)
+    if filepath.endswith(".h"):
+        cpp_path = filepath[:-2] + ".cpp"
+        if os.path.exists(cpp_path):
+            _merge_params_and_children(
+                params,
+                children,
+                parse_params(cpp_path),
+                parse_children(cpp_path, interface_keys),
+            )
+    return params, children
+
+
 def _parse_class_with_bases(class_name, src_dir, interface_keys, visited):
     """Parse params/children for class_name and ordinary C++ bases first."""
     if not class_name or class_name in visited:
@@ -253,12 +268,8 @@ def parse_params_with_inheritance(filepath, base_class, src_dir, interface_keys)
     """
     params, children = _parse_class_with_bases(base_class, src_dir, interface_keys, set())
 
-    _merge_params_and_children(
-        params,
-        children,
-        parse_params(filepath),
-        parse_children(filepath, interface_keys),
-    )
+    concrete_params, concrete_children = _parse_file_with_companion(filepath, interface_keys)
+    _merge_params_and_children(params, children, concrete_params, concrete_children)
 
     return params, children
 
@@ -277,6 +288,13 @@ def _parse_default(val_str, cpp_type):
     # String literal
     if val_str.startswith('"') and val_str.endswith('"'):
         return val_str[1:-1]
+    # std::vector<...>{...} brace-init literal — recognise the empty form
+    # and any comma-separated literal list of scalars.
+    if cpp_type.startswith("std::vector<") and "{" in val_str and val_str.endswith("}"):
+        inside = val_str[val_str.index("{") + 1:-1].strip()
+        if not inside:
+            return []
+        return [_parse_default(item, "") for item in inside.split(",")]
     # Numeric
     try:
         if "." in val_str:

@@ -17,6 +17,7 @@ class LPDDR5(Component):
     read_buffer_size = Param(int, default=32)
     write_buffer_size = Param(int, default=32)
     priority_buffer_size = Param(int, default=1568)
+    wck_sync_mode = Param(str, default='need_sync')
     scheduler = Child("scheduler")
     refresh_manager = Child("refresh_manager")
     row_policy = Child("row_policy")

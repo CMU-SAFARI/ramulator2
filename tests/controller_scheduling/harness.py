@@ -83,6 +83,10 @@ class ControllerUnderTest:
     def make_hbm34(cls, dram, **kwargs):
         return cls.make_hbm(dram, controller_cls=ramulator.controller.HBM34, **kwargs)
 
+    @classmethod
+    def make_gddr7(cls, dram, **kwargs):
+        return cls.make_hbm(dram, controller_cls=ramulator.controller.GDDR7, **kwargs)
+
     def __init__(self, controller, num_cores: int = 1):
         if not hasattr(controller, "dram"):
             raise TypeError("ControllerUnderTest requires a controller component with a dram child")

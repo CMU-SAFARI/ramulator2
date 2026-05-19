@@ -1,3 +1,5 @@
+#include <initializer_list>
+#include <stdexcept>
 #include <vector>
 
 #include "ramulator/base/param.h"
@@ -35,11 +37,23 @@ class ClosedCAPRowPolicy : public IRowPolicy, public Implementation {
     m_spec = m_device->m_spec;
     RAMULATOR_PARSE_PARAM(m_cap, int, "cap").default_val(4);
 
+    auto find_command = [&](std::initializer_list<const char*> names, bool required) {
+      for (const char* name : names) {
+        if (m_spec->has_command(name)) {
+          return m_spec->get_command_id(name);
+        }
+      }
+      if (required) {
+        throw std::runtime_error("ClosedCAP: DRAM standard does not define required RD/WR commands");
+      }
+      return -1;
+    };
+
     m_cmd_prepb = m_spec->get_command_id("PREpb");
-    m_cmd_rd = m_spec->get_command_id("RD");
-    m_cmd_wr = m_spec->get_command_id("WR");
-    m_cmd_rda = m_spec->has_command("RDA") ? m_spec->get_command_id("RDA") : -1;
-    m_cmd_wra = m_spec->has_command("WRA") ? m_spec->get_command_id("WRA") : -1;
+    m_cmd_rd = find_command({"RD", "RD_S"}, true);
+    m_cmd_wr = find_command({"WR", "WR_S"}, true);
+    m_cmd_rda = find_command({"RDA", "RDA_S"}, false);
+    m_cmd_wra = find_command({"WRA", "WRA_S"}, false);
     m_has_ap = (m_cmd_rda != -1 && m_cmd_wra != -1);
 
     int num_banks = static_cast<int>(m_device->m_bank_nodes.size());

@@ -1,6 +1,11 @@
 """Fast latency-throughput: no-refresh checks and plots."""
 
+import os
+import sys
 import pytest
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from tests.latency_throughput.utils.checks import (
     check_peak_bandwidth,
@@ -84,15 +89,15 @@ def test_latency_throughput_fast(request, standard):
     print(f"    Measured = {lat_result['measured_ns']:.1f} ns")
     print(f"    Deviation = {lat_result['deviation_pct']:+.1f}%")
     print()
-    print("  Max Bandwidth (probed sweep):")
-    print(f"    Theoretical peak = {bw_result['max_theoretical_bw']:.1f} GB/s")
-    print(f"    Measured max = {bw_result['measured_max_bw']:.1f} GB/s")
-    print(f"    Deviation = {bw_result['deviation_from_theoretical_pct']:+.1f}%")
-    print()
     print("  Streaming-Only Bandwidth (no probes):")
     print(f"    Theoretical peak = {streaming_result['max_theoretical_bw']:.1f} GB/s")
     print(f"    Measured = {streaming_result['measured_streaming_bw']:.1f} GB/s")
     print(f"    Deviation = {streaming_result['deviation_from_theoretical_pct']:+.1f}%")
+    print()
+    print("  Mixed Workload Bandwidth (random probes included):")
+    print(f"    Theoretical peak = {bw_result['max_theoretical_bw']:.1f} GB/s")
+    print(f"    Measured max = {bw_result['measured_max_bw']:.1f} GB/s")
+    print(f"    Deviation = {bw_result['deviation_from_theoretical_pct']:+.1f}%")
     print(f"{'=' * 60}")
 
     if request.config.getoption("--verbose-plot"):

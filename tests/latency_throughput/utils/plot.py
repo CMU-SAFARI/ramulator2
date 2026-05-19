@@ -10,7 +10,9 @@ Both produce a PNG at 300 DPI.
 """
 
 import os
+import sys
 from collections import defaultdict
+from pathlib import Path
 
 import matplotlib
 
@@ -18,6 +20,8 @@ matplotlib.use("Agg")  # non-interactive backend
 import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
 from tests.latency_throughput.utils.spec import Spec
 
@@ -138,7 +142,7 @@ def plot_curves_annotated(
         linestyle="--",
         linewidth=1.5,
         alpha=0.7,
-        label="Max. Theoretical Throughput",
+        label="Raw Theoretical Throughput",
     )
     if "max_achievable_bw" in bw_result:
         x_refs.append(bw_result["max_achievable_bw"])
@@ -176,7 +180,7 @@ def plot_curves_annotated(
         f"Unloaded Latency (Measured): {lat_result['measured_ns']:.1f} ns",
     ]
     right_lines = [
-        f"Max. Theoretical Throughput: {bw_result['max_theoretical_bw']:.1f} GB/s",
+        f"Raw Theoretical Throughput: {bw_result['max_theoretical_bw']:.1f} GB/s",
     ]
     if "max_achievable_bw" in bw_result:
         right_lines.append(
@@ -187,7 +191,6 @@ def plot_curves_annotated(
             f"Streaming-Only Throughput (Measured): "
             f"{streaming_result['measured_streaming_bw']:.1f} GB/s"
         )
-
     fig.subplots_adjust(bottom=0.30, top=0.92)
     pos = ax.get_position()
     cx = (pos.x0 + pos.x1) / 2

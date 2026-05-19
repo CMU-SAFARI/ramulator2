@@ -66,7 +66,14 @@ def resolve_spec(cfg: dict) -> Spec:
     bytes_per_req = channel_width * prefetch // 8
 
     rate = timing_dict["rate"]
-    max_theoretical_bw = channel_width * rate / 8 / 1000
+    burst_gap = timing_dict.get("nBL_min", timing_dict.get("nBL"))
+    if burst_gap is not None:
+        # Prefer modeled payload cadence when available. LPDDR6 currently uses a
+        # fake/logical channel_width to produce 32 B payload transactions, so the
+        # physical bus-width formula would overstate its payload peak.
+        max_theoretical_bw = bytes_per_req / (burst_gap * tCK_ns)
+    else:
+        max_theoretical_bw = channel_width * rate / 8 / 1000
 
     # Pseudo-channel standards interleave both PCs for an effective doubling
     has_pseudo_channel = "PseudoChannel" in std_cls.levels
@@ -74,17 +81,22 @@ def resolve_spec(cfg: dict) -> Spec:
         max_theoretical_bw *= org_dict.get("pseudochannel", 2)
 
     # Timing parameter name resolution (standards differ)
-    nRCD = timing_dict.get("nRCDRD", timing_dict.get("nRCD"))
-    nRTP = timing_dict.get("nRTPL", timing_dict.get("nRTP"))
+    nRCD = timing_dict.get("nRCDRD", timing_dict.get("nRCD", timing_dict.get("nRCDr")))
+    nRTP = timing_dict.get("nRTPL", timing_dict.get("nRTP", timing_dict.get("nRTPSB")))
     if nRCD is None or nRTP is None:
         raise ValueError(
-            f"{cfg['name']}: timing dict missing nRCD/nRCDRD or nRTP/nRTPL. "
+            f"{cfg['name']}: timing dict missing nRCD/nRCDRD/nRCDr or nRTP/nRTPL. "
             f"Available keys: {sorted(timing_dict.keys())}"
         )
-    nCL = timing_dict["nCL"]
+    nCL = timing_dict.get("nCL", timing_dict.get("nRL"))
     nRP = timing_dict["nRP"]
-    nRFC = timing_dict["nRFC"]
+    nRFC = timing_dict.get("nRFC", timing_dict.get("nRFCab"))
     nREFI = timing_dict["nREFI"]
+    if nCL is None or nRFC is None:
+        raise ValueError(
+            f"{cfg['name']}: timing dict missing nCL/nRL or nRFC/nRFCab. "
+            f"Available keys: {sorted(timing_dict.keys())}"
+        )
 
     # Refresh penalty: full sequence between two READs when refresh intervenes:
     # close row (nRTP + nRP) + refresh (nRFC) + reopen row (nRCD)
