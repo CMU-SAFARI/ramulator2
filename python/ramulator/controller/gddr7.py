@@ -18,6 +18,7 @@ class GDDR7(Component):
     write_buffer_size = Param(int, default=32)
     priority_buffer_size = Param(int, default=1568)
     rck_mode = Param(str, default='always_on')
+    rck_idle_threshold = Param(int, default=32)
     scheduler = Child("scheduler")
     refresh_manager = Child("refresh_manager")
     row_policy = Child("row_policy")

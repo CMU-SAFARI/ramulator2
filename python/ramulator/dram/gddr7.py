@@ -271,9 +271,30 @@ class GDDR7(DRAMStandard):
         timing_dict.setdefault("nRFCab", base["nRFCab"])
         timing_dict.setdefault("nRFCpb", base["nRFCpb"])
 
+    # Burst length in CK4 per signaling mode (MR0 OP8).
+    #   PAM3: 16 symbols/lane delivered in 2 CK4 (1.5 bits/symbol density).
+    #   NRZ : 32 bits/lane delivered in 4 CK4 (1 bit/symbol density).
+    # Payload per burst is 256 bits (32 B) in both modes — the difference is
+    # wire time, which propagates through nCCD, read_latency, and rate.
+    _ENCODING_NBL = {"PAM3": 2, "NRZ": 4}
+
     @classmethod
     def resolve_secondary_timings(cls, timing_dict, org_dict):
         tCK = timing_dict["tCK_ps"]
+
+        # nBL is driven by the encoding (MR0 OP8). Presets must not pre-set
+        # it; doing so would silently contradict the encoding choice.
+        encoding = org_dict.get("encoding", "PAM3")
+        if encoding not in cls._ENCODING_NBL:
+            raise ValueError(
+                f"GDDR7: encoding must be one of {sorted(cls._ENCODING_NBL)}, got '{encoding}'"
+            )
+        if "nBL" in timing_dict:
+            raise ValueError(
+                "GDDR7: nBL is set by 'encoding' (PAM3→2, NRZ→4); "
+                "do not set nBL in the timing preset or as an override."
+            )
+        timing_dict["nBL"] = cls._ENCODING_NBL[encoding]
 
         timing_dict["rate"] = round(cls.internal_prefetch_size * 1_000_000 / (timing_dict["nBL"] * tCK))
 
@@ -305,6 +326,23 @@ class GDDR7(DRAMStandard):
         timing_dict.setdefault("nRCKEN", 6)
         timing_dict.setdefault("nRCKSTOP_LAT", 10)
         timing_dict.setdefault("nRCK_LS", 2)
+
+        # JESD239D Table 88 hard minimums. These are universal JEDEC bounds (not
+        # vendor-specific), so they are modelable config-validity checks. The
+        # defaults above are legal; these only fire on an illegal user override.
+        #   tRCK_ST(min)=4 nCK4, and Note 2 requires RCKEN >= tRCK_ST(min).
+        #   tRCKPST(min)=2 nCK4. tRCKSTRT2RD(min)=2 nCK4.
+        #   RCK_LS (MR9 OP2) is either skipped (0) or 2 CK4 cycles.
+        if timing_dict["nRCKEN"] < 4:
+            raise ValueError("GDDR7: nRCKEN must be >= 4 (tRCK_ST minimum, JESD239D Table 88 Note 2)")
+        if timing_dict["nRCKPST"] < 2:
+            raise ValueError("GDDR7: nRCKPST must be >= 2 nCK4 (JESD239D Table 88)")
+        if timing_dict["nRCKSTRT2RD"] < 2:
+            raise ValueError("GDDR7: nRCKSTRT2RD must be >= 2 nCK4 (JESD239D Table 88)")
+        if timing_dict["nRCK_LS"] not in (0, 2):
+            raise ValueError("GDDR7: nRCK_LS must be 0 or 2 CK4 cycles (MR9 OP2, JESD239D §6.9)")
+
+
         timing_dict.setdefault(
             "nRCK_HS",
             max(0, timing_dict["nRL"] + timing_dict["nRCKSTRT2RD"] - timing_dict["nRCKEN"] - timing_dict["nRCK_LS"]),
@@ -355,10 +393,13 @@ GDDR7.org_presets = {
 
 
 GDDR7.timing_presets = {
-    "GDDR7_TEST_28000_PAM3": {
+    # "GDDR7_TEST_28000_PAM3": {
+    "GDDR7_TEST_28000": {
         # CI/smoke/regression only. This is not a vendor timing table.
         # The resolver fills fixed JESD239D values and GDDR6-derived guesstimates.
-        "nBL": 2,
+        # "nBL": 2,
+        # nBL is intentionally absent: it is set from the `encoding` knob
+        # (PAM3→2, NRZ→4) in resolve_secondary_timings.
         # Tuned smoke guesstimate from latency-throughput diagnostics; not source-backed GDDR7 vendor data.
         "nRTW": 12,
         "tCK_ps": 571,

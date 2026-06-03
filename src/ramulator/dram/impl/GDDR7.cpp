@@ -35,49 +35,49 @@ class GDDR7 : public DRAMSpec {
   struct State {
     enum : int { Opened, Closed, N_A, COUNT };
   };
-  struct Timing {
-    enum : int {
-      rate,
-      nBL,
-      nRL,
-      nWL,
-      nDQERL,
-      nRCDRD,
-      nRCDWR,
-      nRP,
-      nRAS,
-      nRC,
-      nRRD,
-      nRREFD,
-      nRPD,
-      nRTPSB,
-      nPPD,
-      nWR,
-      nCCD,
-      nCCDSB,
-      nWTR,
-      nWTRSB,
-      nRTW,
-      nREFI,
-      nREFIpb,
-      nRFCab,
-      nRFCpb,
-      nRDREFab,
-      nRFMab,
-      nRFMpb,
-      nRCKSTRT2RD,
-      nRD2RCKSTOP,
-      nRCKSP2ST,
-      nRCKST2SP,
-      nRCKSTOP_LAT,
-      nRCKEN,
-      nRCK_LS,
-      nRCKPST,
-      nRCK_HS,
-      tCK_ps,
-      COUNT
-    };
+struct Timing {
+  enum : int {
+    rate,           // Data rate multiplier
+    nBL,            // Burst Length
+    nRL,            // Read Latency
+    nWL,            // Write Latency
+    nDQERL,         // DQ Enable Read Latency
+    nRCDRD,         // ACT -> RD
+    nRCDWR,         // ACT -> WR
+    nRP,            // Row Precharge
+    nRAS,           // Row Active Time
+    nRC,            // Row Cycle Time
+    nRRD,           // ACT -> ACT (different bank)
+    nRREFD,         // Refresh-to-Refresh Delay
+    nRPD,           // Power-Down Exit Delay
+    nRTPSB,         // Read-to-Precharge (same bank)
+    nPPD,           // Precharge-to-Precharge Delay
+    nWR,            // Write Recovery
+    nCCD,           // Column-to-Column Delay
+    nCCDSB,         // Column-to-Column Delay (same bank)
+    nWTR,           // Write-to-Read
+    nWTRSB,         // Write-to-Read (same bank)
+    nRTW,           // Read-to-Write
+    nREFI,          // Refresh Interval
+    nREFIpb,        // Per-Bank Refresh Interval
+    nRFCab,         // All-Bank Refresh Cycle Time
+    nRFCpb,         // Per-Bank Refresh Cycle Time
+    nRDREFab,       // Read-to-All-Bank-Refresh
+    nRFMab,         // All-Bank Refresh Management
+    nRFMpb,         // Per-Bank Refresh Management
+    nRCKSTRT2RD,    // RCKSTRT -> RD
+    nRD2RCKSTOP,    // RD -> RCKSTOP
+    nRCKSP2ST,      // RCKSTOP -> RCKSTRT
+    nRCKST2SP,      // RCKSTRT -> RCKSTOP
+    nRCKSTOP_LAT,   // RCKSTOP Completion Latency
+    nRCKEN,         // RCK Enable Latency
+    nRCK_LS,        // RCK Low-Speed Duration
+    nRCKPST,        // RCK Postamble
+    nRCK_HS,        // RCK High-Speed Duration
+    tCK_ps,         // CK Period (ps)
+    COUNT
   };
+};
 
   using CommandImpls = std::tuple<Cmd::ACT<GDDR7>, Cmd::PREpb<GDDR7>, Cmd::PREab<GDDR7>, Cmd::RD<GDDR7>, Cmd::WR<GDDR7>,
                                   Cmd::RDA<GDDR7>, Cmd::WRA<GDDR7>, Cmd::REFab<GDDR7>, Cmd::REFpb<GDDR7>,

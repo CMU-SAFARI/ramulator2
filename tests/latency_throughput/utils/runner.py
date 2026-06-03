@@ -28,7 +28,12 @@ def run_simulation(
     import ramulator
 
     dram_cls = getattr(ramulator.dram, cfg["dram_class"])
-    dram = dram_cls(org_preset=cfg["org_preset"], timing_preset=cfg["timing_preset"])
+    # dram = dram_cls(org_preset=cfg["org_preset"], timing_preset=cfg["timing_preset"])
+    dram = dram_cls(
+        org_preset=cfg["org_preset"],
+        timing_preset=cfg["timing_preset"],
+        **cfg.get("dram_kwargs", {}),
+    )
     layout = extract_dram_layout(dram)
     if stream_cls is None:
         stream_cls = cfg.get("stream_cls", layout["num_cls"])

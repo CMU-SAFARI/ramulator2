@@ -27,7 +27,8 @@ def first_cycle_gap(preceding, following, nominal):
 def make_dut(*, channel_id=0, **overrides):
     dram = ramulator.dram.GDDR7(**{
         "org_preset": "GDDR7_16Gb_x8_4ch",
-        "timing_preset": "GDDR7_TEST_28000_PAM3",
+        # "timing_preset": "GDDR7_TEST_28000_PAM3",
+        "timing_preset": "GDDR7_TEST_28000",
         **overrides,
     })
     return device_timings.DeviceUnderTest(dram, channel_id=channel_id)
@@ -42,9 +43,13 @@ def all_bank_addr(dut):
 
 
 def test_gddr7_resolver_uses_direct_gddr6_guesstimates_and_preserves_sources():
-    timing = {"nBL": 2, "tCK_ps": 571, "nRL": 42, "nRFCpb": 77}
-    GDDR7.resolve_secondary_timings(timing, {})
+    # timing = {"nBL": 2, "tCK_ps": 571, "nRL": 42, "nRFCpb": 77}
+    # GDDR7.resolve_secondary_timings(timing, {})
 
+    timing = {"tCK_ps": 571, "nRL": 42, "nRFCpb": 77}
+    GDDR7.resolve_secondary_timings(timing, {"encoding": "PAM3"})
+
+    assert timing["nBL"] == 2
     assert timing["nRL"] == 42
     assert timing["nRFCpb"] == 77
     assert timing["nWL"] == 6
@@ -57,10 +62,44 @@ def test_gddr7_resolver_uses_direct_gddr6_guesstimates_and_preserves_sources():
     assert timing["nRCK_LS"] == 2
     assert timing["nRFMpb"] == 77
 
-    nrz_timing = {"nBL": 4, "tCK_ps": 571}
-    GDDR7.resolve_secondary_timings(nrz_timing, {})
+    # nrz_timing = {"nBL": 4, "tCK_ps": 571}
+    # GDDR7.resolve_secondary_timings(nrz_timing, {})
+    nrz_timing = {"tCK_ps": 571}
+    GDDR7.resolve_secondary_timings(nrz_timing, {"encoding": "NRZ"})
+    assert nrz_timing["nBL"] == 4
     assert nrz_timing["nCCD"] == 4
     assert nrz_timing["nRRD"] == 17
+
+
+def test_gddr7_resolver_defaults_to_pam3_when_encoding_unset():
+    timing = {"tCK_ps": 571}
+    GDDR7.resolve_secondary_timings(timing, {})
+    assert timing["nBL"] == 2
+    assert timing["nCCD"] == 2
+
+
+def test_gddr7_resolver_rate_halves_in_nrz_versus_pam3():
+    pam3 = {"tCK_ps": 571}
+    nrz = {"tCK_ps": 571}
+    GDDR7.resolve_secondary_timings(pam3, {"encoding": "PAM3"})
+    GDDR7.resolve_secondary_timings(nrz, {"encoding": "NRZ"})
+    # rate = internal_prefetch_size * 1e6 / (nBL * tCK_ps); nBL doubles in NRZ.
+    # Allow ±1 for the round() in the formula.
+    assert abs(pam3["rate"] - 2 * nrz["rate"]) <= 2
+
+
+def test_gddr7_resolver_rejects_unknown_encoding():
+    with pytest.raises(ValueError, match="encoding must be one of"):
+        GDDR7.resolve_secondary_timings({"tCK_ps": 571}, {"encoding": "PAM7"})
+
+
+def test_gddr7_resolver_rejects_preset_setting_nbl_directly():
+    with pytest.raises(ValueError, match="do not set nBL"):
+        GDDR7.resolve_secondary_timings(
+            {"tCK_ps": 571, "nBL": 3},
+            {"encoding": "PAM3"},
+        )
+
 
 
 def test_gddr7_closed_bank_read_requires_activate():
@@ -219,3 +258,37 @@ def test_gddr7_manual_rck_timing():
 
     t_start = t_stop + first_cycle_gap("RCKSTOP", "RCKSTRT", dut.timings["nRCKSP2ST"])
     dut.assert_earliest_ready_at("RCKSTRT", rck, t_start)
+
+
+
+def test_gddr7_rd2rckstop_tracks_encoding():
+    # nRD2RCKSTOP = RL + BL/8 + DQERL + tRCKPST - RCKSTOP_LAT, and nBL == BL/8.
+    # PAM3 -> nBL=2 -> 24+2+0+2-10 = 18; NRZ -> nBL=4 -> 24+4+0+2-10 = 20.
+    pam3 = make_dut(encoding="PAM3")
+    nrz = make_dut(encoding="NRZ")
+    assert pam3.timings["nRD2RCKSTOP"] == 18
+    assert nrz.timings["nRD2RCKSTOP"] == 20
+
+    # The device enforces the larger NRZ gap after a read.
+    a = addr(nrz)
+    rck = all_bank_addr(nrz)
+    nrz.issue("ACT", a, 0)
+    t_rd = first_cycle_gap("ACT", "RD", nrz.timings["nRCDRD"])
+    nrz.issue("RD", a, t_rd)
+    t_stop = t_rd + first_cycle_gap("RD", "RCKSTOP", nrz.timings["nRD2RCKSTOP"])
+    nrz.assert_earliest_ready_at("RCKSTOP", rck, t_stop)
+
+
+@pytest.mark.parametrize(
+    "override, match",
+    [
+        ({"nRCKEN": 3}, "nRCKEN"),
+        ({"nRCKPST": 1}, "nRCKPST"),
+        ({"nRCKSTRT2RD": 1}, "nRCKSTRT2RD"),
+        ({"nRCK_LS": 1}, "nRCK_LS"),
+    ],
+)
+def test_gddr7_rejects_illegal_rck_minimums(override, match):
+    timing = {"tCK_ps": 571, **override}
+    with pytest.raises(ValueError, match=match):
+        GDDR7.resolve_secondary_timings(timing, {"encoding": "PAM3"})

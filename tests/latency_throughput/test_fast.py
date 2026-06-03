@@ -100,14 +100,29 @@ def test_latency_throughput_fast(request, standard):
     print(f"    Deviation = {bw_result['deviation_from_theoretical_pct']:+.1f}%")
     print(f"{'=' * 60}")
 
-    if request.config.getoption("--verbose-plot"):
-        png_path = plot_curves_annotated(
-            curves, cfg,
-            lat_result=lat_result,
-            bw_result=bw_result,
-            streaming_result=streaming_result,
-            output_dir="tests/latency_throughput/plots/fast_verbose",
-        )
-    else:
-        png_path = plot_curves(curves, cfg, output_dir="tests/latency_throughput/plots/fast")
+    # if request.config.getoption("--verbose-plot"):
+    #     png_path = plot_curves_annotated(
+    #         curves, cfg,
+    #         lat_result=lat_result,
+    #         bw_result=bw_result,
+    #         streaming_result=streaming_result,
+    #         output_dir="tests/latency_throughput/plots/fast_verbose",
+    #     )
+    # else:
+    #     png_path = plot_curves(curves, cfg, output_dir="tests/latency_throughput/plots/fast")
+    # Always render the annotated plot — measured / theoretical throughput
+    # and unloaded latency are printed directly on the plot itself.
+    # `--verbose-plot` additionally writes a copy under fast_verbose/.
+    output_dir = (
+        "tests/latency_throughput/plots/fast_verbose"
+        if request.config.getoption("--verbose-plot")
+        else "tests/latency_throughput/plots/fast"
+    )
+    png_path = plot_curves_annotated(
+        curves, cfg,
+        lat_result=lat_result,
+        bw_result=bw_result,
+        streaming_result=streaming_result,
+        output_dir=output_dir,
+    )
     print(f"  Plot saved: {png_path}")

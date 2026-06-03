@@ -19,7 +19,9 @@ frontend = ramulator.frontend.SimpleO3(
 
 gddr7 = ramulator.dram.GDDR7(
     org_preset="GDDR7_16Gb_x8_4ch",
-    timing_preset="GDDR7_TEST_28000_PAM3",
+    # timing_preset="GDDR7_TEST_28000_PAM3",
+    timing_preset="GDDR7_TEST_28000",
+    encoding="PAM3",  # or "NRZ"
 )
 
 ctrl = ramulator.controller.GDDR7(

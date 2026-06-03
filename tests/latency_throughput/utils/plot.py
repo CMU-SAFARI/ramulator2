@@ -85,7 +85,11 @@ def _draw_base_plot(curves, cfg: dict):
 
     ax.set_xlim(left=0)
     ax.set_ylim(bottom=0)
-    ax.set_title(cfg["timing_preset"].replace("_", "-"), fontsize=20, fontweight="bold", pad=16)
+    # ax.set_title(cfg["timing_preset"].replace("_", "-"), fontsize=20, fontweight="bold", pad=16)
+    # Use the testcase `name` so encoding-specific plots (e.g. GDDR7_PAM3
+    # vs GDDR7_NRZ) get distinct titles even when they share a timing preset.
+    title = cfg.get("plot_title", cfg["name"].replace("_", "-"))
+    ax.set_title(title, fontsize=20, fontweight="bold", pad=16)
     ax.set_xlabel("DRAM Throughput (GB/s)", fontsize=16, labelpad=8)
     ax.set_ylabel("Random Probe Access Latency (ns)", fontsize=16, labelpad=8)
     ax.grid(True, linestyle="--", linewidth=0.8, alpha=0.4)
@@ -185,6 +189,10 @@ def plot_curves_annotated(
     if "max_achievable_bw" in bw_result:
         right_lines.append(
             f"Refresh-Adjusted Achievable Throughput: {bw_result['max_achievable_bw']:.1f} GB/s"
+        )
+    if "measured_max_bw" in bw_result:
+        right_lines.append(
+            f"Mixed-Workload Peak (Measured): {bw_result['measured_max_bw']:.1f} GB/s"
         )
     if streaming_result is not None:
         right_lines.append(

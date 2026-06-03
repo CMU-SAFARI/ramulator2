@@ -48,7 +48,12 @@ def resolve_spec(cfg: dict) -> Spec:
 
     std_cls = DRAMStandard._registry[cfg["dram_class"]]
     dram_cls = getattr(ramulator.dram, cfg["dram_class"])
-    dram_obj = dram_cls(org_preset=cfg["org_preset"], timing_preset=cfg["timing_preset"])
+    # dram_obj = dram_cls(org_preset=cfg["org_preset"], timing_preset=cfg["timing_preset"])
+    dram_obj = dram_cls(
+        org_preset=cfg["org_preset"],
+        timing_preset=cfg["timing_preset"],
+        **cfg.get("dram_kwargs", {}),
+    )
     org_dict, timing_dict = dram_obj.resolve()
 
     # resolve() returns timings in CK units (pre tick_multiplier conversion).
