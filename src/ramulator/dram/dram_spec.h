@@ -102,6 +102,7 @@ struct DRAMSpec {
   std::vector<std::vector<int8_t>> has_sibling_cons;  // [level][cmd] → has sibling timing constraint
   std::vector<DRAMCommandMeta> command_meta;
   std::vector<BankTarget> bank_targets;
+  std::vector<int> command_cycles;      // per command: CA bus cycles (ticks)
 
   // Non-templated function arrays (action, preq, rowhit, rowopen)
   FuncArrays funcs;

@@ -126,8 +126,11 @@ class DRAMStandard(Component):
                 f"multi-channel is configured at the system level, "
                 f"not in the DRAM spec."
             )
-        # channel_width is an org-level param (alongside dq)
-        org_names = level_names | {"channel_width"}
+        # channel_width and encoding are org-level params (alongside dq).
+        # encoding is a free-form string that each standard's resolver
+        # interprets (e.g. GDDR7 uses it to pick PAM3 vs NRZ nBL). Standards
+        # that don't model an encoding simply ignore org_dict["encoding"].
+        org_names = level_names | {"channel_width", "encoding"}
         for name in list(overrides):
             if name in org_names:
                 org_dict[name] = overrides.pop(name)
@@ -236,7 +239,7 @@ class DRAMStandard(Component):
                 )
             org_counts.append(org_dict[key])
 
-        return {
+        out = {
             "impl": cls.name,
             "org": {
                 "dq": org_dict["dq"],
@@ -247,7 +250,14 @@ class DRAMStandard(Component):
             "channel_width": org_dict["channel_width"],
             "read_latency": cls._eval_expr(cls.read_latency, timing_dict),
             "timing_constraints": constraints,
+            "command_cycles": [cmd_cycles.get(cmd, tick_mult) for cmd in cls.commands],
         }
+        # Surface the chosen encoding for documentation in YAML exports.
+        # The C++ side does not consume this — all behavior flows through
+        # the resolved timings.
+        if "encoding" in org_dict:
+            out["encoding"] = org_dict["encoding"]
+        return out
 
     @classmethod
     def _generate_bus_constraints(cls, cmd_idx, cmd_cycles, tick_mult):

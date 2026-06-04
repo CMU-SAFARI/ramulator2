@@ -39,6 +39,7 @@ target_sources(
   impl/hbm_controller_base.cpp
   impl/hbm12_controller.cpp
   impl/hbm34_controller.cpp
+  impl/gddr7_controller.cpp
 )
 
 target_link_libraries(

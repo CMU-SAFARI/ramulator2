@@ -34,6 +34,16 @@ void DRAMSpec::load_config(const ConfigNode& config) {
   // Read latency (pre-computed by Python)
   read_latency = dram["read_latency"].as<int>();
 
+  // Command bus cycle counts (pre-computed by Python)
+  command_cycles.assign(command_count, 1);
+  ConfigNode command_cycles_node = dram["command_cycles"];
+  if (command_cycles_node) {
+    const auto& cycles = command_cycles_node.seq();
+    for (size_t i = 0; i < cycles.size() && i < command_cycles.size(); i++) {
+      command_cycles[i] = cycles[i].as<int>();
+    }
+  }
+
   // Timing constraints (pre-computed by Python)
   timing_cons.resize(level_count, std::vector<std::vector<TimingConsEntry>>(command_count));
 

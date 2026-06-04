@@ -80,6 +80,10 @@ class ControllerUnderTest:
         return cls.make_hbm(dram, controller_cls=ramulator.controller.HBM12, **kwargs)
 
     @classmethod
+    def make_gddr7(cls, dram, **kwargs):
+        return cls.make_hbm(dram, controller_cls=ramulator.controller.GDDR7, **kwargs)
+
+    @classmethod
     def make_hbm34(cls, dram, **kwargs):
         return cls.make_hbm(dram, controller_cls=ramulator.controller.HBM34, **kwargs)
 

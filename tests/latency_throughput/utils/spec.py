@@ -48,7 +48,11 @@ def resolve_spec(cfg: dict) -> Spec:
 
     std_cls = DRAMStandard._registry[cfg["dram_class"]]
     dram_cls = getattr(ramulator.dram, cfg["dram_class"])
-    dram_obj = dram_cls(org_preset=cfg["org_preset"], timing_preset=cfg["timing_preset"])
+    dram_obj = dram_cls(
+        org_preset=cfg["org_preset"],
+        timing_preset=cfg["timing_preset"],
+        **cfg.get("dram_kwargs", {}),
+    )
     org_dict, timing_dict = dram_obj.resolve()
 
     # resolve() returns timings in CK units (pre tick_multiplier conversion).
@@ -66,7 +70,13 @@ def resolve_spec(cfg: dict) -> Spec:
     bytes_per_req = channel_width * prefetch // 8
 
     rate = timing_dict["rate"]
-    max_theoretical_bw = channel_width * rate / 8 / 1000
+    burst_gap = timing_dict.get("nBL_min", timing_dict.get("nBL"))
+    if burst_gap is not None:
+        # Prefer modeled payload cadence when available. GDDR7 uses nBL_min
+        # for the minimum read-to-read gap at the burst boundary.
+        max_theoretical_bw = bytes_per_req / (burst_gap * tCK_ns)
+    else:
+        max_theoretical_bw = channel_width * rate / 8 / 1000
 
     # Pseudo-channel standards interleave both PCs for an effective doubling
     has_pseudo_channel = "PseudoChannel" in std_cls.levels
@@ -74,16 +84,21 @@ def resolve_spec(cfg: dict) -> Spec:
         max_theoretical_bw *= org_dict.get("pseudochannel", 2)
 
     # Timing parameter name resolution (standards differ)
-    nRCD = timing_dict.get("nRCDRD", timing_dict.get("nRCD"))
-    nRTP = timing_dict.get("nRTPL", timing_dict.get("nRTP"))
+    nRCD = timing_dict.get("nRCDRD", timing_dict.get("nRCD", timing_dict.get("nRCDr")))
+    nRTP = timing_dict.get("nRTPL", timing_dict.get("nRTP", timing_dict.get("nRTPSB")))
     if nRCD is None or nRTP is None:
         raise ValueError(
-            f"{cfg['name']}: timing dict missing nRCD/nRCDRD or nRTP/nRTPL. "
+            f"{cfg['name']}: timing dict missing nRCD/nRCDRD/nRCDr or nRTP/nRTPL/nRTPSB. "
             f"Available keys: {sorted(timing_dict.keys())}"
         )
-    nCL = timing_dict["nCL"]
+    nCL = timing_dict.get("nCL", timing_dict.get("nRL"))
     nRP = timing_dict["nRP"]
-    nRFC = timing_dict["nRFC"]
+    nRFC = timing_dict.get("nRFC", timing_dict.get("nRFCab"))
+    if nCL is None or nRFC is None:
+        raise ValueError(
+            f"{cfg['name']}: timing dict missing nCL/nRL or nRFC/nRFCab. "
+            f"Available keys: {sorted(timing_dict.keys())}"
+        )
     nREFI = timing_dict["nREFI"]
 
     # Refresh penalty: full sequence between two READs when refresh intervenes:

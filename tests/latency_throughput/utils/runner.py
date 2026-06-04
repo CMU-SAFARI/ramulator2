@@ -28,7 +28,11 @@ def run_simulation(
     import ramulator
 
     dram_cls = getattr(ramulator.dram, cfg["dram_class"])
-    dram = dram_cls(org_preset=cfg["org_preset"], timing_preset=cfg["timing_preset"])
+    dram = dram_cls(
+        org_preset=cfg["org_preset"],
+        timing_preset=cfg["timing_preset"],
+        **cfg.get("dram_kwargs", {}),
+    )
     layout = extract_dram_layout(dram)
     if stream_cls is None:
         stream_cls = layout["num_cls"] if streaming_only else cfg["stream_cls"]
@@ -58,6 +62,7 @@ def run_simulation(
         row_policy=ramulator.row_policy.Open(),
         addr_mapper=ramulator.addr_mapper.PassThroughAddrMapper(),
         refresh_manager=refresh_manager,
+        **cfg.get("controller_kwargs", {}),
     )
 
     mem = ramulator.memory_system.GenericDRAM(

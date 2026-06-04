@@ -13,6 +13,7 @@ target_sources(
   commands/RDA.h  commands/WRA.h
   commands/REFab.h  commands/REFpb.h
   commands/RFMab.h  commands/RFMpb.h
+  commands/RCKSTRT.h  commands/RCKSTOP.h
   commands/CAS_RD.h  commands/CAS_WR.h
   commands/populate.h
 
@@ -25,6 +26,7 @@ target_sources(
   impl/HBM4.cpp
   impl/LPDDR5.cpp
   impl/GDDR6.cpp
+  impl/GDDR7.cpp
 )
 
 target_link_libraries(
