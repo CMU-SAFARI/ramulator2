@@ -7,7 +7,6 @@
 namespace Ramulator {
 
 typedef std::function<uint32_t(uint32_t)> bloom_hash_fn;
-
 template <typename elem_t>
 struct HistoryEntry {
   elem_t entry;
@@ -30,7 +29,7 @@ public:
       // Initializers looks ugly here, opting for manual assignment
       this->m_num_counters = num_counters;
       this->m_ctr_thresh = ctr_thresh;
-      this->m_saturate = m_saturate;
+      this->m_saturate = saturate;
       m_counters.resize(m_num_counters);
       reset();
   }
@@ -154,8 +153,8 @@ public:
   }
 
   void update() {
-    m_tick++;
     elem_t elem = history[m_tick % m_size].entry;
+            m_tick++;
     if (!exists(elem)) {
       return;
     }
