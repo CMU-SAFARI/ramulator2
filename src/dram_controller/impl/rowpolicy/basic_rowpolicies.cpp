@@ -53,14 +53,29 @@ class ClosedRowPolicy : public IRowPolicy, public Implementation {
 
       m_cap = param<int>("cap").default_val(10000000); // TODO
 
-      m_rank_level = m_dram->m_levels("rank");
+      // For DRAM standards without a "rank" level (e.g. the HBM family,
+      // which uses "pseudochannel" as the top-level sub-channel division),
+      // fall back to "pseudochannel". This keeps the flat-bank-id
+      // calculation below structurally correct (m_num_ranks is just the
+      // number of top-level sub-channel divisions per controller).
+      try {
+        m_rank_level = m_dram->m_levels("rank");
+        m_num_ranks = m_dram->get_level_size("rank");
+      } catch (const std::out_of_range&) {
+        try {
+          m_rank_level = m_dram->m_levels("pseudochannel");
+          m_num_ranks = m_dram->get_level_size("pseudochannel");
+        } catch (const std::out_of_range&) {
+          throw std::runtime_error(
+            "ClosedRowPolicy requires a 'rank' or 'pseudochannel' level in the DRAM hierarchy.");
+        }
+      }
       m_bankgroup_level = m_dram->m_levels("bankgroup");
       m_bank_level = m_dram->m_levels("bank");
       m_row_level = m_dram->m_levels("row");
 
       m_PRE_req_id = m_dram->m_requests("close-row");
 
-      m_num_ranks = m_dram->get_level_size("rank");
       m_num_bankgroups = m_dram->get_level_size("bankgroup");
       m_num_banks = m_dram->get_level_size("bank");
       
