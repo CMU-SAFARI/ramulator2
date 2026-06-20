@@ -214,8 +214,9 @@ private:
             };
             for (auto& h : handlers) {
                 if (!dram->m_commands.contains(h.cmd_name)) {
-                    std::cout << "[PRAC] Command " << h.cmd_name << "does not exist." << std::endl;
-                    exit(0);
+                    throw std::runtime_error(
+                        "[PRAC] Command " + h.cmd_name +
+                        " does not exist on the configured DRAM standard.");
                 }
                 m_handlertable[dram->m_commands(h.cmd_name)] = h;
             }

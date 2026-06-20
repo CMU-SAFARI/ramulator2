@@ -128,8 +128,9 @@ class BlockHammer : public IControllerPlugin, public Implementation, public IBlo
       m_bf_hist_size = tDelay / ((float) m_dram->m_timing_vals("tCK_ps") / 1000.0f);
 
       if (m_bf_hist_size < 0) {
-        std::cout << "[Ramulator::BlockHammerPlugin] Row History Buffer size must be positive." << std::endl;
-        exit(0);
+        throw std::runtime_error(
+          "[Ramulator::BlockHammerPlugin] Row History Buffer size must be positive (got " +
+          std::to_string(m_bf_hist_size) + ").");
       }
 
       auto* hash_functions = new std::vector<bloom_hash_fn>();

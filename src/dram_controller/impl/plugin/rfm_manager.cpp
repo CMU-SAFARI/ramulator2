@@ -44,8 +44,8 @@ public:
         m_ctrl = cast_parent<IDRAMController>();
         m_dram = m_ctrl->m_dram;
         if (!m_dram->m_requests.contains("rfm")) {
-            std::cout << "[Ramulator::RFMManager] [CRITICAL ERROR] DRAM Device does not support request: rfm" << std::endl; 
-            exit(0);
+            throw std::runtime_error(
+                "[Ramulator::RFMManager] DRAM device does not support request 'rfm'.");
         }
         m_rfm_req_id = m_dram->m_requests("rfm");
 
@@ -116,8 +116,8 @@ public:
         rfm.addr_vec[m_bank_level] = -1;
         // TODO: Add a buffer to retry later
         if (!m_ctrl->priority_send(rfm)) {
-            std::cout << "[Ramulator::RFMManager] [CRITICAL ERROR] Could not send request: rfm" << std::endl; 
-            exit(0);
+            throw std::runtime_error(
+                "[Ramulator::RFMManager] Could not send 'rfm' request to the controller.");
         }
         s_rfm_counter++;
     }

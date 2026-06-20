@@ -29,8 +29,8 @@ class BlockingScheduler : public IBHScheduler, public Implementation {
       m_dram = cast_parent<IBHDRAMController>()->m_dram;
       m_bh = cast_parent<IBHDRAMController>()->get_plugin<IBlockHammer>();
       if (!m_bh) {
-        std::cout << "BlockHammer scheduler requires BlockHammer plugin enabled!" << std::endl;
-        std::exit(0); 
+        throw std::runtime_error(
+          "BlockHammer scheduler requires the BlockHammer plugin to be enabled.");
       }
     }
 

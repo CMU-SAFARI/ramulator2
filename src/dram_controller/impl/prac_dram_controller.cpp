@@ -70,8 +70,8 @@ public:
         // TODO: Just create it manually / get rid of the plugin and inject it here.
         m_prac = get_plugin<IPRAC>();
         if (!m_prac) {
-            std::cout << "[PRACCTRL] Need PRAC plugin!";
-            std::exit(0);
+            throw std::runtime_error(
+                "[PRACCTRL] PRAC controller requires the PRAC plugin to be enabled.");
         }
     };
 
