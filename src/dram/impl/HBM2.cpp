@@ -249,7 +249,7 @@ class HBM2 : public IDRAM, public Implementation {
         { 160,  260,  350,  450},
       };
 
-      // tRFC table (unit is nanosecond!)
+      // tREFISB table (unit is nanosecond!)
       constexpr int tREFISB_TABLE[1][4] = {
       //  2Gb    4Gb    8Gb    16Gb
         { 4875,  4875,  2438,  2438},
@@ -265,8 +265,8 @@ class HBM2 : public IDRAM, public Implementation {
         }
       }(m_organization.density);
 
-      m_timing_vals("nRFC")  = JEDEC_rounding(tRFC_TABLE[0][density_id], tCK_ps);
-      m_timing_vals("nREFISB")  = JEDEC_rounding(tRFC_TABLE[0][density_id], tCK_ps);
+      m_timing_vals("nRFC")     = JEDEC_rounding(tRFC_TABLE[0][density_id], tCK_ps);
+      m_timing_vals("nREFISB")  = JEDEC_rounding(tREFISB_TABLE[0][density_id], tCK_ps);
 
       // Overwrite timing parameters with any user-provided value
       // Rate and tCK should not be overwritten
