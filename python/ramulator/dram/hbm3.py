@@ -133,6 +133,9 @@ class HBM3(DRAMStandard):
         TimingConstraint(level="BankGroup", preceding=["WR", "WRA"], following=["RD", "RDA"], latency="nCWL + nBL + nWTRL"),
         # Same-group RAS timing
         TimingConstraint(level="BankGroup", preceding=["ACT"], following=["ACT"], latency="nRRDL"),
+        # Same-group RAS-to-REFpb/RFMpb timing
+        TimingConstraint(level="BankGroup", preceding=["ACT"], following=["REFpb", "RFMpb"], latency="nRRDL"),
+        TimingConstraint(level="BankGroup", preceding=["REFpb", "RFMpb"], following=["ACT"], latency="nRRDL"),
 
         # ============================================================
         # Bank — single-bank timing
