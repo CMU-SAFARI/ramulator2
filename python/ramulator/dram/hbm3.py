@@ -114,6 +114,7 @@ class HBM3(DRAMStandard):
         TimingConstraint(level="PseudoChannel", preceding=["WRA"], following=["RFMab"], latency="nCWL + nBL + nWR + nRP"),
         TimingConstraint(level="PseudoChannel", preceding=["RFMab"], following=["ACT", "PREab"], latency="nRFMab"),
         # RFMpb constraints (same structure as REFpb)
+        TimingConstraint(level="PseudoChannel", preceding=["RFMpb"], following=["RFMpb"], latency="nRREFD"),
         TimingConstraint(level="PseudoChannel", preceding=["RFMpb"], following=["ACT"], latency="nRREFD"),
         TimingConstraint(level="PseudoChannel", preceding=["ACT"], following=["RFMpb"], latency="nRRDS"),
 
