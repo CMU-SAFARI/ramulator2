@@ -85,7 +85,8 @@ class HBM2(DRAMStandard):
         TimingConstraint(level="PseudoChannel", preceding=["RDA"], following=["REFab"], latency="nRP + nRTPL"),
         TimingConstraint(level="PseudoChannel", preceding=["WRA"], following=["REFab"], latency="nCWL + nBL + nWR + nRP"),
         TimingConstraint(level="PseudoChannel", preceding=["REFab"], following=["ACT", "PREab"], latency="nRFC"),
-        # REFSB-to-ACT different bank (tRREFD)
+        # REFSB-to-REFSB and REFSB-to-ACT different bank (tRREFD)
+        TimingConstraint(level="PseudoChannel", preceding=["REFpb"], following=["REFpb"], latency="nRREFD"),
         TimingConstraint(level="PseudoChannel", preceding=["REFpb"], following=["ACT"], latency="nRREFD"),
         # ACT-to-REFSB different bank (same as tRRD)
         TimingConstraint(level="PseudoChannel", preceding=["ACT"], following=["REFpb"], latency="nRRDS"),
