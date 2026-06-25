@@ -24,20 +24,50 @@ SimpleO3Core::Trace::Trace(std::string file_path_str) {
   }
 
   std::string line;
+  int line_num = 0;
   while (std::getline(trace_file, line)) {
+    line_num++;
     std::vector<std::string> tokens;
     tokenize(tokens, line, " ");
 
     int num_tokens = tokens.size();
     if (num_tokens != 2 && num_tokens != 3) {
-      throw std::runtime_error(fmt::format("Trace {} format invalid!", file_path_str));
+      throw std::runtime_error(fmt::format(
+          "Trace {} line {}: expected 2 or 3 tokens, got {}",
+          file_path_str, line_num, num_tokens));
     }
     int bubble_count = std::stoi(tokens[0]);
     Addr_t load_addr = std::stoll(tokens[1]);
+    // bubble_count is decremented in SimpleO3Core::tick() with
+    //   while (m_num_bubbles > 0) ...
+    // A negative value silently bypasses the bubble-injection loop and
+    // skips that trace line's intended non-memory delay. -1 is the
+    // sentinel Trace::Inst uses for "no store_addr", so allowing the
+    // user to pass -1 here muddles two different concepts; we reserve
+    // negatives.
+    if (bubble_count < 0) {
+      throw std::runtime_error(fmt::format(
+          "Trace {} line {}: bubble_count must be >= 0 (got {})",
+          file_path_str, line_num, bubble_count));
+    }
+    // load_addr / store_addr are user-supplied physical addresses fed
+    // to SimpleO3Core; the sentinel -1 means "no load/store this
+    // tick". Any other negative value is meaningless and would index
+    // outside the address space.
+    if (load_addr < 0) {
+      throw std::runtime_error(fmt::format(
+          "Trace {} line {}: load_addr must be >= 0 (got {})",
+          file_path_str, line_num, load_addr));
+    }
 
     bool has_store = num_tokens == 2 ? false : true;
     if (has_store) {
       Addr_t store_addr = std::stoll(tokens[2]);
+      if (store_addr < 0) {
+        throw std::runtime_error(fmt::format(
+            "Trace {} line {}: store_addr must be >= 0 (got {})",
+            file_path_str, line_num, store_addr));
+      }
       m_trace.push_back({bubble_count, load_addr, store_addr});
     } else {
       m_trace.push_back({bubble_count, load_addr, -1});
