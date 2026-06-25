@@ -195,4 +195,6 @@ DDR5.timing_presets = {
     "DDR5_5600AN": {"rate": 5600, "nBL": 8, "nCL": 40, "nRCD": 40, "nRP": 40, "nRAS": 90, "nRC": 130, "nWR": 84, "nRTP": 20, "nCWL": 38, "nPPD": 2, "nCCDS": 8,  "nCCDL": 12, "nCCDS_WR": 8,  "nCCDL_WR": 56, "nWTRS": 5,  "nWTRL": 28, "nCS": 2, "tCK_ps": 357},
     # DDR5-6400 (tCK = 312 ps)
     "DDR5_6400AN": {"rate": 6400, "nBL": 8, "nCL": 46, "nRCD": 46, "nRP": 46, "nRAS": 103, "nRC": 149, "nWR": 96, "nRTP": 24, "nCWL": 44, "nPPD": 2, "nCCDS": 8,  "nCCDL": 16, "nCCDS_WR": 8,  "nCCDL_WR": 64, "nWTRS": 5,  "nWTRL": 32, "nCS": 2, "tCK_ps": 312},
+    # DDR5-8400 (tCK = 238 ps) — top-end DDR5 server speed target.
+    "DDR5_8400AN": {"rate": 8400, "nBL": 8, "nCL": 60, "nRCD": 60, "nRP": 60, "nRAS": 135, "nRC": 195, "nWR": 126, "nRTP": 32, "nCWL": 58, "nPPD": 2, "nCCDS": 8,  "nCCDL": 21, "nCCDS_WR": 8,  "nCCDL_WR": 84, "nWTRS": 7,  "nWTRL": 42, "nCS": 2, "tCK_ps": 238},
 }
