@@ -146,7 +146,8 @@ class DDR4(DRAMStandard):
 
     @staticmethod
     def _resolve_nRFC(density, tCK_ps):
-        if density <= 2048: tRFC_ns = 160
+        if density <= 1024: tRFC_ns = 110   # 1 Gb die (JESD79-4B)
+        elif density <= 2048: tRFC_ns = 160
         elif density <= 4096: tRFC_ns = 260
         elif density <= 8192: tRFC_ns = 360
         elif density <= 16384: tRFC_ns = 550
@@ -161,6 +162,9 @@ class DDR4(DRAMStandard):
 # ---- DDR4 JEDEC preset data ----
 
 DDR4.org_presets = {
+    # DDR4_1Gb dies — entry-density modeling for early DDR4 silicon.
+    "DDR4_1Gb_x4":  {"density": 1024,  "dq": 4,  "channel_width": 64, "rank": 1, "bankgroup": 4, "bank": 4, "row": 1<<14, "column": 1<<10},
+    "DDR4_1Gb_x8":  {"density": 1024,  "dq": 8,  "channel_width": 64, "rank": 1, "bankgroup": 4, "bank": 4, "row": 1<<13, "column": 1<<10},
     "DDR4_2Gb_x4":  {"density": 2048,  "dq": 4,  "channel_width": 64, "rank": 1, "bankgroup": 4, "bank": 4, "row": 1<<15, "column": 1<<10},
     "DDR4_2Gb_x8":  {"density": 2048,  "dq": 8,  "channel_width": 64, "rank": 1, "bankgroup": 4, "bank": 4, "row": 1<<14, "column": 1<<10},
     "DDR4_2Gb_x16": {"density": 2048,  "dq": 16, "channel_width": 64, "rank": 1, "bankgroup": 2, "bank": 4, "row": 1<<14, "column": 1<<10},
