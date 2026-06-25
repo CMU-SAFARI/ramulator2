@@ -60,6 +60,35 @@ class SimpleO3 final : public IFrontEnd, public Implementation {
     m_num_cores = m_traces.size();
     int llc_capacity_per_core = parse_capacity_str(m_llc_capacity_str);
 
+    // Validate parameters before constructing the LLC. Several of these
+    // feed integer divisions and bit shifts inside SimpleO3LLC's
+    // constructor; without these checks a misconfigured value silently
+    // becomes SIGFPE (linesize=0 -> division by zero in m_set_size
+    // computation) or a wrong-but-running simulation (e.g. capacity
+    // smaller than one cache line gives m_set_size=0, m_index_mask=-1,
+    // and the LLC indexes every set as set 0).
+    auto require_positive = [](int value, const char* name) {
+      if (value <= 0) {
+        throw std::runtime_error(
+            fmt::format("SimpleO3: {} must be > 0 (got {})", name, value));
+      }
+    };
+    require_positive(m_num_cores, "len(traces)");
+    require_positive(m_ipc, "ipc");
+    require_positive(m_depth, "inst_window_depth");
+    require_positive(m_llc_latency, "llc_latency");
+    require_positive(m_llc_linesize_bytes, "llc_linesize");
+    require_positive(m_llc_associativity, "llc_associativity");
+    require_positive(m_llc_num_mshr_per_core, "llc_num_mshr_per_core");
+    require_positive(llc_capacity_per_core, "llc_capacity_per_core");
+    int llc_set_bytes = m_llc_linesize_bytes * m_llc_associativity;
+    if (llc_capacity_per_core < llc_set_bytes) {
+      throw std::runtime_error(fmt::format(
+          "SimpleO3: llc_capacity_per_core ({} B) must hold at least one "
+          "associativity-way set ({} B = llc_linesize {} * llc_associativity {})",
+          llc_capacity_per_core, llc_set_bytes, m_llc_linesize_bytes, m_llc_associativity));
+    }
+
     RAMULATOR_CREATE_CHILD(m_translation, ITranslation);
 
     m_llc = std::make_unique<SimpleO3LLC>(m_clk, m_llc_latency, llc_capacity_per_core * m_num_cores,
