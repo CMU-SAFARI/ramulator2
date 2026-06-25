@@ -179,6 +179,14 @@ HBM1.org_presets = {
 # Secondary timings (nRRDS, nRRDL, nFAW, nRFC, nRFCpb, nRREFD, nREFI, nREFIpb)
 # resolved from JEDEC tables in resolve_secondary_timings().
 HBM1.timing_presets = {
+    # HBM1_1333Mbps — 1.333x of HBM1_1Gbps. Common low/mid HBM1
+    # validation bin between 1 Gbps and 1.6 Gbps.
+    "HBM1_1333Mbps": {
+        "rate": 1333, "nBL": 1, "nCL": 9, "nRCDRD": 9, "nRCDWR": 8,
+        "nRP": 9, "nRAS": 23, "nRC": 32, "nWR": 11, "nRTPL": 4, "nCWL": 4,
+        "nCCDS": 1, "nCCDL": 2, "nWTRS": 4, "nWTRL": 6,
+        "tCK_ps": 1500,
+    },
     "HBM1_1Gbps": {
         "rate": 1000, "nBL": 1, "nCL": 7, "nRCDRD": 7, "nRCDWR": 6,
         "nRP": 7, "nRAS": 17, "nRC": 24, "nWR": 8, "nRTPL": 4, "nCWL": 4,
