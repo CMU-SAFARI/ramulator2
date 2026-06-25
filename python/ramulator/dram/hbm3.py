@@ -224,6 +224,17 @@ HBM3.org_presets = {
 # Timing presets — CK cycles. Non-refresh timing values are supplied directly
 # here; refresh-related values may be supplied here or resolved below.
 HBM3.timing_presets = {
+    # HBM3_11200Mbps — 1.75x scaling.
+    "HBM3_11200Mbps": {
+        "rate": 11200, "nBL": 2, "nCL": 35, "nRCDRD": 54, "nRCDWR": 26,
+        "nRP": 46, "nRAS": 79, "nRC": 126, "nWR": 58, "nRTP": 16, "nCWL": 18,
+        "nCCDS": 2, "nCCDL": 7, "nCCDR": 6,
+        "nRRDS": 7, "nRRDL": 9, "nFAW": 42,
+        "nWTRS": 13, "nWTRL": 18, "nRTW": 35,
+        "nRFCpb": 560, "nRREFD": 8, "nREFI": 10920,
+        "nPPD": 2,
+        "tCK_ps": 357,
+    },
     "HBM3_6400Mbps": {
         "rate": 6400, "nBL": 2, "nCL": 20, "nRCDRD": 31, "nRCDWR": 15,
         "nRP": 26, "nRAS": 45, "nRC": 72, "nWR": 33, "nRTP": 9, "nCWL": 10,
