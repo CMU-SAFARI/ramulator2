@@ -187,6 +187,20 @@ HBM4.timing_presets = {
         "nRFCpb": 560, "nRREFD": 8,
         "tCK_ps": 500,
     },
+    # HBM4_7200Mbps — 0.9x of HBM4_8000Mbps. Sub-rate validation point
+    # for HBM4 silicon during initial production ramp. Useful for
+    # comparing power vs throughput tradeoffs against the full 8 Gbps
+    # base. tCK_ps = round(500/0.9) = 556.
+    "HBM4_7200Mbps": {
+        "rate": 7200, "nBL": 2, "nCL": 18, "nCWL": 9,
+        "nRC": 81, "nRAS": 51, "nRP": 30, "nRCDRD": 35, "nRCDWR": 17,
+        "nRRDL": 6, "nRRDS": 5, "nFAW": 27, "nRTP": 11, "nWR": 38,
+        "nCCDL": 4, "nCCDS": 2, "nCCDR": 2,
+        "nWTRL": 13, "nWTRS": 9, "nRTW": 23,
+        "nPPD": 2,
+        "nRFCpb": 504, "nRREFD": 8,
+        "tCK_ps": 556,
+    },
     "HBM4_16000Mbps": {
         "rate": 16000, "nBL": 2, "nCL": 40, "nCWL": 20,
         "nRC": 180, "nRAS": 114, "nRP": 66, "nRCDRD": 78, "nRCDWR": 38,
