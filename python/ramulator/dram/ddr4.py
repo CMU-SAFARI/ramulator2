@@ -202,4 +202,6 @@ DDR4.timing_presets = {
     "DDR4_3200W":  {"rate": 3200, "nBL": 4, "nCL": 20, "nRCD": 20, "nRP": 20, "nRAS": 52, "nRC": 72, "nWR": 24, "nRTP": 12, "nCWL": 16, "nCCDS": 4, "nCCDL": 8, "nWTRS": 4, "nWTRL": 12, "nCS": 2, "tCK_ps": 625},
     "DDR4_3200AA": {"rate": 3200, "nBL": 4, "nCL": 22, "nRCD": 22, "nRP": 22, "nRAS": 52, "nRC": 74, "nWR": 24, "nRTP": 12, "nCWL": 16, "nCCDS": 4, "nCCDL": 8, "nWTRS": 4, "nWTRL": 12, "nCS": 2, "tCK_ps": 625},
     "DDR4_3200AC": {"rate": 3200, "nBL": 4, "nCL": 24, "nRCD": 24, "nRP": 24, "nRAS": 52, "nRC": 76, "nWR": 24, "nRTP": 12, "nCWL": 16, "nCCDS": 4, "nCCDL": 8, "nWTRS": 4, "nWTRL": 12, "nCS": 2, "tCK_ps": 625},
+    # DDR4-3000 — non-JEDEC overclock bin, common in XMP/EXPO consumer kits.
+    "DDR4_3000W":  {"rate": 3000, "nBL": 4, "nCL": 20, "nRCD": 20, "nRP": 20, "nRAS": 49, "nRC": 69, "nWR": 23, "nRTP": 12, "nCWL": 16, "nCCDS": 4, "nCCDL": 8, "nWTRS": 4, "nWTRL": 12, "nCS": 2, "tCK_ps": 666},
 }
