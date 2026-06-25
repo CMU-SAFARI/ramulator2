@@ -93,6 +93,35 @@ class LatencyThroughputTrace : public IFrontEnd, public Implementation {
           "LatencyThroughputTrace: num_streaming_requests must be set when streaming_only=true");
     }
 
+    // The streaming-address index is computed as
+    //   col = (idx / m_total_bank_units) % m_stream_cls
+    //   row = (idx / m_total_bank_units / m_stream_cls) % m_num_rows
+    // and similar shapes for total_bank_units and num_cls — any of
+    // these being <= 0 silently degrades to SIGFPE the moment the
+    // streaming generator runs, well after construction.
+    // read_ratio is compared against a [0,99] uniform draw, so any
+    // value outside [0,100] silently locks the trace to all-read or
+    // all-write instead of the requested mix.
+    auto require_positive = [](int v, const char* name) {
+      if (v <= 0) {
+        throw std::runtime_error(fmt::format(
+            "LatencyThroughputTrace: {} must be > 0 (got {})", name, v));
+      }
+    };
+    require_positive(m_stream_cls, "stream_cls");
+    require_positive(m_total_bank_units, "total_bank_units");
+    require_positive(m_num_rows, "num_rows");
+    require_positive(m_num_cols, "num_cols");
+    require_positive(m_num_cls, "num_cls");
+    if (m_warmup_cycles < 0) {
+      throw std::runtime_error(fmt::format(
+          "LatencyThroughputTrace: warmup_cycles must be >= 0 (got {})", m_warmup_cycles));
+    }
+    if (m_read_ratio < 0 || m_read_ratio > 100) {
+      throw std::runtime_error(fmt::format(
+          "LatencyThroughputTrace: read_ratio must be in [0, 100] (got {})", m_read_ratio));
+    }
+
     m_stats.add("streaming_requests_sent", s_streaming_sent);
     m_stats.add("probe_requests_completed", s_probes_completed);
     m_stats.add("total_probe_latency", s_total_probe_latency);
