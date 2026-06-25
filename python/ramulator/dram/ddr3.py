@@ -119,7 +119,8 @@ class DDR3(DRAMStandard):
 
     @staticmethod
     def _resolve_nRFC(density, tCK_ps):
-        if density <= 1024: tRFC_ns = 110
+        if density <= 512: tRFC_ns = 90    # 512 Mb die (JESD79-3)
+        elif density <= 1024: tRFC_ns = 110
         elif density <= 2048: tRFC_ns = 160
         elif density <= 4096: tRFC_ns = 260
         elif density <= 8192: tRFC_ns = 350
@@ -134,6 +135,10 @@ class DDR3(DRAMStandard):
 # ---- DDR3 JEDEC preset data ----
 
 DDR3.org_presets = {
+    # DDR3_512Mb dies — entry-density modeling for early DDR3 silicon
+    # (2007-2009 era).
+    "DDR3_512Mb_x4": {"density": 512,  "dq": 4,  "channel_width": 64, "rank": 1, "bank": 8, "row": 1<<13, "column": 1<<11},
+    "DDR3_512Mb_x8": {"density": 512,  "dq": 8,  "channel_width": 64, "rank": 1, "bank": 8, "row": 1<<13, "column": 1<<10},
     "DDR3_1Gb_x4":  {"density": 1024, "dq": 4,  "channel_width": 64, "rank": 1, "bank": 8, "row": 1<<14, "column": 1<<11},
     "DDR3_1Gb_x8":  {"density": 1024, "dq": 8,  "channel_width": 64, "rank": 1, "bank": 8, "row": 1<<14, "column": 1<<10},
     "DDR3_1Gb_x16": {"density": 1024, "dq": 16, "channel_width": 64, "rank": 1, "bank": 8, "row": 1<<13, "column": 1<<10},
