@@ -93,6 +93,32 @@ class LatencyThroughputTrace : public IFrontEnd, public Implementation {
           "LatencyThroughputTrace: num_streaming_requests must be set when streaming_only=true");
     }
 
+    // Numeric parameters that participate in `%` or `/` in address
+    // generation and bank decomposition. Zero or negative values are
+    // silently catastrophic — `streaming_addr_vec()` and
+    // `decompose_bank()` would either divide by zero (UB) or build a
+    // distribution with reversed bounds (also UB on
+    // std::uniform_int_distribution). Fail loud at init() instead.
+    auto require_positive = [&](const char* name, int value) {
+      if (value <= 0) {
+        throw std::runtime_error(fmt::format(
+            "LatencyThroughputTrace: {} must be >= 1 (got {})", name, value));
+      }
+    };
+    require_positive("total_bank_units", m_total_bank_units);
+    require_positive("num_rows", m_num_rows);
+    require_positive("num_cols", m_num_cols);
+    require_positive("internal_prefetch_size", m_internal_prefetch_size);
+    require_positive("num_cls", m_num_cls);
+    require_positive("stream_cls", m_stream_cls);
+    for (size_t i = 0; i < m_bank_counts.size(); i++) {
+      if (m_bank_counts[i] <= 0) {
+        throw std::runtime_error(fmt::format(
+            "LatencyThroughputTrace: bank_counts[{}] must be >= 1 (got {})",
+            i, m_bank_counts[i]));
+      }
+    }
+
     m_stats.add("streaming_requests_sent", s_streaming_sent);
     m_stats.add("probe_requests_completed", s_probes_completed);
     m_stats.add("total_probe_latency", s_total_probe_latency);
