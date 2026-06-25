@@ -217,6 +217,9 @@ HBM3.org_presets = {
     "HBM3_16Gb_8hi": {"density": 16384, "dq": 32, "channel_width": 32, "pseudochannel": 2, "sid": 2, "bankgroup": 4, "bank": 4, "row": 1<<14, "column": (1<<5) << 3},  # HBM CA already takes BL into account
     # die density = 32 Gb, channel density = 16 Gb
     "HBM3_32Gb_8hi": {"density": 32768, "dq": 32, "channel_width": 32, "pseudochannel": 2, "sid": 2, "bankgroup": 4, "bank": 4, "row": 1<<15, "column": (1<<5) << 3},  # HBM CA already takes BL into account
+    # HBM3_32Gb_4hi — low-end 32 Gb die at 4-Hi stack (16 GB package).
+    # Useful for low-density HBM3 modeling.
+    "HBM3_32Gb_4hi": {"density": 32768, "dq": 32, "channel_width": 32, "pseudochannel": 2, "sid": 1, "bankgroup": 4, "bank": 4, "row": 1<<15, "column": (1<<5) << 3},
     # die density = 32 Gb, channel density = 8 Gb
     "HBM3_32Gb_16hi": {"density": 32768, "dq": 32, "channel_width": 32, "pseudochannel": 2, "sid": 4, "bankgroup": 4, "bank": 4, "row": 1<<15, "column": (1<<5) << 3},  # HBM CA already takes BL into account
 }
