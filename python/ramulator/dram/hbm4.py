@@ -187,6 +187,20 @@ HBM4.timing_presets = {
         "nRFCpb": 560, "nRREFD": 8,
         "tCK_ps": 500,
     },
+    "HBM4_9200Mbps": {
+        # 1.15x of HBM4_8000Mbps. Bridge speed between the HBM3E gen-2
+        # 9.2 Gbps roadmap entry and the HBM4 8.0 Gbps base — useful
+        # for studies comparing HBM3E→HBM4 transitions where the per-pin
+        # rate stays constant. tCK_ps = round(500/1.15) = 435.
+        "rate": 9200, "nBL": 2, "nCL": 23, "nCWL": 12,
+        "nRC": 104, "nRAS": 66, "nRP": 38, "nRCDRD": 45, "nRCDWR": 22,
+        "nRRDL": 8, "nRRDS": 6, "nFAW": 35, "nRTP": 14, "nWR": 48,
+        "nCCDL": 4, "nCCDS": 2, "nCCDR": 2,
+        "nWTRL": 15, "nWTRS": 10, "nRTW": 29,
+        "nPPD": 2,
+        "nRFCpb": 644, "nRREFD": 8,
+        "tCK_ps": 435,
+    },
     "HBM4_16000Mbps": {
         "rate": 16000, "nBL": 2, "nCL": 40, "nCWL": 20,
         "nRC": 180, "nRAS": 114, "nRP": 66, "nRCDRD": 78, "nRCDWR": 38,
