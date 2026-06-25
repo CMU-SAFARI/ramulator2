@@ -219,6 +219,9 @@ HBM3.org_presets = {
     "HBM3_32Gb_8hi": {"density": 32768, "dq": 32, "channel_width": 32, "pseudochannel": 2, "sid": 2, "bankgroup": 4, "bank": 4, "row": 1<<15, "column": (1<<5) << 3},  # HBM CA already takes BL into account
     # die density = 32 Gb, channel density = 8 Gb
     "HBM3_32Gb_16hi": {"density": 32768, "dq": 32, "channel_width": 32, "pseudochannel": 2, "sid": 4, "bankgroup": 4, "bank": 4, "row": 1<<15, "column": (1<<5) << 3},  # HBM CA already takes BL into account
+    # die density = 16 Gb, 12-Hi stack (sid = Hi/4 = 3). Modeled in
+    # SK hynix HBM3E first-wave parts that ship as 12-Hi 24 GB stacks.
+    "HBM3_16Gb_12hi": {"density": 16384, "dq": 32, "channel_width": 32, "pseudochannel": 2, "sid": 3, "bankgroup": 4, "bank": 4, "row": 1<<14, "column": (1<<5) << 3},  # HBM CA already takes BL into account
 }
 
 # Timing presets — CK cycles. Non-refresh timing values are supplied directly
