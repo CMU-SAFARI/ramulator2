@@ -190,4 +190,13 @@ LPDDR5.timing_presets = {
         "nWTRS": 5, "nWTRL": 10, "nWCKPST": 1, "nCAS": 0,
         "nAAD": 8, "nCS": 2, "tCK_ps": 1250,
     },
+    # LPDDR5X-8400 (tCK ~952 ps) — LPDDR5X intermediate bin between
+    # 7466 and 8533 Mbps. Common in late-2024 mid-range mobile parts.
+    "LPDDR5_8400": {
+        "rate": 8400, "nBL": 2, "nCL": 22, "nRCD": 20, "nRP": 20, "nRPab": 22,
+        "nRAS": 45, "nRC": 65, "nWR": 37, "nRTP": 10, "nCWL": 12, "nPPD": 2,
+        "nCCDS": 2, "nCCDL": 4, "nCCDS_WR": 2, "nCCDL_WR": 4,
+        "nWTRS": 7, "nWTRL": 13, "nWCKPST": 1, "nCAS": 0,
+        "nAAD": 8, "nCS": 2, "tCK_ps": 952,
+    },
 }
