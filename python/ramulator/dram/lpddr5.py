@@ -183,6 +183,15 @@ LPDDR5.org_presets = {
 # All values in CK cycles (CKR 4:1).
 LPDDR5.timing_presets = {
     # LPDDR5-6400 (tCK = 1250 ps, CK = 800 MHz)
+    # LPDDR5X-9600 (1.5x of LPDDR5-6400) — JEDEC LPDDR5X second wave,
+    # used by Apple A17/M3 era SoCs.
+    "LPDDR5_9600": {
+        "rate": 9600, "nBL": 2, "nCL": 26, "nRCD": 23, "nRP": 23, "nRPab": 26,
+        "nRAS": 51, "nRC": 74, "nWR": 42, "nRTP": 12, "nCWL": 14, "nPPD": 2,
+        "nCCDS": 2, "nCCDL": 6, "nCCDS_WR": 2, "nCCDL_WR": 6,
+        "nWTRS": 8, "nWTRL": 15, "nWCKPST": 1, "nCAS": 0,
+        "nAAD": 12, "nCS": 2, "tCK_ps": 833,
+    },
     "LPDDR5_6400": {
         "rate": 6400, "nBL": 2, "nCL": 17, "nRCD": 15, "nRP": 15, "nRPab": 17,
         "nRAS": 34, "nRC": 49, "nWR": 28, "nRTP": 8, "nCWL": 9, "nPPD": 2,
