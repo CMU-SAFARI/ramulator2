@@ -98,8 +98,8 @@ class HBM1(DRAMStandard):
         TimingConstraint(level="Bank", preceding=["PREpb"], following=["ACT"], latency="nRP"),
         TimingConstraint(level="Bank", preceding=["RD"], following=["PREpb"], latency="nRTPL"),
         TimingConstraint(level="Bank", preceding=["WR"], following=["PREpb"], latency="nCWL + nBL + nWR"),
-        TimingConstraint(level="Bank", preceding=["RDA"], following=["ACT"], latency="nRTPL + nRP"),
-        TimingConstraint(level="Bank", preceding=["WRA"], following=["ACT"], latency="nCWL + nBL + nWR + nRP"),
+        TimingConstraint(level="Bank", preceding=["RDA"], following=["ACT", "REFpb"], latency="nRTPL + nRP"),
+        TimingConstraint(level="Bank", preceding=["WRA"], following=["ACT", "REFpb"], latency="nCWL + nBL + nWR + nRP"),
 
         # Bank — per-bank refresh (REFSB)
         TimingConstraint(level="Bank", preceding=["REFpb"], following=["ACT"], latency="nRFCpb"),
