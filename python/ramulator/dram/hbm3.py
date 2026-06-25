@@ -210,6 +210,9 @@ class HBM3(DRAMStandard):
 # ---- HBM3 JEDEC data (Table 4 in JESD238) ----
 HBM3.org_presets = {
     # die density = 4 Gb, channel density = 4 Gb
+    # HBM3_2Gb: smallest HBM3 die — prototype / FPGA-bridged validation
+    # silicon. Row count halved versus the 4 Gb base.
+    "HBM3_2Gb":  {"density": 2048, "dq": 32, "channel_width": 32, "pseudochannel": 2, "sid": 1, "bankgroup": 4, "bank": 4, "row": 1<<13, "column": (1<<5) << 3},
     "HBM3_4Gb":  {"density": 4096, "dq": 32, "channel_width": 32, "pseudochannel": 2, "sid": 1, "bankgroup": 4, "bank": 4, "row": 1<<14, "column": (1<<5) << 3},  # HBM CA already takes BL into account
     # die density = 8 Gb, channel density = 4 Gb
     "HBM3_8Gb_8hi":  {"density": 8192, "dq": 32, "channel_width": 32, "pseudochannel": 2, "sid": 2, "bankgroup": 4, "bank": 4, "row": 1<<13, "column": (1<<5) << 3},  # HBM CA already takes BL into account
