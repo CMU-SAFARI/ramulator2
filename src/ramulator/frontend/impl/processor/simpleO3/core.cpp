@@ -46,6 +46,16 @@ SimpleO3Core::Trace::Trace(std::string file_path_str) {
 
   trace_file.close();
   m_trace_length = m_trace.size();
+  // get_next_inst() dereferences m_trace[idx] and advances
+  // `(idx + 1) % m_trace_length`. With an empty trace file (the read
+  // loop above completes without iterating), m_trace_length=0 turns the
+  // very first access into out-of-bounds vector access plus a modulo
+  // by zero — SIGFPE / UB at SimpleO3Core construction.
+  if (m_trace_length == 0) {
+    throw std::runtime_error(fmt::format(
+        "Trace {} is empty — at least one instruction is required",
+        file_path_str));
+  }
 }
 
 const SimpleO3Core::Trace::Inst& SimpleO3Core::Trace::get_next_inst() {
