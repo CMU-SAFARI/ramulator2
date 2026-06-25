@@ -187,6 +187,20 @@ HBM4.timing_presets = {
         "nRFCpb": 560, "nRREFD": 8,
         "tCK_ps": 500,
     },
+    "HBM4_14400Mbps": {
+        # 1.8x of HBM4_8000Mbps — third-wave HBM4 product target
+        # (SK hynix / Samsung roadmap, sitting between the
+        # HBM4_12800Mbps second wave and the HBM4_16000Mbps
+        # forward-looking peak). tCK_ps = round(500/1.8) = 278.
+        "rate": 14400, "nBL": 2, "nCL": 36, "nCWL": 18,
+        "nRC": 162, "nRAS": 103, "nRP": 59, "nRCDRD": 70, "nRCDWR": 34,
+        "nRRDL": 13, "nRRDS": 9, "nFAW": 54, "nRTP": 22, "nWR": 76,
+        "nCCDL": 4, "nCCDS": 2, "nCCDR": 2,
+        "nWTRL": 23, "nWTRS": 15, "nRTW": 45,
+        "nPPD": 2,
+        "nRFCpb": 1008, "nRREFD": 8,
+        "tCK_ps": 278,
+    },
     "HBM4_16000Mbps": {
         "rate": 16000, "nBL": 2, "nCL": 40, "nCWL": 20,
         "nRC": 180, "nRAS": 114, "nRP": 66, "nRCDRD": 78, "nRCDWR": 38,
