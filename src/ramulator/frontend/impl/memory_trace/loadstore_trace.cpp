@@ -98,6 +98,16 @@ class LoadStoreTrace : public IFrontEnd, public Implementation {
       } else {
         addr = std::stoll(tokens[1]);
       }
+      // Address is forwarded straight to the memory system as the
+      // request's target physical address. A negative value here
+      // bypasses NoTranslation's positive-modulo wrap and reaches
+      // the channel mapper / addr mapper as a large unsigned offset,
+      // producing arbitrary addresses without any warning.
+      if (addr < 0) {
+        throw std::runtime_error(fmt::format(
+            "Trace {} line {}: addr must be >= 0 (got {})",
+            file_path_str, line_num, addr));
+      }
       m_trace.push_back({is_write, addr});
     }
 
