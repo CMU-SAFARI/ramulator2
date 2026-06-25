@@ -197,4 +197,17 @@ HBM4.timing_presets = {
         "nRFCpb": 1120, "nRREFD": 8,
         "tCK_ps": 250,
     },
+    # HBM4 14.4 Gbps — 1.8x scaling off the 8 Gbps base. Plausible
+    # third-wave HBM4 production target (SK hynix announced HBM4
+    # roadmap covers ~10-16 Gbps range).
+    "HBM4_14400Mbps": {
+        "rate": 14400, "nBL": 2, "nCL": 36, "nCWL": 18,
+        "nRC": 162, "nRAS": 103, "nRP": 60, "nRCDRD": 71, "nRCDWR": 35,
+        "nRRDL": 13, "nRRDS": 9, "nFAW": 54, "nRTP": 22, "nWR": 76,
+        "nCCDL": 4, "nCCDS": 2, "nCCDR": 2,
+        "nWTRL": 24, "nWTRS": 17, "nRTW": 45,
+        "nPPD": 2,
+        "nRFCpb": 1008, "nRREFD": 8,
+        "tCK_ps": 278,
+    },
 }
