@@ -190,4 +190,14 @@ LPDDR5.timing_presets = {
         "nWTRS": 5, "nWTRL": 10, "nWCKPST": 1, "nCAS": 0,
         "nAAD": 8, "nCS": 2, "tCK_ps": 1250,
     },
+    # LPDDR5-4267 (tCK = 1875 ps, CK = 533 MHz) — lower-tier bin used
+    # in mid-range smartphone / IoT applications targeting battery
+    # life over peak bandwidth.
+    "LPDDR5_4267": {
+        "rate": 4267, "nBL": 2, "nCL": 12, "nRCD": 10, "nRP": 10, "nRPab": 12,
+        "nRAS": 23, "nRC": 33, "nWR": 19, "nRTP": 6, "nCWL": 6, "nPPD": 2,
+        "nCCDS": 2, "nCCDL": 4, "nCCDS_WR": 2, "nCCDL_WR": 4,
+        "nWTRS": 4, "nWTRL": 7, "nWCKPST": 1, "nCAS": 0,
+        "nAAD": 8, "nCS": 2, "tCK_ps": 1875,
+    },
 }
