@@ -189,9 +189,16 @@ SimpleO3LLC::CacheSet_t::iterator SimpleO3LLC::allocate_line(CacheSet_t& set, Ad
 
 bool SimpleO3LLC::need_eviction(const CacheSet_t& set, Addr_t addr) {
   if (std::find_if(set.begin(), set.end(), [addr, this](Line l) { return (get_tag(addr) == l.tag); }) != set.end()) {
-    // Due to MSHR, the program can't reach here. Just for checking
-    assert(false);
-    return false;
+    // The MSHR coalescing path in send() should make this unreachable.
+    // assert(false) crashes debug builds but is stripped from release
+    // builds — release would then return false silently, telling the
+    // caller "no eviction needed" for an already-present-in-cache
+    // address, which causes the second push_back to allocate a
+    // duplicate line for the same tag and corrupts LRU bookkeeping.
+    // Throw so the invariant is enforced in every build.
+    throw std::logic_error(
+        "SimpleO3LLC::need_eviction: address already present in the set — "
+        "MSHR coalescing should have absorbed this request in send()");
   } else {
     if (set.size() < m_associativity) {
       return false;
