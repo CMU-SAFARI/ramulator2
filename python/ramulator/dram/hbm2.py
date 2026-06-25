@@ -208,6 +208,15 @@ HBM2.timing_presets = {
         "nCCDS": 2, "nCCDL": 4, "nWTRS": 6, "nWTRL": 8,
         "tCK_ps": 1000,
     },
+    # HBM2_4000Mbps — top-bin overclock HBM2E. Above the HBM2E
+    # standard 3.6 Gbps; matches some Samsung Flashbolt OC silicon
+    # binned for performance traffic.
+    "HBM2_4000Mbps": {
+        "rate": 4000, "nBL": 2, "nCL": 28, "nRCDRD": 28, "nRCDWR": 23,
+        "nRP": 28, "nRAS": 67, "nRC": 95, "nWR": 32, "nRTPL": 10, "nCWL": 10,
+        "nCCDS": 2, "nCCDL": 7, "nWTRS": 14, "nWTRL": 17,
+        "tCK_ps": 500,
+    },
     "HBM2_2400Mbps": {
         "rate": 2400, "nBL": 2, "nCL": 17, "nRCDRD": 17, "nRCDWR": 14,
         "nRP": 17, "nRAS": 40, "nRC": 57, "nWR": 19, "nRTPL": 6, "nCWL": 6,
