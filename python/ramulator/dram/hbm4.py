@@ -174,6 +174,13 @@ HBM4.org_presets = {
     "HBM4_32Gb_4Hi":  {"density": 32768, "dq": 32, "channel_width": 32, "pseudochannel": 2, "sid": 1, "bankgroup": 2, "bank": 8, "row": 1<<14, "column": (1<<5) << 3},  # HBM CA already takes BL into account
     "HBM4_32Gb_8Hi":  {"density": 32768, "dq": 32, "channel_width": 32, "pseudochannel": 2, "sid": 2, "bankgroup": 2, "bank": 8, "row": 1<<14, "column": (1<<5) << 3},  # HBM CA already takes BL into account
     "HBM4_32Gb_16Hi": {"density": 32768, "dq": 32, "channel_width": 32, "pseudochannel": 2, "sid": 4, "bankgroup": 2, "bank": 8, "row": 1<<14, "column": (1<<5) << 3},  # HBM CA already takes BL into account
+    # 64 Gb HBM4 die — HBM4E forward-looking density. Doubles row count
+    # (1<<15) versus the 32 Gb base; at 8-Hi stack the per-channel
+    # density (16 GB) sits exactly at the high end of the in-tree
+    # nRFC table, matching the SK hynix HBM4E roadmap entry-level
+    # die. 16-Hi at this density exceeds the current nRFC table (32 GB
+    # per channel); add it once HBM4E nRFC is published.
+    "HBM4_64Gb_8Hi": {"density": 65536, "dq": 32, "channel_width": 32, "pseudochannel": 2, "sid": 2, "bankgroup": 2, "bank": 8, "row": 1<<15, "column": (1<<5) << 3},
 }
 
 HBM4.timing_presets = {
