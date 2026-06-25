@@ -187,6 +187,21 @@ HBM4.timing_presets = {
         "nRFCpb": 560, "nRREFD": 8,
         "tCK_ps": 500,
     },
+    "HBM4_9600Mbps": {
+        # 1.2x of HBM4_8000Mbps — JEDEC HBM4 timings are fixed in ns; the
+        # CK-domain values here scale linearly with rate (verified against
+        # the 8000/16000 entries, which agree to within rounding at every
+        # parameter that scales with rate). tCK_ps = 1,000,000 / (rate/4)
+        # because HBM4 latches 4 bits/CK per pin (BL2 in 0.5-CK cmd cycles).
+        "rate": 9600, "nBL": 2, "nCL": 24, "nCWL": 12,
+        "nRC": 108, "nRAS": 69, "nRP": 40, "nRCDRD": 47, "nRCDWR": 23,
+        "nRRDL": 9, "nRRDS": 6, "nFAW": 36, "nRTP": 15, "nWR": 51,
+        "nCCDL": 4, "nCCDS": 2, "nCCDR": 2,
+        "nWTRL": 16, "nWTRS": 11, "nRTW": 30,
+        "nPPD": 2,
+        "nRFCpb": 672, "nRREFD": 8,
+        "tCK_ps": 417,
+    },
     "HBM4_16000Mbps": {
         "rate": 16000, "nBL": 2, "nCL": 40, "nCWL": 20,
         "nRC": 180, "nRAS": 114, "nRP": 66, "nRCDRD": 78, "nRCDWR": 38,
