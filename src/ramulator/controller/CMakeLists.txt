@@ -32,6 +32,7 @@ target_sources(
   plugin/impl/command_counter.cpp
   plugin/impl/cmd_trace_recorder.cpp
   plugin/impl/issued_command_validation_hook.cpp
+  plugin/impl/rfm_manager.cpp
 
   impl/generic_ddr_controller.cpp
   impl/lpddr5_controller.cpp

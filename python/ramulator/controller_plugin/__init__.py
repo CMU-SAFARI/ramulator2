@@ -7,5 +7,6 @@
 from .cmd_trace_recorder import CmdTraceRecorder
 from .command_counter import CommandCounter
 from .issued_command_validation_hook import IssuedCommandValidationHook
+from .rfm_manager import RFMManager
 
-__all__ = ['CmdTraceRecorder', 'CommandCounter', 'IssuedCommandValidationHook']
+__all__ = ['CmdTraceRecorder', 'CommandCounter', 'IssuedCommandValidationHook', 'RFMManager']
