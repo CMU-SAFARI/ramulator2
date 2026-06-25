@@ -234,4 +234,17 @@ HBM3.timing_presets = {
         "nPPD": 2,
         "tCK_ps": 625,
     },
+    # HBM3 7.2 Gbps — intermediate bin between JEDEC base (6.4) and the
+    # first-wave 8.0 Gbps part. Used as a binning fallback for HBM3 stacks
+    # that didn't make the 8 Gbps grade.
+    "HBM3_7200Mbps": {
+        "rate": 7200, "nBL": 2, "nCL": 22, "nRCDRD": 35, "nRCDWR": 17,
+        "nRP": 29, "nRAS": 51, "nRC": 81, "nWR": 37, "nRTP": 10, "nCWL": 11,
+        "nCCDS": 2, "nCCDL": 4, "nCCDR": 3,
+        "nRRDS": 4, "nRRDL": 6, "nFAW": 27,
+        "nWTRS": 8, "nWTRL": 11, "nRTW": 22,
+        "nRFCpb": 360, "nRREFD": 9, "nREFI": 7020,
+        "nPPD": 2,
+        "tCK_ps": 555,
+    },
 }
