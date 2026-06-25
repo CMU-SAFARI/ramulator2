@@ -234,4 +234,39 @@ HBM3.timing_presets = {
         "nPPD": 2,
         "tCK_ps": 625,
     },
+    # HBM3E speed grades. JEDEC HBM3 timings are fixed in ns and the
+    # CK-domain values scale linearly with rate (= 1.25x / 1.4375x / 1.5x
+    # of the 6400 Mbps reference). Min-bounded parameters (nCCDS=2,
+    # nRREFD=8, nPPD=2) are floor-clamped in JEDEC and stay constant.
+    # nBL=2 is the half-rate burst minimum.
+    "HBM3_8000Mbps": {
+        "rate": 8000, "nBL": 2, "nCL": 25, "nRCDRD": 39, "nRCDWR": 19,
+        "nRP": 33, "nRAS": 57, "nRC": 90, "nWR": 42, "nRTP": 12, "nCWL": 13,
+        "nCCDS": 2, "nCCDL": 5, "nCCDR": 4,
+        "nRRDS": 5, "nRRDL": 7, "nFAW": 30,
+        "nWTRS": 9, "nWTRL": 13, "nRTW": 25,
+        "nRFCpb": 400, "nRREFD": 8, "nREFI": 7800,
+        "nPPD": 2,
+        "tCK_ps": 500,
+    },
+    "HBM3_9200Mbps": {
+        "rate": 9200, "nBL": 2, "nCL": 29, "nRCDRD": 45, "nRCDWR": 22,
+        "nRP": 37, "nRAS": 65, "nRC": 104, "nWR": 47, "nRTP": 13, "nCWL": 14,
+        "nCCDS": 2, "nCCDL": 6, "nCCDR": 4,
+        "nRRDS": 6, "nRRDL": 7, "nFAW": 35,
+        "nWTRS": 10, "nWTRL": 14, "nRTW": 29,
+        "nRFCpb": 460, "nRREFD": 8, "nREFI": 8970,
+        "nPPD": 2,
+        "tCK_ps": 435,
+    },
+    "HBM3_9600Mbps": {
+        "rate": 9600, "nBL": 2, "nCL": 30, "nRCDRD": 47, "nRCDWR": 23,
+        "nRP": 39, "nRAS": 68, "nRC": 108, "nWR": 50, "nRTP": 14, "nCWL": 15,
+        "nCCDS": 2, "nCCDL": 6, "nCCDR": 5,
+        "nRRDS": 6, "nRRDL": 8, "nFAW": 36,
+        "nWTRS": 11, "nWTRL": 15, "nRTW": 30,
+        "nRFCpb": 480, "nRREFD": 8, "nREFI": 9360,
+        "nPPD": 2,
+        "tCK_ps": 417,
+    },
 }
