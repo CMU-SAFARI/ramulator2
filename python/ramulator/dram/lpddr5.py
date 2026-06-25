@@ -190,4 +190,13 @@ LPDDR5.timing_presets = {
         "nWTRS": 5, "nWTRL": 10, "nWCKPST": 1, "nCAS": 0,
         "nAAD": 8, "nCS": 2, "tCK_ps": 1250,
     },
+    # LPDDR5-5500 (tCK ~1454 ps) — intermediate bin between 5333 and 6400.
+    # Common in mid-life Android flagships before transitioning to LPDDR5X.
+    "LPDDR5_5500": {
+        "rate": 5500, "nBL": 2, "nCL": 15, "nRCD": 13, "nRP": 13, "nRPab": 15,
+        "nRAS": 30, "nRC": 43, "nWR": 24, "nRTP": 7, "nCWL": 8, "nPPD": 2,
+        "nCCDS": 2, "nCCDL": 4, "nCCDS_WR": 2, "nCCDL_WR": 4,
+        "nWTRS": 5, "nWTRL": 9, "nWCKPST": 1, "nCAS": 0,
+        "nAAD": 8, "nCS": 2, "tCK_ps": 1454,
+    },
 }
