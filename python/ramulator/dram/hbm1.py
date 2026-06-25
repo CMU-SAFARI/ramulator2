@@ -173,6 +173,11 @@ HBM1.org_presets = {
     "HBM1_1Gb":  {"density": 1024, "dq": 128, "channel_width": 128, "bankgroup": 4, "bank": 2, "row": 1<<13, "column": (1<<6) << 1},    # HBM CA already takes BL into account
     "HBM1_2Gb":  {"density": 2048, "dq": 128, "channel_width": 128, "bankgroup": 4, "bank": 2, "row": 1<<14, "column": (1<<6) << 1},    # HBM CA already takes BL into account
     "HBM1_4Gb":  {"density": 4096, "dq": 128, "channel_width": 128, "bankgroup": 4, "bank": 2, "row": 1<<15, "column": (1<<6) << 1},    # HBM CA already takes BL into account
+    # HBM1_8Gb — late HBM1 dies that doubled per-die density before
+    # the HBM2 transition. nRFC table tops at 4 Gb so 8 Gb uses the
+    # same tRFCab budget as 4 Gb (acceptable for non-refresh studies
+    # since the spec didn't formally raise tRFC for the 8 Gb die).
+    "HBM1_8Gb":  {"density": 8192, "dq": 128, "channel_width": 128, "bankgroup": 4, "bank": 2, "row": 1<<16, "column": (1<<6) << 1},
 }
 
 # Timing presets — primary timings only.
