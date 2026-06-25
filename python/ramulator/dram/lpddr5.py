@@ -183,6 +183,15 @@ LPDDR5.org_presets = {
 # All values in CK cycles (CKR 4:1).
 LPDDR5.timing_presets = {
     # LPDDR5-6400 (tCK = 1250 ps, CK = 800 MHz)
+    # LPDDR5X-10667 (1.667x of LPDDR5-6400) — top-end LPDDR5X target
+    # for next-gen on-device AI accelerators (2025+).
+    "LPDDR5_10667": {
+        "rate": 10667, "nBL": 2, "nCL": 29, "nRCD": 25, "nRP": 25, "nRPab": 29,
+        "nRAS": 57, "nRC": 82, "nWR": 47, "nRTP": 13, "nCWL": 15, "nPPD": 2,
+        "nCCDS": 2, "nCCDL": 7, "nCCDS_WR": 2, "nCCDL_WR": 7,
+        "nWTRS": 9, "nWTRL": 17, "nWCKPST": 1, "nCAS": 0,
+        "nAAD": 14, "nCS": 2, "tCK_ps": 750,
+    },
     "LPDDR5_6400": {
         "rate": 6400, "nBL": 2, "nCL": 17, "nRCD": 15, "nRP": 15, "nRPab": 17,
         "nRAS": 34, "nRC": 49, "nWR": 28, "nRTP": 8, "nCWL": 9, "nPPD": 2,
