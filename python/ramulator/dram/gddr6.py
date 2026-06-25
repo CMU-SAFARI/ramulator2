@@ -111,7 +111,7 @@ class GDDR6(DRAMStandard):
 
         # REFab
         # Should block all commands for the duration of the refresh, but we only enforce the timing for ACT and PREab, since those are the most critical ones.
-        TimingConstraint(level="Channel", preceding=["REFab"], following=["ACT", "REFab"], latency="nRFCab"),
+        TimingConstraint(level="Channel", preceding=["REFab"], following=["ACT", "PREab", "REFab"], latency="nRFCab"),
 
         # Same Bank Group
         TimingConstraint(level="BankGroup", preceding=["RD", "RDA"], following=["RD", "RDA"], latency="nCCDL"),
