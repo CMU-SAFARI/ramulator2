@@ -127,7 +127,19 @@ class CmdTraceRecorder : public IControllerPlugin, public Implementation {
     m_file.write(reinterpret_cast<const char*>(&cmd), sizeof(cmd));
     m_file.write(reinterpret_cast<const char*>(&type), sizeof(type));
     m_file.write(reinterpret_cast<const char*>(&src), sizeof(src));
-    m_file.write(reinterpret_cast<const char*>(req.addr_vec.data()), m_level_count * sizeof(int32_t));
+    // The header documents addr_vec elements as int32_t, but addr_vec
+    // itself is std::vector<int>. sizeof(int) is not guaranteed to equal
+    // sizeof(int32_t) — on ILP64 platforms where int is 8 bytes, the
+    // old `req.addr_vec.data()` reinterpret-cast with a 4-byte stride
+    // captured only the low 4 bytes of every other element and shifted
+    // the rest by 4 bytes per element, producing a binary file the
+    // documented decoder couldn't read.
+    //
+    // Copy through int32_t to match the header contract on every
+    // platform. This stage runs once per issued command — negligible
+    // versus the file write itself.
+    std::vector<int32_t> addr_vec32(req.addr_vec.begin(), req.addr_vec.end());
+    m_file.write(reinterpret_cast<const char*>(addr_vec32.data()), m_level_count * sizeof(int32_t));
   }
 };
 
