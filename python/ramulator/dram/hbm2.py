@@ -208,6 +208,16 @@ HBM2.timing_presets = {
         "nCCDS": 2, "nCCDL": 4, "nWTRS": 6, "nWTRL": 8,
         "tCK_ps": 1000,
     },
+    # HBM2_2667Mbps — between the JEDEC HBM2 2.4 Gbps ceiling and the
+    # HBM2E 2.8 Gbps entry-level. Matches a common Samsung
+    # mid-overclock binning step used for HBM2 silicon in the
+    # 2018-2019 window.
+    "HBM2_2667Mbps": {
+        "rate": 2667, "nBL": 2, "nCL": 19, "nRCDRD": 19, "nRCDWR": 16,
+        "nRP": 19, "nRAS": 44, "nRC": 63, "nWR": 21, "nRTPL": 7, "nCWL": 7,
+        "nCCDS": 2, "nCCDL": 4, "nWTRS": 9, "nWTRL": 11,
+        "tCK_ps": 750,
+    },
     "HBM2_2400Mbps": {
         "rate": 2400, "nBL": 2, "nCL": 17, "nRCDRD": 17, "nRCDWR": 14,
         "nRP": 17, "nRAS": 40, "nRC": 57, "nWR": 19, "nRTPL": 6, "nCWL": 6,
