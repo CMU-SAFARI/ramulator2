@@ -191,4 +191,14 @@ HBM1.timing_presets = {
         "nCCDS": 1, "nCCDL": 2, "nWTRS": 6, "nWTRL": 8,
         "tCK_ps": 1000,
     },
+    # HBM1_1600Mbps — 1.6x of HBM1_1Gbps. Intermediate speed grade
+    # between the JEDEC HBM1 1 Gbps base and the 2 Gbps top bin, matches
+    # AMD Fury / Tesla P100 first-generation HBM1 silicon binned at the
+    # mid-range rate in field.
+    "HBM1_1600Mbps": {
+        "rate": 1600, "nBL": 1, "nCL": 11, "nRCDRD": 11, "nRCDWR": 10,
+        "nRP": 11, "nRAS": 27, "nRC": 38, "nWR": 13, "nRTPL": 4, "nCWL": 4,
+        "nCCDS": 1, "nCCDL": 2, "nWTRS": 5, "nWTRL": 7,
+        "tCK_ps": 1250,
+    },
 }
