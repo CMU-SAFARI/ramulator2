@@ -191,4 +191,14 @@ HBM1.timing_presets = {
         "nCCDS": 1, "nCCDL": 2, "nWTRS": 6, "nWTRL": 8,
         "tCK_ps": 1000,
     },
+    # HBM1_2400Mbps — late-life HBM1 silicon overclocked above the
+    # JEDEC 2 Gbps top bin. Useful as a forward-looking pre-HBM2
+    # bridge config for studies that hold HBM1 organization fixed
+    # but sweep up bandwidth.
+    "HBM1_2400Mbps": {
+        "rate": 2400, "nBL": 1, "nCL": 17, "nRCDRD": 17, "nRCDWR": 14,
+        "nRP": 17, "nRAS": 40, "nRC": 57, "nWR": 19, "nRTPL": 6, "nCWL": 6,
+        "nCCDS": 1, "nCCDL": 3, "nWTRS": 8, "nWTRL": 10,
+        "tCK_ps": 833,
+    },
 }
