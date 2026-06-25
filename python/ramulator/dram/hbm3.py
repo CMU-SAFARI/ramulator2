@@ -234,4 +234,18 @@ HBM3.timing_presets = {
         "nPPD": 2,
         "tCK_ps": 625,
     },
+    # 2.0x of HBM3_6400Mbps. Micron HBM3 Gen2 native rate (one tier above
+    # the HBM3E gen-3 9.6 Gbps roadmap entry). Same linear scaling as the
+    # 8000 / 9200 / 9600 Mbps HBM3E presets; min-bounded params
+    # (nCCDS=2, nRREFD=8, nPPD=2) stay floor-clamped. tCK_ps = 312.
+    "HBM3_12800Mbps": {
+        "rate": 12800, "nBL": 2, "nCL": 40, "nRCDRD": 62, "nRCDWR": 30,
+        "nRP": 52, "nRAS": 90, "nRC": 144, "nWR": 66, "nRTP": 18, "nCWL": 20,
+        "nCCDS": 2, "nCCDL": 8, "nCCDR": 6,
+        "nRRDS": 8, "nRRDL": 10, "nFAW": 48,
+        "nWTRS": 14, "nWTRL": 20, "nRTW": 40,
+        "nRFCpb": 640, "nRREFD": 8, "nREFI": 12480,
+        "nPPD": 2,
+        "tCK_ps": 312,
+    },
 }
