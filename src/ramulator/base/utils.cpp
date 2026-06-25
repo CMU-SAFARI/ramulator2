@@ -1,18 +1,38 @@
 #include "ramulator/base/utils.h"
 
+#include <stdexcept>
+
 namespace Ramulator {
 
 size_t parse_capacity_str(std::string size_str) {
-  std::string suffixes[3] = {"KB", "MB", "GB"};
-  for (int i = 0; i < 3; i++) {
-    std::string suffix = suffixes[i];
-    if (size_str.find(suffix) != std::string::npos) {
-      size_t size = std::stoull(size_str);
-      size = size << (10 * (i + 1));
-      return size;
+  // Longest suffix first ("TB" before "B", "KB"/"MB"/"GB" before "B")
+  // so a trailing "B" doesn't shadow the binary-prefixed forms.
+  const struct {
+    const char* suffix;
+    int shift;
+  } units[] = {
+      {"TB", 40},
+      {"GB", 30},
+      {"MB", 20},
+      {"KB", 10},
+      {"B", 0},
+  };
+
+  for (const auto& u : units) {
+    if (size_str.find(u.suffix) != std::string::npos) {
+      try {
+        size_t size = std::stoull(size_str);
+        return size << u.shift;
+      } catch (const std::exception& e) {
+        throw std::runtime_error("parse_capacity_str: failed to parse number from '" + size_str +
+                                 "': " + e.what());
+      }
     }
   }
-  return 0;
+
+  throw std::runtime_error("parse_capacity_str: unrecognized capacity '" + size_str +
+                           "' (expected one of B / KB / MB / GB / TB suffix, "
+                           "e.g. '64B', '2MB', '4GB')");
 }
 
 void tokenize(std::vector<std::string>& tokens, std::string line, std::string delim) {
