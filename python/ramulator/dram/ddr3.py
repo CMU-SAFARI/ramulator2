@@ -165,4 +165,5 @@ DDR3.timing_presets = {
     "DDR3_1866L": {"rate": 1866, "nBL": 4, "nCL": 12, "nRCD": 12, "nRP": 12, "nRAS": 32, "nRC": 44, "nWR": 14, "nRTP": 7, "nCWL": 9,  "nCCD": 4, "nWTR": 7, "nCS": 2, "tCK_ps": 1071},
     "DDR3_2133L": {"rate": 2133, "nBL": 4, "nCL": 12, "nRCD": 12, "nRP": 12, "nRAS": 36, "nRC": 48, "nWR": 16, "nRTP": 8, "nCWL": 10, "nCCD": 4, "nWTR": 8, "nCS": 2, "tCK_ps": 937},
     "DDR3_2133M": {"rate": 2133, "nBL": 4, "nCL": 13, "nRCD": 13, "nRP": 13, "nRAS": 36, "nRC": 49, "nWR": 16, "nRTP": 8, "nCWL": 10, "nCCD": 4, "nWTR": 8, "nCS": 2, "tCK_ps": 937},
+    "DDR3_2133N": {"rate": 2133, "nBL": 4, "nCL": 14, "nRCD": 14, "nRP": 14, "nRAS": 36, "nRC": 50, "nWR": 16, "nRTP": 8, "nCWL": 10, "nCCD": 4, "nWTR": 8, "nCS": 2, "tCK_ps": 937},
 }
