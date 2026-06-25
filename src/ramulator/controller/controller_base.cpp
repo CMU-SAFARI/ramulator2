@@ -50,6 +50,26 @@ void ControllerBase::init_base() {
   // 1568 = 49 banks (4 BG × 4 banks × ~3 ranks) × 32 entries — large enough for all-bank refresh
   RAMULATOR_PARSE_PARAM(m_priority_buffer_size, int, "priority_buffer_size").default_val(1568);
 
+  // Validate. A 0-size queue silently swallows requests forever
+  // (send() returns false → the frontend keeps re-trying → sim hangs);
+  // watermark inversion turns the write-drain heuristic into a
+  // never-drain (low > high) or always-drain (high < 0) loop.
+  auto require_positive = [](int v, const char* name) {
+    if (v <= 0) {
+      throw std::runtime_error(fmt::format("ControllerBase: {} must be > 0 (got {})", name, v));
+    }
+  };
+  require_positive(m_read_buffer_size, "read_buffer_size");
+  require_positive(m_write_buffer_size, "write_buffer_size");
+  require_positive(m_priority_buffer_size, "priority_buffer_size");
+  if (!(m_wr_low_watermark >= 0.0f && m_wr_low_watermark < m_wr_high_watermark && m_wr_high_watermark <= 1.0f)) {
+    throw std::runtime_error(fmt::format(
+        "ControllerBase: write-buffer watermarks must satisfy "
+        "0 <= wr_low_watermark < wr_high_watermark <= 1 "
+        "(got low={}, high={})",
+        m_wr_low_watermark, m_wr_high_watermark));
+  }
+
   m_read_buffer.max_size = m_read_buffer_size;
   m_write_buffer.max_size = m_write_buffer_size;
   m_priority_buffer.max_size = m_priority_buffer_size;
