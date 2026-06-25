@@ -183,6 +183,15 @@ LPDDR5.org_presets = {
 # All values in CK cycles (CKR 4:1).
 LPDDR5.timing_presets = {
     # LPDDR5-6400 (tCK = 1250 ps, CK = 800 MHz)
+    # LPDDR5-7200 — common mobile DRAM intermediate bin between
+    # LPDDR5-6400 and LPDDR5_7466.
+    "LPDDR5_7200": {
+        "rate": 7200, "nBL": 2, "nCL": 19, "nRCD": 17, "nRP": 17, "nRPab": 19,
+        "nRAS": 38, "nRC": 55, "nWR": 32, "nRTP": 9, "nCWL": 10, "nPPD": 2,
+        "nCCDS": 2, "nCCDL": 5, "nCCDS_WR": 2, "nCCDL_WR": 5,
+        "nWTRS": 6, "nWTRL": 11, "nWCKPST": 1, "nCAS": 0,
+        "nAAD": 9, "nCS": 2, "tCK_ps": 1111,
+    },
     "LPDDR5_6400": {
         "rate": 6400, "nBL": 2, "nCL": 17, "nRCD": 15, "nRP": 15, "nRPab": 17,
         "nRAS": 34, "nRC": 49, "nWR": 28, "nRTP": 8, "nCWL": 9, "nPPD": 2,
