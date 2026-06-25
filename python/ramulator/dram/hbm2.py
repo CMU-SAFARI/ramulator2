@@ -190,6 +190,9 @@ HBM2.org_presets = {
     "HBM2_2Gb":  {"density": 2048, "dq": 64, "channel_width": 64, "pseudochannel": 2, "bankgroup": 4, "bank": 4, "row": 1<<14, "column": (1<<5) << 2},  # HBM CA already takes BL into account
     "HBM2_4Gb":  {"density": 4096, "dq": 64, "channel_width": 64, "pseudochannel": 2, "bankgroup": 4, "bank": 4, "row": 1<<15, "column": (1<<5) << 2},  # HBM CA already takes BL into account
     "HBM2_8Gb":  {"density": 8192, "dq": 64, "channel_width": 64, "pseudochannel": 2, "bankgroup": 4, "bank": 4, "row": 1<<16, "column": (1<<5) << 2},  # HBM CA already takes BL into account
+    # HBM2_512Mb — early HBM2 prototype die. nRFC table interpolates
+    # the smaller bucket from HBM1's 110 ns floor.
+    "HBM2_512Mb": {"density": 512, "dq": 64, "channel_width": 64, "pseudochannel": 2, "bankgroup": 4, "bank": 4, "row": 1<<12, "column": (1<<5) << 2},
 }
 
 # Timing presets — primary timings only.
