@@ -224,6 +224,18 @@ HBM3.org_presets = {
 # Timing presets — CK cycles. Non-refresh timing values are supplied directly
 # here; refresh-related values may be supplied here or resolved below.
 HBM3.timing_presets = {
+    # HBM3_8400Mbps — 1.3125x of HBM3_6400. Bridge between the HBM3E
+    # gen-1 8 Gbps and gen-2 9.2 Gbps roadmap entries.
+    "HBM3_8400Mbps": {
+        "rate": 8400, "nBL": 2, "nCL": 26, "nRCDRD": 41, "nRCDWR": 20,
+        "nRP": 34, "nRAS": 59, "nRC": 95, "nWR": 43, "nRTP": 12, "nCWL": 13,
+        "nCCDS": 2, "nCCDL": 5, "nCCDR": 4,
+        "nRRDS": 5, "nRRDL": 7, "nFAW": 32,
+        "nWTRS": 9, "nWTRL": 13, "nRTW": 26,
+        "nRFCpb": 420, "nRREFD": 8, "nREFI": 8190,
+        "nPPD": 2,
+        "tCK_ps": 476,
+    },
     "HBM3_6400Mbps": {
         "rate": 6400, "nBL": 2, "nCL": 20, "nRCDRD": 31, "nRCDWR": 15,
         "nRP": 26, "nRAS": 45, "nRC": 72, "nWR": 33, "nRTP": 9, "nCWL": 10,
