@@ -42,9 +42,23 @@ class CmdTraceRecorder : public IControllerPlugin, public Implementation {
 
     if (m_binary) {
       m_file.open(filepath, std::ios::binary);
-      write_binary_header(spec);
     } else {
       m_file.open(filepath);
+    }
+    // ofstream::open silently sets failbit on failure (missing directory,
+    // permission denied, disk full, etc.). Subsequent writes then no-op
+    // and the user gets neither a trace file nor an error message — the
+    // simulation prints stats and exits with success while the recording
+    // was never made. Fail loudly here instead.
+    if (!m_file.is_open()) {
+      throw std::runtime_error(fmt::format(
+          "CmdTraceRecorder: failed to open trace file '{}' (path missing, "
+          "permission denied, or disk full)",
+          filepath));
+    }
+    if (m_binary) {
+      write_binary_header(spec);
+    } else {
       write_text_header(spec);
     }
   }
