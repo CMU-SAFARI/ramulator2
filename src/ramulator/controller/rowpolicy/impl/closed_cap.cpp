@@ -1,4 +1,7 @@
+#include <stdexcept>
 #include <vector>
+
+#include <fmt/format.h>
 
 #include "ramulator/base/param.h"
 #include "ramulator/controller/controller_base.h"
@@ -34,6 +37,22 @@ class ClosedCAPRowPolicy : public IRowPolicy, public Implementation {
     m_device = &m_ctrl->m_device;
     m_spec = m_device->m_spec;
     RAMULATOR_PARSE_PARAM(m_cap, int, "cap").default_val(4);
+    // cap <= 0 makes the pre_schedule predicate
+    //   m_col_accesses[i] < m_cap   // false for every bank (counts start at 0)
+    // perpetually false, so the policy injects a PREpb against every
+    // bank on every cycle (only blocked by the on-issue reset of the
+    // injected flag). The simulation runs but pre_schedule wastes work
+    // and the policy stops behaving like a column-access cap. Reject
+    // the value loudly so the user knows their config is meaningless
+    // for ClosedCAP.
+    if (m_cap <= 0) {
+      throw std::runtime_error(fmt::format(
+          "ClosedCAP: cap must be > 0 (got {}) — a cap of 0 or less makes "
+          "the column-access count never reach the cap and degenerates "
+          "into a per-cycle PREpb-injection loop. Use a CloseRow policy "
+          "for cap-1 semantics, or supply a positive cap.",
+          m_cap));
+    }
 
     m_cmd_prepb = m_spec->get_command_id("PREpb");
     m_cmd_rd = m_spec->get_command_id("RD");
