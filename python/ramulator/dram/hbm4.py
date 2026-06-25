@@ -187,6 +187,18 @@ HBM4.timing_presets = {
         "nRFCpb": 560, "nRREFD": 8,
         "tCK_ps": 500,
     },
+    "HBM4_15200Mbps": {
+        # 1.9x of HBM4_8000Mbps. Bridge between the 14.4 Gbps third
+        # wave and the 16 Gbps forward-looking peak.
+        "rate": 15200, "nBL": 2, "nCL": 38, "nCWL": 19,
+        "nRC": 171, "nRAS": 108, "nRP": 63, "nRCDRD": 74, "nRCDWR": 36,
+        "nRRDL": 14, "nRRDS": 10, "nFAW": 57, "nRTP": 23, "nWR": 80,
+        "nCCDL": 4, "nCCDS": 2, "nCCDR": 2,
+        "nWTRL": 25, "nWTRS": 16, "nRTW": 48,
+        "nPPD": 2,
+        "nRFCpb": 1064, "nRREFD": 8,
+        "tCK_ps": 263,
+    },
     "HBM4_16000Mbps": {
         "rate": 16000, "nBL": 2, "nCL": 40, "nCWL": 20,
         "nRC": 180, "nRAS": 114, "nRP": 66, "nRCDRD": 78, "nRCDWR": 38,
