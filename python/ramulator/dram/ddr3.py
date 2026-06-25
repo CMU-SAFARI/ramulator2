@@ -63,7 +63,7 @@ class DDR3(DRAMStandard):
         TimingConstraint(level="Rank", preceding=["PREpb", "PREab"], following=["REFab"], latency="nRP"),
         TimingConstraint(level="Rank", preceding=["RDA"], following=["REFab"], latency="nRP + nRTP"),
         TimingConstraint(level="Rank", preceding=["WRA"], following=["REFab"], latency="nCWL + nBL + nWR + nRP"),
-        TimingConstraint(level="Rank", preceding=["REFab"], following=["ACT"], latency="nRFC"),
+        TimingConstraint(level="Rank", preceding=["REFab"], following=["ACT", "PREab"], latency="nRFC"),
 
         # Bank — single-bank timing
         TimingConstraint(level="Bank", preceding=["ACT"], following=["ACT"], latency="nRC"),
