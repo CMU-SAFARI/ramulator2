@@ -214,4 +214,13 @@ HBM2.timing_presets = {
         "nCCDS": 2, "nCCDL": 4, "nWTRS": 8, "nWTRL": 10,
         "tCK_ps": 833,
     },
+    # HBM2 2.666 Gbps — intermediate bin between 2.4 Gbps (V100/A100)
+    # and 3.2 Gbps. Field-binned grade for HBM2 stacks that exceed
+    # the 2.4 Gbps grade but don't make 3.2.
+    "HBM2_2666Mbps": {
+        "rate": 2666, "nBL": 2, "nCL": 19, "nRCDRD": 19, "nRCDWR": 16,
+        "nRP": 19, "nRAS": 45, "nRC": 64, "nWR": 21, "nRTPL": 7, "nCWL": 7,
+        "nCCDS": 2, "nCCDL": 4, "nWTRS": 9, "nWTRL": 11,
+        "tCK_ps": 750,
+    },
 }
