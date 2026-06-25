@@ -173,6 +173,10 @@ HBM1.org_presets = {
     "HBM1_1Gb":  {"density": 1024, "dq": 128, "channel_width": 128, "bankgroup": 4, "bank": 2, "row": 1<<13, "column": (1<<6) << 1},    # HBM CA already takes BL into account
     "HBM1_2Gb":  {"density": 2048, "dq": 128, "channel_width": 128, "bankgroup": 4, "bank": 2, "row": 1<<14, "column": (1<<6) << 1},    # HBM CA already takes BL into account
     "HBM1_4Gb":  {"density": 4096, "dq": 128, "channel_width": 128, "bankgroup": 4, "bank": 2, "row": 1<<15, "column": (1<<6) << 1},    # HBM CA already takes BL into account
+    # HBM1_512Mb — smallest HBM1 die used in some early prototype
+    # silicon. nRFC table tops out below the 1 Gb level (110 ns),
+    # so 512 Mb shares the same tRFCab budget.
+    "HBM1_512Mb": {"density": 512, "dq": 128, "channel_width": 128, "bankgroup": 4, "bank": 2, "row": 1<<12, "column": (1<<6) << 1},
 }
 
 # Timing presets — primary timings only.
