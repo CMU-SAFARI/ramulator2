@@ -234,4 +234,16 @@ HBM3.timing_presets = {
         "nPPD": 2,
         "tCK_ps": 625,
     },
+    # HBM3 10.4 Gbps — sits between the 9.6 Gbps B200 grade and the
+    # 11.2 Gbps top-bin part. Plausible mid-life HBM3E refresh.
+    "HBM3_10400Mbps": {
+        "rate": 10400, "nBL": 2, "nCL": 32, "nRCDRD": 51, "nRCDWR": 24,
+        "nRP": 42, "nRAS": 74, "nRC": 117, "nWR": 54, "nRTP": 14, "nCWL": 16,
+        "nCCDS": 2, "nCCDL": 5, "nCCDR": 4,
+        "nRRDS": 6, "nRRDL": 8, "nFAW": 39,
+        "nWTRS": 11, "nWTRL": 16, "nRTW": 32,
+        "nRFCpb": 520, "nRREFD": 13, "nREFI": 10140,
+        "nPPD": 2,
+        "tCK_ps": 384,
+    },
 }
