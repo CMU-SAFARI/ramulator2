@@ -174,6 +174,9 @@ HBM4.org_presets = {
     "HBM4_32Gb_4Hi":  {"density": 32768, "dq": 32, "channel_width": 32, "pseudochannel": 2, "sid": 1, "bankgroup": 2, "bank": 8, "row": 1<<14, "column": (1<<5) << 3},  # HBM CA already takes BL into account
     "HBM4_32Gb_8Hi":  {"density": 32768, "dq": 32, "channel_width": 32, "pseudochannel": 2, "sid": 2, "bankgroup": 2, "bank": 8, "row": 1<<14, "column": (1<<5) << 3},  # HBM CA already takes BL into account
     "HBM4_32Gb_16Hi": {"density": 32768, "dq": 32, "channel_width": 32, "pseudochannel": 2, "sid": 4, "bankgroup": 2, "bank": 8, "row": 1<<14, "column": (1<<5) << 3},  # HBM CA already takes BL into account
+    # HBM4 32 Gb die, 12-Hi stack (sid = Hi/4 = 3). Targets HBM4
+    # second-wave 48 GB stacks (SK hynix HBM4 roadmap).
+    "HBM4_32Gb_12Hi": {"density": 32768, "dq": 32, "channel_width": 32, "pseudochannel": 2, "sid": 3, "bankgroup": 2, "bank": 8, "row": 1<<14, "column": (1<<5) << 3},  # HBM CA already takes BL into account
 }
 
 HBM4.timing_presets = {
