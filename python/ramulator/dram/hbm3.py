@@ -215,6 +215,10 @@ HBM3.org_presets = {
     "HBM3_8Gb_8hi":  {"density": 8192, "dq": 32, "channel_width": 32, "pseudochannel": 2, "sid": 2, "bankgroup": 4, "bank": 4, "row": 1<<13, "column": (1<<5) << 3},  # HBM CA already takes BL into account
     # die density = 16 Gb, channel density = 8 Gb
     "HBM3_16Gb_8hi": {"density": 16384, "dq": 32, "channel_width": 32, "pseudochannel": 2, "sid": 2, "bankgroup": 4, "bank": 4, "row": 1<<14, "column": (1<<5) << 3},  # HBM CA already takes BL into account
+    # HBM3_16Gb_16hi — large stack at the 16 Gb die density. Used by
+    # high-capacity HBM3 prototypes that paired 16 Gb dies in 16-Hi
+    # for a 32 GB-per-stack target.
+    "HBM3_16Gb_16hi": {"density": 16384, "dq": 32, "channel_width": 32, "pseudochannel": 2, "sid": 4, "bankgroup": 4, "bank": 4, "row": 1<<14, "column": (1<<5) << 3},
     # die density = 32 Gb, channel density = 16 Gb
     "HBM3_32Gb_8hi": {"density": 32768, "dq": 32, "channel_width": 32, "pseudochannel": 2, "sid": 2, "bankgroup": 4, "bank": 4, "row": 1<<15, "column": (1<<5) << 3},  # HBM CA already takes BL into account
     # die density = 32 Gb, channel density = 8 Gb
