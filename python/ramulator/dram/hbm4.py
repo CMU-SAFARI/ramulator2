@@ -171,6 +171,10 @@ class HBM4(DRAMStandard):
 
 
 HBM4.org_presets = {
+    # HBM4_32Gb_2Hi — bottom-end stack height. Used by single-tier
+    # HBM4 prototypes (2 dies per package, 8 GB total at 32 Gb).
+    # sid=1 since 2 dies share one physical channel pair.
+    "HBM4_32Gb_2Hi":  {"density": 32768, "dq": 32, "channel_width": 32, "pseudochannel": 2, "sid": 1, "bankgroup": 2, "bank": 8, "row": 1<<13, "column": (1<<5) << 3},
     "HBM4_32Gb_4Hi":  {"density": 32768, "dq": 32, "channel_width": 32, "pseudochannel": 2, "sid": 1, "bankgroup": 2, "bank": 8, "row": 1<<14, "column": (1<<5) << 3},  # HBM CA already takes BL into account
     "HBM4_32Gb_8Hi":  {"density": 32768, "dq": 32, "channel_width": 32, "pseudochannel": 2, "sid": 2, "bankgroup": 2, "bank": 8, "row": 1<<14, "column": (1<<5) << 3},  # HBM CA already takes BL into account
     "HBM4_32Gb_16Hi": {"density": 32768, "dq": 32, "channel_width": 32, "pseudochannel": 2, "sid": 4, "bankgroup": 2, "bank": 8, "row": 1<<14, "column": (1<<5) << 3},  # HBM CA already takes BL into account
