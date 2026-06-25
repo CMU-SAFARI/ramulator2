@@ -152,6 +152,8 @@ DDR3.org_presets = {
 # are resolved from JEDEC tables in resolve_secondary_timings().
 DDR3.timing_presets = {
     "DDR3_800D":  {"rate": 800,  "nBL": 4, "nCL": 5,  "nRCD": 5,  "nRP": 5,  "nRAS": 15, "nRC": 20, "nWR": 6,  "nRTP": 4, "nCWL": 5,  "nCCD": 4, "nWTR": 4, "nCS": 2, "tCK_ps": 2500},
+    # DDR3-1066 — common mid-life DDR3 rate (2010-2012 era platforms).
+    "DDR3_1066E": {"rate": 1066, "nBL": 4, "nCL": 7,  "nRCD": 7,  "nRP": 7,  "nRAS": 20, "nRC": 27, "nWR": 8,  "nRTP": 4, "nCWL": 6,  "nCCD": 4, "nWTR": 4, "nCS": 2, "tCK_ps": 1875},
     "DDR3_800E":  {"rate": 800,  "nBL": 4, "nCL": 6,  "nRCD": 6,  "nRP": 6,  "nRAS": 15, "nRC": 21, "nWR": 6,  "nRTP": 4, "nCWL": 5,  "nCCD": 4, "nWTR": 4, "nCS": 2, "tCK_ps": 2500},
     "DDR3_1066E": {"rate": 1066, "nBL": 4, "nCL": 6,  "nRCD": 6,  "nRP": 6,  "nRAS": 20, "nRC": 26, "nWR": 8,  "nRTP": 4, "nCWL": 6,  "nCCD": 4, "nWTR": 4, "nCS": 2, "tCK_ps": 1875},
     "DDR3_1066F": {"rate": 1066, "nBL": 4, "nCL": 7,  "nRCD": 7,  "nRP": 7,  "nRAS": 20, "nRC": 27, "nWR": 8,  "nRTP": 4, "nCWL": 6,  "nCCD": 4, "nWTR": 4, "nCS": 2, "tCK_ps": 1875},
