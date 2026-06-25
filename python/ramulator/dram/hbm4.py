@@ -187,6 +187,20 @@ HBM4.timing_presets = {
         "nRFCpb": 560, "nRREFD": 8,
         "tCK_ps": 500,
     },
+    # HBM4_6400Mbps — 0.8x of HBM4_8000Mbps. Low-power HBM4 binning
+    # point that matches the HBM3 base rate for direct HBM3↔HBM4
+    # comparison studies (same per-pin throughput, different
+    # protocol overhead). tCK_ps = round(500/0.8) = 625.
+    "HBM4_6400Mbps": {
+        "rate": 6400, "nBL": 2, "nCL": 16, "nCWL": 8,
+        "nRC": 72, "nRAS": 46, "nRP": 26, "nRCDRD": 31, "nRCDWR": 15,
+        "nRRDL": 6, "nRRDS": 4, "nFAW": 24, "nRTP": 10, "nWR": 34,
+        "nCCDL": 4, "nCCDS": 2, "nCCDR": 2,
+        "nWTRL": 11, "nWTRS": 8, "nRTW": 20,
+        "nPPD": 2,
+        "nRFCpb": 448, "nRREFD": 8,
+        "tCK_ps": 625,
+    },
     "HBM4_16000Mbps": {
         "rate": 16000, "nBL": 2, "nCL": 40, "nCWL": 20,
         "nRC": 180, "nRAS": 114, "nRP": 66, "nRCDRD": 78, "nRCDWR": 38,
