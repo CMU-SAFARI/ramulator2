@@ -197,4 +197,16 @@ HBM4.timing_presets = {
         "nRFCpb": 1120, "nRREFD": 8,
         "tCK_ps": 250,
     },
+    # HBM4 10.4 Gbps — intermediate bin scaled 1.3× off the 8 Gbps base.
+    # Plausible HBM4 second-wave production grade.
+    "HBM4_10400Mbps": {
+        "rate": 10400, "nBL": 2, "nCL": 26, "nCWL": 13,
+        "nRC": 117, "nRAS": 75, "nRP": 43, "nRCDRD": 51, "nRCDWR": 25,
+        "nRRDL": 10, "nRRDS": 7, "nFAW": 39, "nRTP": 16, "nWR": 55,
+        "nCCDL": 4, "nCCDS": 2, "nCCDR": 2,
+        "nWTRL": 17, "nWTRS": 12, "nRTW": 33,
+        "nPPD": 2,
+        "nRFCpb": 728, "nRREFD": 8,
+        "tCK_ps": 384,
+    },
 }
