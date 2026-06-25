@@ -214,4 +214,13 @@ HBM2.timing_presets = {
         "nCCDS": 2, "nCCDL": 4, "nWTRS": 8, "nWTRL": 10,
         "tCK_ps": 833,
     },
+    # HBM2 2.933 Gbps — alternative intermediate bin, between 2.666
+    # and 3.2 Gbps. Used by some HBM2 stacks in PCIe accelerator
+    # cards that target lower power than the 3.2 Gbps grade.
+    "HBM2_2933Mbps": {
+        "rate": 2933, "nBL": 2, "nCL": 21, "nRCDRD": 21, "nRCDWR": 17,
+        "nRP": 21, "nRAS": 50, "nRC": 71, "nWR": 24, "nRTPL": 8, "nCWL": 8,
+        "nCCDS": 2, "nCCDL": 4, "nWTRS": 10, "nWTRL": 12,
+        "tCK_ps": 682,
+    },
 }
