@@ -208,6 +208,13 @@ HBM2.timing_presets = {
         "nCCDS": 2, "nCCDL": 4, "nWTRS": 6, "nWTRL": 8,
         "tCK_ps": 1000,
     },
+    # HBM2_3400Mbps — between HBM2E 3.2 and 3.6 Gbps.
+    "HBM2_3400Mbps": {
+        "rate": 3400, "nBL": 2, "nCL": 24, "nRCDRD": 24, "nRCDWR": 20,
+        "nRP": 24, "nRAS": 57, "nRC": 81, "nWR": 27, "nRTPL": 9, "nCWL": 9,
+        "nCCDS": 2, "nCCDL": 6, "nWTRS": 11, "nWTRL": 14,
+        "tCK_ps": 588,
+    },
     "HBM2_2400Mbps": {
         "rate": 2400, "nBL": 2, "nCL": 17, "nRCDRD": 17, "nRCDWR": 14,
         "nRP": 17, "nRAS": 40, "nRC": 57, "nWR": 19, "nRTPL": 6, "nCWL": 6,
