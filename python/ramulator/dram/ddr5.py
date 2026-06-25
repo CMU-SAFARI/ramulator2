@@ -193,6 +193,8 @@ DDR5.timing_presets = {
     "DDR5_4800C":  {"rate": 4800, "nBL": 8, "nCL": 38, "nRCD": 38, "nRP": 38, "nRAS": 77, "nRC": 115, "nWR": 72, "nRTP": 18, "nCWL": 36, "nPPD": 2, "nCCDS": 8,  "nCCDL": 12, "nCCDS_WR": 8,  "nCCDL_WR": 48, "nWTRS": 6,  "nWTRL": 24, "nCS": 2, "tCK_ps": 416},
     # DDR5-5600 (tCK = 357 ps)
     "DDR5_5600AN": {"rate": 5600, "nBL": 8, "nCL": 40, "nRCD": 40, "nRP": 40, "nRAS": 90, "nRC": 130, "nWR": 84, "nRTP": 20, "nCWL": 38, "nPPD": 2, "nCCDS": 8,  "nCCDL": 12, "nCCDS_WR": 8,  "nCCDL_WR": 56, "nWTRS": 5,  "nWTRL": 28, "nCS": 2, "tCK_ps": 357},
+    # DDR5-6000 (tCK = 333 ps) — intermediate bin between 5600 and 6400.
+    "DDR5_6000AN": {"rate": 6000, "nBL": 8, "nCL": 43, "nRCD": 43, "nRP": 43, "nRAS": 96, "nRC": 139, "nWR": 90, "nRTP": 22, "nCWL": 41, "nPPD": 2, "nCCDS": 8,  "nCCDL": 14, "nCCDS_WR": 8,  "nCCDL_WR": 60, "nWTRS": 5,  "nWTRL": 30, "nCS": 2, "tCK_ps": 333},
     # DDR5-6400 (tCK = 312 ps)
     "DDR5_6400AN": {"rate": 6400, "nBL": 8, "nCL": 46, "nRCD": 46, "nRP": 46, "nRAS": 103, "nRC": 149, "nWR": 96, "nRTP": 24, "nCWL": 44, "nPPD": 2, "nCCDS": 8,  "nCCDL": 16, "nCCDS_WR": 8,  "nCCDL_WR": 64, "nWTRS": 5,  "nWTRL": 32, "nCS": 2, "tCK_ps": 312},
 }
