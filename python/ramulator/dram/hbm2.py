@@ -208,6 +208,17 @@ HBM2.timing_presets = {
         "nCCDS": 2, "nCCDL": 4, "nWTRS": 6, "nWTRL": 8,
         "tCK_ps": 1000,
     },
+    # HBM2_3200Mbps_tight — alternate timing bin for the standard
+    # HBM2E 3.2 Gbps, with tighter CL/CWL targets (per SK hynix
+    # Aquabolt-XL early validation specs). Same rate as the existing
+    # 3200 preset from the HBM2E timing PR but with more aggressive
+    # core timings, useful for best-case latency studies.
+    "HBM2_3200Mbps_tight": {
+        "rate": 3200, "nBL": 2, "nCL": 21, "nRCDRD": 21, "nRCDWR": 17,
+        "nRP": 21, "nRAS": 48, "nRC": 70, "nWR": 23, "nRTPL": 7, "nCWL": 7,
+        "nCCDS": 2, "nCCDL": 5, "nWTRS": 10, "nWTRL": 12,
+        "tCK_ps": 625,
+    },
     "HBM2_2400Mbps": {
         "rate": 2400, "nBL": 2, "nCL": 17, "nRCDRD": 17, "nRCDWR": 14,
         "nRP": 17, "nRAS": 40, "nRC": 57, "nWR": 19, "nRTPL": 6, "nCWL": 6,
