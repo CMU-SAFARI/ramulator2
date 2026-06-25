@@ -190,4 +190,13 @@ LPDDR5.timing_presets = {
         "nWTRS": 5, "nWTRL": 10, "nWCKPST": 1, "nCAS": 0,
         "nAAD": 8, "nCS": 2, "tCK_ps": 1250,
     },
+    # LPDDR5X-8533 (1.333x of LPDDR5-6400) — JEDEC LPDDR5X first wave,
+    # used by Snapdragon 8 Gen 3 / Dimensity 9300 era flagships.
+    "LPDDR5_8533": {
+        "rate": 8533, "nBL": 2, "nCL": 23, "nRCD": 20, "nRP": 20, "nRPab": 23,
+        "nRAS": 46, "nRC": 66, "nWR": 38, "nRTP": 11, "nCWL": 12, "nPPD": 2,
+        "nCCDS": 2, "nCCDL": 6, "nCCDS_WR": 2, "nCCDL_WR": 6,
+        "nWTRS": 7, "nWTRL": 14, "nWCKPST": 1, "nCAS": 0,
+        "nAAD": 11, "nCS": 2, "tCK_ps": 938,
+    },
 }
