@@ -187,6 +187,21 @@ HBM4.timing_presets = {
         "nRFCpb": 560, "nRREFD": 8,
         "tCK_ps": 500,
     },
+    "HBM4_11200Mbps": {
+        # 1.4x of HBM4_8000Mbps. Intermediate first-wave HBM4 product
+        # target (between the HBM4_9600Mbps first-wave preset and the
+        # HBM4_12800Mbps second wave) — matches early HBM4 silicon
+        # samples that didn't quite hit the 12.8 Gbps validation target.
+        # tCK_ps = round(500 / 1.4) = 357.
+        "rate": 11200, "nBL": 2, "nCL": 28, "nCWL": 14,
+        "nRC": 126, "nRAS": 80, "nRP": 46, "nRCDRD": 55, "nRCDWR": 27,
+        "nRRDL": 10, "nRRDS": 7, "nFAW": 42, "nRTP": 17, "nWR": 59,
+        "nCCDL": 4, "nCCDS": 2, "nCCDR": 2,
+        "nWTRL": 18, "nWTRS": 12, "nRTW": 35,
+        "nPPD": 2,
+        "nRFCpb": 784, "nRREFD": 8,
+        "tCK_ps": 357,
+    },
     "HBM4_16000Mbps": {
         "rate": 16000, "nBL": 2, "nCL": 40, "nCWL": 20,
         "nRC": 180, "nRAS": 114, "nRP": 66, "nRCDRD": 78, "nRCDWR": 38,
