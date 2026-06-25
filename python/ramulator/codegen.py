@@ -22,18 +22,31 @@ _CUSTOM_COMPONENTS = set()
 
 
 def _discover_standards():
-    """Import all known standard modules to trigger registration."""
+    """Import all known standard modules to trigger registration.
+
+    Re-raises ImportError on broken spec modules with a clear message —
+    the prior `except ImportError: pass` silently dropped the affected
+    standard from the registry, so `codegen` printed "Generated …" for
+    everything else and exited 0, leaving the broken standard absent
+    from the build output with no warning.
+    """
     import importlib
     import pkgutil
 
     import ramulator.dram as dram_pkg
 
     for _, name, _ in pkgutil.iter_modules(dram_pkg.__path__):
-        if name not in ("spec", "base", "__init__"):
-            try:
-                importlib.import_module(f"ramulator.dram.{name}")
-            except ImportError:
-                pass
+        if name in ("spec", "base", "__init__"):
+            continue
+        try:
+            importlib.import_module(f"ramulator.dram.{name}")
+        except ImportError as e:
+            raise ImportError(
+                f"codegen: failed to import ramulator.dram.{name} "
+                f"during standard discovery — fix the import error in "
+                f"that spec file or rename it out of the dram/ package. "
+                f"Original error: {e}"
+            ) from e
 
     return dict(DRAMStandard._registry)
 
