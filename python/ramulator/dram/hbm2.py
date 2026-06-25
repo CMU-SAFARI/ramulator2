@@ -208,6 +208,14 @@ HBM2.timing_presets = {
         "nCCDS": 2, "nCCDL": 4, "nWTRS": 6, "nWTRL": 8,
         "tCK_ps": 1000,
     },
+    # HBM2_3800Mbps — between HBM2E 3.6 and OC 4.0 Gbps; common bin
+    # for HBM2E silicon in Samsung Flashbolt.
+    "HBM2_3800Mbps": {
+        "rate": 3800, "nBL": 2, "nCL": 27, "nRCDRD": 27, "nRCDWR": 22,
+        "nRP": 27, "nRAS": 63, "nRC": 90, "nWR": 30, "nRTPL": 10, "nCWL": 10,
+        "nCCDS": 2, "nCCDL": 6, "nWTRS": 12, "nWTRL": 16,
+        "tCK_ps": 526,
+    },
     "HBM2_2400Mbps": {
         "rate": 2400, "nBL": 2, "nCL": 17, "nRCDRD": 17, "nRCDWR": 14,
         "nRP": 17, "nRAS": 40, "nRC": 57, "nWR": 19, "nRTPL": 6, "nCWL": 6,
