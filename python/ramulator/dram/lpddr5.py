@@ -108,8 +108,8 @@ class LPDDR5(DRAMStandard):
         TimingConstraint(level="Bank", preceding=["PREpb"], following=["ACT1"], latency="nRP"),
         TimingConstraint(level="Bank", preceding=["RD"], following=["PREpb"], latency="nRTP"),
         TimingConstraint(level="Bank", preceding=["WR"], following=["PREpb"], latency="nCWL + nBL + nWR"),
-        TimingConstraint(level="Bank", preceding=["RDA"], following=["ACT1"], latency="nRTP + nRP"),
-        TimingConstraint(level="Bank", preceding=["WRA"], following=["ACT1"], latency="nCWL + nBL + nWR + nRP"),
+        TimingConstraint(level="Bank", preceding=["RDA"], following=["ACT1", "REFpb"], latency="nRTP + nRP"),
+        TimingConstraint(level="Bank", preceding=["WRA"], following=["ACT1", "REFpb"], latency="nCWL + nBL + nWR + nRP"),
 
         # Bank — per-bank refresh
         TimingConstraint(level="Bank", preceding=["REFpb"], following=["ACT1"], latency="nRFCpb"),
