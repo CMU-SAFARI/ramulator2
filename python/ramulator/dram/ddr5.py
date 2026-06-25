@@ -157,6 +157,7 @@ class DDR5(DRAMStandard):
         if density <= 8192:    tRFC_ns = 195
         elif density <= 16384: tRFC_ns = 295
         elif density <= 32768: tRFC_ns = 410
+        elif density <= 65536: tRFC_ns = 540  # 64 Gb — linear extrap pending JEDEC update
         else: return -1
         return math.ceil(tRFC_ns * 1000 / tCK_ps)
 
@@ -178,6 +179,10 @@ DDR5.org_presets = {
     "DDR5_32Gb_x4":  {"density": 32768, "dq": 4,  "channel_width": 32, "rank": 1, "bankgroup": 8, "bank": 4, "row": 1<<17, "column": 1<<11},
     "DDR5_32Gb_x8":  {"density": 32768, "dq": 8,  "channel_width": 32, "rank": 1, "bankgroup": 8, "bank": 4, "row": 1<<17, "column": 1<<10},
     "DDR5_32Gb_x16": {"density": 32768, "dq": 16, "channel_width": 32, "rank": 1, "bankgroup": 4, "bank": 4, "row": 1<<17, "column": 1<<10},
+    # DDR5_64Gb dies — JEDEC-spec future tier (announced 2025+,
+    # Samsung 256GB R-DIMM target). Row count doubled versus 32 Gb.
+    "DDR5_64Gb_x4":  {"density": 65536, "dq": 4,  "channel_width": 32, "rank": 1, "bankgroup": 8, "bank": 4, "row": 1<<18, "column": 1<<11},
+    "DDR5_64Gb_x8":  {"density": 65536, "dq": 8,  "channel_width": 32, "rank": 1, "bankgroup": 8, "bank": 4, "row": 1<<18, "column": 1<<10},
 }
 
 # Primary timings only — secondary timings (nRRDS, nRRDL, nFAW, nRFC, nREFI)
