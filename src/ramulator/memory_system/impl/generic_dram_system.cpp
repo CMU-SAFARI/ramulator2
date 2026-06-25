@@ -62,6 +62,17 @@ class GenericDRAMSystem final : public IMemorySystem, public Implementation {
     // Controller::send() handles address mapping internally.
     m_channel_mapper->apply(req);
     int channel_id = req.addr_vec[0];
+    // Defend against a channel mapper that emits a channel id outside the
+    // controller range (e.g. PassThroughChannelMapper called with a request
+    // whose frontend never populated addr_vec[0] — the slot stays at its
+    // default -1 and `m_controllers[-1]->send(req)` is out-of-bounds UB).
+    if (channel_id < 0 || channel_id >= static_cast<int>(m_controllers.size())) {
+      throw std::runtime_error(fmt::format(
+          "GenericDRAM: channel mapper produced channel_id {} outside [0, {}) — "
+          "check that the channel mapper sets req.addr_vec[0] correctly (or that "
+          "the frontend pre-populated it when using PassThroughChannelMapper).",
+          channel_id, m_controllers.size()));
+    }
     bool is_success = m_controllers[channel_id]->send(req);
 
     if (is_success) {
