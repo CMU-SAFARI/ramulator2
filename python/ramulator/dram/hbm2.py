@@ -190,6 +190,7 @@ HBM2.org_presets = {
     "HBM2_2Gb":  {"density": 2048, "dq": 64, "channel_width": 64, "pseudochannel": 2, "bankgroup": 4, "bank": 4, "row": 1<<14, "column": (1<<5) << 2},  # HBM CA already takes BL into account
     "HBM2_4Gb":  {"density": 4096, "dq": 64, "channel_width": 64, "pseudochannel": 2, "bankgroup": 4, "bank": 4, "row": 1<<15, "column": (1<<5) << 2},  # HBM CA already takes BL into account
     "HBM2_8Gb":  {"density": 8192, "dq": 64, "channel_width": 64, "pseudochannel": 2, "bankgroup": 4, "bank": 4, "row": 1<<16, "column": (1<<5) << 2},  # HBM CA already takes BL into account
+    "HBM2_16Gb": {"density": 16384, "dq": 64, "channel_width": 64, "pseudochannel": 2, "bankgroup": 4, "bank": 4, "row": 1<<17, "column": (1<<5) << 2},  # HBM2E 16 Gb die (Samsung Flashbolt, SK hynix Aquabolt-XL)
 }
 
 # Timing presets — primary timings only.
