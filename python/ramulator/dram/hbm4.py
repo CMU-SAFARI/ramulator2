@@ -187,6 +187,18 @@ HBM4.timing_presets = {
         "nRFCpb": 560, "nRREFD": 8,
         "tCK_ps": 500,
     },
+    "HBM4_13600Mbps": {
+        # 1.7x of HBM4_8000Mbps. Bridge between the 12.8 Gbps second
+        # wave and 14.4 Gbps third wave — useful for sweep studies.
+        "rate": 13600, "nBL": 2, "nCL": 34, "nCWL": 17,
+        "nRC": 153, "nRAS": 97, "nRP": 56, "nRCDRD": 66, "nRCDWR": 32,
+        "nRRDL": 12, "nRRDS": 9, "nFAW": 51, "nRTP": 20, "nWR": 71,
+        "nCCDL": 4, "nCCDS": 2, "nCCDR": 2,
+        "nWTRL": 22, "nWTRS": 14, "nRTW": 43,
+        "nPPD": 2,
+        "nRFCpb": 952, "nRREFD": 8,
+        "tCK_ps": 294,
+    },
     "HBM4_16000Mbps": {
         "rate": 16000, "nBL": 2, "nCL": 40, "nCWL": 20,
         "nRC": 180, "nRAS": 114, "nRP": 66, "nRCDRD": 78, "nRCDWR": 38,
