@@ -100,6 +100,25 @@ void LPDDR5Controller::init() {
   m_nCWL = spec.get_timing_value("nCWL");
   m_nBL = spec.get_timing_value("nBL");
   m_nWCKPST = spec.get_timing_value("nWCKPST");
+  // Validate the LPDDR5-specific timing values the controller reads
+  // directly. move_to_activating() computes the per-bank ACT2 deadline
+  // as `m_clk + m_nAAD`, so a non-positive nAAD makes the deadline
+  // collapse to "now" and starves every owned ACT2 candidate.
+  // extend_wck_expiry() uses nCL / nCWL / nBL / nWCKPST to push out
+  // m_wck_expiry; non-positive values silently never extend, freezing
+  // CAS-sync into the false branch and quietly disabling the
+  // optimization without an error.
+  if (m_nAAD <= 0) {
+    throw std::runtime_error(fmt::format(
+        "LPDDR5Controller: nAAD must be > 0 (got {}) — feeds the ACT2 deadline",
+        m_nAAD));
+  }
+  if (m_nCL <= 0 || m_nCWL <= 0 || m_nBL <= 0 || m_nWCKPST < 0) {
+    throw std::runtime_error(fmt::format(
+        "LPDDR5Controller: nCL ({}), nCWL ({}), nBL ({}) must be > 0 and "
+        "nWCKPST ({}) must be >= 0 — feed extend_wck_expiry()",
+        m_nCL, m_nCWL, m_nBL, m_nWCKPST));
+  }
 
   m_activating_buffer.max_size = m_device.m_bank_nodes.size();
   m_act2_owner_valid.assign(m_device.m_bank_nodes.size(), false);
