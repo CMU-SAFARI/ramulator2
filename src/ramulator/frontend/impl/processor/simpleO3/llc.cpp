@@ -3,6 +3,9 @@
 #include <cassert>
 #include <algorithm>
 #include <fstream>
+#include <stdexcept>
+
+#include <fmt/format.h>
 
 namespace Ramulator {
 
@@ -235,6 +238,15 @@ SimpleO3LLC::MSHR_t::iterator SimpleO3LLC::check_mshr_hit(Addr_t addr) {
 void SimpleO3LLC::serialize(std::string serialization_filename) {
   std::ofstream serialization_file;
   serialization_file.open(serialization_filename, std::ios::out);
+  // ofstream::open silently sets failbit when the path is unwritable.
+  // The subsequent CSV writes then no-op and the user gets neither a
+  // snapshot file nor an error — the LLC checkpoint is silently lost.
+  if (!serialization_file.is_open()) {
+    throw std::runtime_error(fmt::format(
+        "SimpleO3LLC::serialize: failed to open '{}' for writing "
+        "(path missing, permission denied, or disk full)",
+        serialization_filename));
+  }
 
   serialization_file << "index,addr,tag,dirty" << std::endl;
   for (auto it1 = m_cache_sets.begin(); it1 != m_cache_sets.end(); it1++) {
@@ -248,6 +260,15 @@ void SimpleO3LLC::serialize(std::string serialization_filename) {
 void SimpleO3LLC::deserialize(std::string serialization_filename) {
   std::ifstream serialization_file;
   serialization_file.open(serialization_filename, std::ios::in);
+  // Same failure mode as serialize(): a silent open failure here means
+  // every getline returns empty and the LLC starts cold despite the
+  // user explicitly asking to restore state.
+  if (!serialization_file.is_open()) {
+    throw std::runtime_error(fmt::format(
+        "SimpleO3LLC::deserialize: failed to open '{}' for reading "
+        "(path missing or permission denied)",
+        serialization_filename));
+  }
 
   std::string file_line;
   std::getline(serialization_file, file_line);  // Skip the first line, which is the header

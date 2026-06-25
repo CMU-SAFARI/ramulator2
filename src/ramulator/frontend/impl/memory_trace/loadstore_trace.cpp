@@ -104,6 +104,17 @@ class LoadStoreTrace : public IFrontEnd, public Implementation {
     trace_file.close();
 
     m_trace_length = m_trace.size();
+    // tick() reads m_trace[m_curr_trace_idx] and advances
+    // `(idx + 1) % m_trace_length`. An empty trace file leaves
+    // m_trace_length=0, so the first tick is out-of-bounds vector
+    // access + modulo by zero. is_finished() returns true immediately
+    // for empty input, so users may not crash but get a completed
+    // simulation that did literally nothing — silent no-op trace.
+    if (m_trace_length == 0) {
+      throw std::runtime_error(fmt::format(
+          "Trace {} is empty — at least one LD/ST line is required",
+          file_path_str));
+    }
   };
 
   bool is_finished() override {
