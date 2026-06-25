@@ -143,12 +143,20 @@ class HBM4(DRAMStandard):
 
     @staticmethod
     def _resolve_nRFC(channel_density_mb, tCK_ps):
+        # 4 / 8 / 16 GB channel-density tRFC values are pinned by JEDEC.
+        # 32 GB (HBM4E 64 Gb x 16-Hi) isn't yet published in JESD238; the
+        # linear extrapolation that matches the 4/8/16 GB curve (each step
+        # of channel-density roughly +80 ns) is included to unblock
+        # forward-looking modeling, marked as such so it can be replaced
+        # when the official spec lands.
         if channel_density_mb <= 4 * 1024:
             tRFC_ns = 400
         elif channel_density_mb <= 8 * 1024:
             tRFC_ns = 450
         elif channel_density_mb <= 16 * 1024:
             tRFC_ns = 530
+        elif channel_density_mb <= 32 * 1024:
+            tRFC_ns = 610  # Linear extrapolation — HBM4E pending JESD238 update.
         else:
             raise ValueError(f"HBM4 nRFC is not defined for {channel_density_mb:g} MB channel density")
         return math.ceil(tRFC_ns * 1000 / tCK_ps)
