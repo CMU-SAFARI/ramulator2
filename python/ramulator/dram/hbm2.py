@@ -214,4 +214,26 @@ HBM2.timing_presets = {
         "nCCDS": 2, "nCCDL": 4, "nWTRS": 8, "nWTRL": 10,
         "tCK_ps": 833,
     },
+    # HBM2E speed grades. JEDEC HBM2 timings are fixed in ns and the
+    # CK-domain values scale linearly with rate (= 1.1667x / 1.333x / 1.5x
+    # of the 2400 Mbps reference). Min-bounded parameters (nCCDS=2) and
+    # the half-rate burst minimum (nBL=2) stay constant.
+    "HBM2_2800Mbps": {
+        "rate": 2800, "nBL": 2, "nCL": 20, "nRCDRD": 20, "nRCDWR": 16,
+        "nRP": 20, "nRAS": 47, "nRC": 67, "nWR": 22, "nRTPL": 7, "nCWL": 7,
+        "nCCDS": 2, "nCCDL": 5, "nWTRS": 9, "nWTRL": 12,
+        "tCK_ps": 714,
+    },
+    "HBM2_3200Mbps": {
+        "rate": 3200, "nBL": 2, "nCL": 23, "nRCDRD": 23, "nRCDWR": 19,
+        "nRP": 23, "nRAS": 53, "nRC": 76, "nWR": 25, "nRTPL": 8, "nCWL": 8,
+        "nCCDS": 2, "nCCDL": 5, "nWTRS": 11, "nWTRL": 13,
+        "tCK_ps": 625,
+    },
+    "HBM2_3600Mbps": {
+        "rate": 3600, "nBL": 2, "nCL": 26, "nRCDRD": 26, "nRCDWR": 21,
+        "nRP": 26, "nRAS": 60, "nRC": 86, "nWR": 29, "nRTPL": 9, "nCWL": 9,
+        "nCCDS": 2, "nCCDL": 6, "nWTRS": 12, "nWTRL": 15,
+        "tCK_ps": 555,
+    },
 }
