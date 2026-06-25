@@ -195,4 +195,7 @@ DDR5.timing_presets = {
     "DDR5_5600AN": {"rate": 5600, "nBL": 8, "nCL": 40, "nRCD": 40, "nRP": 40, "nRAS": 90, "nRC": 130, "nWR": 84, "nRTP": 20, "nCWL": 38, "nPPD": 2, "nCCDS": 8,  "nCCDL": 12, "nCCDS_WR": 8,  "nCCDL_WR": 56, "nWTRS": 5,  "nWTRL": 28, "nCS": 2, "tCK_ps": 357},
     # DDR5-6400 (tCK = 312 ps)
     "DDR5_6400AN": {"rate": 6400, "nBL": 8, "nCL": 46, "nRCD": 46, "nRP": 46, "nRAS": 103, "nRC": 149, "nWR": 96, "nRTP": 24, "nCWL": 44, "nPPD": 2, "nCCDS": 8,  "nCCDL": 16, "nCCDS_WR": 8,  "nCCDL_WR": 64, "nWTRS": 5,  "nWTRL": 32, "nCS": 2, "tCK_ps": 312},
+    # DDR5-7200 (tCK = 278 ps) — JEDEC top-bin grade. Used by next-gen
+    # client and DC platforms (Granite Rapids/Turin tier).
+    "DDR5_7200AN": {"rate": 7200, "nBL": 8, "nCL": 52, "nRCD": 52, "nRP": 52, "nRAS": 115, "nRC": 167, "nWR": 108, "nRTP": 27, "nCWL": 50, "nPPD": 2, "nCCDS": 8,  "nCCDL": 18, "nCCDS_WR": 8,  "nCCDL_WR": 72, "nWTRS": 5,  "nWTRL": 36, "nCS": 2, "tCK_ps": 278},
 }
