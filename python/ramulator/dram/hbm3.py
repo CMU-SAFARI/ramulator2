@@ -224,6 +224,21 @@ HBM3.org_presets = {
 # Timing presets — CK cycles. Non-refresh timing values are supplied directly
 # here; refresh-related values may be supplied here or resolved below.
 HBM3.timing_presets = {
+    "HBM3_7200Mbps": {
+        # 1.125x of HBM3_6400Mbps. Intermediate first-bin HBM3 speed
+        # grade between the JEDEC HBM3 6.4 Gbps base and the HBM3E
+        # gen-1 8.0 Gbps preset — matches the first sub-revision of
+        # the HBM3 family that several silicon vendors shipped before
+        # HBM3E broadly hit the market.
+        "rate": 7200, "nBL": 2, "nCL": 23, "nRCDRD": 35, "nRCDWR": 17,
+        "nRP": 29, "nRAS": 51, "nRC": 81, "nWR": 37, "nRTP": 10, "nCWL": 11,
+        "nCCDS": 2, "nCCDL": 5, "nCCDR": 3,
+        "nRRDS": 5, "nRRDL": 6, "nFAW": 27,
+        "nWTRS": 8, "nWTRL": 11, "nRTW": 23,
+        "nRFCpb": 360, "nRREFD": 8, "nREFI": 7020,
+        "nPPD": 2,
+        "tCK_ps": 556,
+    },
     "HBM3_6400Mbps": {
         "rate": 6400, "nBL": 2, "nCL": 20, "nRCDRD": 31, "nRCDWR": 15,
         "nRP": 26, "nRAS": 45, "nRC": 72, "nWR": 33, "nRTP": 9, "nCWL": 10,
