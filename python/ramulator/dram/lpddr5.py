@@ -182,6 +182,15 @@ LPDDR5.org_presets = {
 # Primary timings only — secondary timings resolved by resolve_secondary_timings().
 # All values in CK cycles (CKR 4:1).
 LPDDR5.timing_presets = {
+    # LPDDR5-7466 (1.167x of LPDDR5-6400) — intermediate JEDEC LPDDR5
+    # speed bin between the 6400 base and the LPDDR5X 8533 first wave.
+    "LPDDR5_7466": {
+        "rate": 7466, "nBL": 2, "nCL": 20, "nRCD": 18, "nRP": 18, "nRPab": 20,
+        "nRAS": 40, "nRC": 58, "nWR": 33, "nRTP": 9, "nCWL": 11, "nPPD": 2,
+        "nCCDS": 2, "nCCDL": 5, "nCCDS_WR": 2, "nCCDL_WR": 5,
+        "nWTRS": 6, "nWTRL": 12, "nWCKPST": 1, "nCAS": 0,
+        "nAAD": 10, "nCS": 2, "tCK_ps": 1072,
+    },
     # LPDDR5-6400 (tCK = 1250 ps, CK = 800 MHz)
     "LPDDR5_6400": {
         "rate": 6400, "nBL": 2, "nCL": 17, "nRCD": 15, "nRP": 15, "nRPab": 17,
