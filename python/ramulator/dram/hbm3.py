@@ -212,6 +212,10 @@ HBM3.org_presets = {
     # die density = 4 Gb, channel density = 4 Gb
     "HBM3_4Gb":  {"density": 4096, "dq": 32, "channel_width": 32, "pseudochannel": 2, "sid": 1, "bankgroup": 4, "bank": 4, "row": 1<<14, "column": (1<<5) << 3},  # HBM CA already takes BL into account
     # die density = 8 Gb, channel density = 4 Gb
+    # HBM3 4-Hi entries (sid=1): low-end stacks for low-power /
+    # embedded HBM3 workloads (NVIDIA Jetson Thor-class, automotive).
+    "HBM3_8Gb_4hi":  {"density": 8192, "dq": 32, "channel_width": 32, "pseudochannel": 2, "sid": 1, "bankgroup": 4, "bank": 4, "row": 1<<13, "column": (1<<5) << 3},
+    "HBM3_16Gb_4hi": {"density": 16384, "dq": 32, "channel_width": 32, "pseudochannel": 2, "sid": 1, "bankgroup": 4, "bank": 4, "row": 1<<14, "column": (1<<5) << 3},
     "HBM3_8Gb_8hi":  {"density": 8192, "dq": 32, "channel_width": 32, "pseudochannel": 2, "sid": 2, "bankgroup": 4, "bank": 4, "row": 1<<13, "column": (1<<5) << 3},  # HBM CA already takes BL into account
     # die density = 16 Gb, channel density = 8 Gb
     "HBM3_16Gb_8hi": {"density": 16384, "dq": 32, "channel_width": 32, "pseudochannel": 2, "sid": 2, "bankgroup": 4, "bank": 4, "row": 1<<14, "column": (1<<5) << 3},  # HBM CA already takes BL into account
