@@ -197,4 +197,16 @@ HBM4.timing_presets = {
         "nRFCpb": 1120, "nRREFD": 8,
         "tCK_ps": 250,
     },
+    # HBM4 12.0 Gbps — 1.5x scaling off the 8 Gbps base. Plausible
+    # mid-life HBM4 production grade.
+    "HBM4_12000Mbps": {
+        "rate": 12000, "nBL": 2, "nCL": 30, "nCWL": 15,
+        "nRC": 135, "nRAS": 86, "nRP": 50, "nRCDRD": 59, "nRCDWR": 29,
+        "nRRDL": 11, "nRRDS": 8, "nFAW": 45, "nRTP": 18, "nWR": 63,
+        "nCCDL": 4, "nCCDS": 2, "nCCDR": 2,
+        "nWTRL": 20, "nWTRS": 14, "nRTW": 38,
+        "nPPD": 2,
+        "nRFCpb": 840, "nRREFD": 8,
+        "tCK_ps": 333,
+    },
 }
