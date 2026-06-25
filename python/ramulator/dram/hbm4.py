@@ -187,6 +187,19 @@ HBM4.timing_presets = {
         "nRFCpb": 560, "nRREFD": 8,
         "tCK_ps": 500,
     },
+    "HBM4_10400Mbps": {
+        # 1.3x of HBM4_8000Mbps. SK hynix HBM4 first-wave validation
+        # speed grade — early production samples shipped at 10.4 Gbps
+        # before broader 12.8 Gbps qualification.
+        "rate": 10400, "nBL": 2, "nCL": 26, "nCWL": 13,
+        "nRC": 117, "nRAS": 74, "nRP": 43, "nRCDRD": 51, "nRCDWR": 25,
+        "nRRDL": 9, "nRRDS": 7, "nFAW": 39, "nRTP": 16, "nWR": 55,
+        "nCCDL": 4, "nCCDS": 2, "nCCDR": 2,
+        "nWTRL": 17, "nWTRS": 11, "nRTW": 33,
+        "nPPD": 2,
+        "nRFCpb": 728, "nRREFD": 8,
+        "tCK_ps": 385,
+    },
     "HBM4_16000Mbps": {
         "rate": 16000, "nBL": 2, "nCL": 40, "nCWL": 20,
         "nRC": 180, "nRAS": 114, "nRP": 66, "nRCDRD": 78, "nRCDWR": 38,
