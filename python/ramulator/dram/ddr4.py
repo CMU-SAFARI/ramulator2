@@ -150,6 +150,7 @@ class DDR4(DRAMStandard):
         elif density <= 4096: tRFC_ns = 260
         elif density <= 8192: tRFC_ns = 360
         elif density <= 16384: tRFC_ns = 550
+        elif density <= 32768: tRFC_ns = 880  # Linear extrapolation for 32 Gb die
         else: return -1
         return math.ceil(tRFC_ns * 1000 / tCK_ps)
 
@@ -173,6 +174,10 @@ DDR4.org_presets = {
     "DDR4_16Gb_x4": {"density": 16384, "dq": 4,  "channel_width": 64, "rank": 1, "bankgroup": 4, "bank": 4, "row": 1<<18, "column": 1<<10},
     "DDR4_16Gb_x8": {"density": 16384, "dq": 8,  "channel_width": 64, "rank": 1, "bankgroup": 4, "bank": 4, "row": 1<<17, "column": 1<<10},
     "DDR4_16Gb_x16":{"density": 16384, "dq": 16, "channel_width": 64, "rank": 1, "bankgroup": 2, "bank": 4, "row": 1<<17, "column": 1<<10},
+    # DDR4_32Gb dies — late-life DDR4 silicon used by enterprise DIMMs
+    # before DDR5 broadly took over. Row count doubled vs 16 Gb.
+    "DDR4_32Gb_x4":  {"density": 32768, "dq": 4,  "channel_width": 64, "rank": 1, "bankgroup": 4, "bank": 4, "row": 1<<19, "column": 1<<10},
+    "DDR4_32Gb_x8":  {"density": 32768, "dq": 8,  "channel_width": 64, "rank": 1, "bankgroup": 4, "bank": 4, "row": 1<<18, "column": 1<<10},
 }
 
 # Primary timings only — secondary timings (nRRDS, nRRDL, nFAW, nRFC, nREFI)
