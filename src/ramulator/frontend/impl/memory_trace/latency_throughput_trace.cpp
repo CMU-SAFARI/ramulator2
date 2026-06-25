@@ -93,6 +93,58 @@ class LatencyThroughputTrace : public IFrontEnd, public Implementation {
           "LatencyThroughputTrace: num_streaming_requests must be set when streaming_only=true");
     }
 
+    // bank_positions and bank_counts are walked in lock-step in
+    // make_request(), random_addr_vec(), and decompose_bank():
+    //   bank_flat = bank_flat * m_bank_counts[i] + av[m_bank_positions[i]];
+    //   av[m_bank_positions[i]] = flat % m_bank_counts[i];
+    //   uniform_int_distribution<int>(0, m_bank_counts[i] - 1)
+    // Bad inputs silently break:
+    //   - size mismatch         out-of-bounds read on the shorter vector
+    //   - bank_counts[i] <= 0   SIGFPE in `flat % counts` / `flat /= counts`,
+    //                           libstdc++ UB on uniform_int_distribution(0,-1)
+    //   - bank_positions[i] out of [0, addr_vec_size)  out-of-bounds av[...]
+    //   - internal_prefetch_size <= 0  division-by-zero in make_request and
+    //                                  random_addr_vec column computations
+    if (m_bank_positions.size() != m_bank_counts.size()) {
+      throw std::runtime_error(fmt::format(
+          "LatencyThroughputTrace: bank_positions (len {}) and bank_counts "
+          "(len {}) must have the same length — they are walked in lock-step "
+          "by the streaming generator",
+          m_bank_positions.size(), m_bank_counts.size()));
+    }
+    if (m_bank_positions.empty()) {
+      throw std::runtime_error(
+          "LatencyThroughputTrace: bank_positions must be non-empty");
+    }
+    for (size_t i = 0; i < m_bank_positions.size(); i++) {
+      if (m_bank_counts[i] <= 0) {
+        throw std::runtime_error(fmt::format(
+            "LatencyThroughputTrace: bank_counts[{}] must be > 0 (got {})",
+            i, m_bank_counts[i]));
+      }
+      if (m_bank_positions[i] < 0 || m_bank_positions[i] >= m_addr_vec_size) {
+        throw std::runtime_error(fmt::format(
+            "LatencyThroughputTrace: bank_positions[{}] = {} is outside addr_vec "
+            "range [0, {})",
+            i, m_bank_positions[i], m_addr_vec_size));
+      }
+    }
+    if (m_internal_prefetch_size <= 0) {
+      throw std::runtime_error(fmt::format(
+          "LatencyThroughputTrace: internal_prefetch_size must be > 0 (got {})",
+          m_internal_prefetch_size));
+    }
+    if (m_row_pos < 0 || m_row_pos >= m_addr_vec_size) {
+      throw std::runtime_error(fmt::format(
+          "LatencyThroughputTrace: row_pos = {} is outside addr_vec range [0, {})",
+          m_row_pos, m_addr_vec_size));
+    }
+    if (m_col_pos < 0 || m_col_pos >= m_addr_vec_size) {
+      throw std::runtime_error(fmt::format(
+          "LatencyThroughputTrace: col_pos = {} is outside addr_vec range [0, {})",
+          m_col_pos, m_addr_vec_size));
+    }
+
     m_stats.add("streaming_requests_sent", s_streaming_sent);
     m_stats.add("probe_requests_completed", s_probes_completed);
     m_stats.add("total_probe_latency", s_total_probe_latency);
