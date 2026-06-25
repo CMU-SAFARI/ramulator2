@@ -93,6 +93,14 @@ class LatencyThroughputTrace : public IFrontEnd, public Implementation {
           "LatencyThroughputTrace: num_streaming_requests must be set when streaming_only=true");
     }
 
+    // nop_counter <= 0 is silently catastrophic — tick_nop() does
+    //     m_curr_nop = (m_curr_nop + 1) % m_nop_counter;
+    // which is divide-by-zero (UB) for 0 and ill-defined for negatives.
+    if (m_nop_counter <= 0) {
+      throw std::runtime_error(fmt::format(
+          "LatencyThroughputTrace: nop_counter must be >= 1 (got {})", m_nop_counter));
+    }
+
     m_stats.add("streaming_requests_sent", s_streaming_sent);
     m_stats.add("probe_requests_completed", s_probes_completed);
     m_stats.add("total_probe_latency", s_total_probe_latency);
