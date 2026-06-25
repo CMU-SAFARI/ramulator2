@@ -1,5 +1,9 @@
 #include "ramulator/dram/dram_spec.h"
 
+#include <stdexcept>
+
+#include <fmt/format.h>
+
 namespace Ramulator {
 
 void DRAMSpec::load_config(const ConfigNode& config) {
@@ -9,11 +13,41 @@ void DRAMSpec::load_config(const ConfigNode& config) {
   channel_width = dram["channel_width"].as<int>();
   ConfigNode org = dram["org"];
   organization.dq = org["dq"].as<int>();
+  if (organization.dq <= 0) {
+    throw std::runtime_error(fmt::format(
+        "DRAMSpec: org.dq must be > 0 (got {}) — feeds channel-width and "
+        "transaction-size arithmetic across the controller and channel mapper",
+        organization.dq));
+  }
+  if (channel_width <= 0) {
+    throw std::runtime_error(fmt::format(
+        "DRAMSpec: channel_width must be > 0 (got {})", channel_width));
+  }
   ConfigNode count_node = org["count"];
   const auto& counts = count_node.seq();
+  // Guard against an empty `count` list before line 19 dereferences
+  // level_sizes[0]; the size must also match the spec's static level_count
+  // (one entry per hierarchy level) or downstream code that indexes by
+  // level id steps off the end of the vector silently.
+  if (counts.empty()) {
+    throw std::runtime_error(
+        "DRAMSpec: org.count must list one size per DRAM hierarchy level "
+        "(got an empty list)");
+  }
+  if (static_cast<int>(counts.size()) != level_count) {
+    throw std::runtime_error(fmt::format(
+        "DRAMSpec: org.count has {} entries but the spec declares {} hierarchy "
+        "levels — these must agree",
+        counts.size(), level_count));
+  }
   organization.level_sizes.resize(counts.size());
   for (size_t i = 0; i < counts.size(); i++) {
     organization.level_sizes[i] = counts[i].as<int>();
+    if (organization.level_sizes[i] <= 0) {
+      throw std::runtime_error(fmt::format(
+          "DRAMSpec: org.count[{}] must be > 0 (got {})",
+          i, organization.level_sizes[i]));
+    }
   }
   // Each controller handles a single channel
   if (organization.level_sizes[0] != 1) {
@@ -33,6 +67,12 @@ void DRAMSpec::load_config(const ConfigNode& config) {
 
   // Read latency (pre-computed by Python)
   read_latency = dram["read_latency"].as<int>();
+  if (read_latency <= 0) {
+    throw std::runtime_error(fmt::format(
+        "DRAMSpec: read_latency must be > 0 (got {}) — feeds the controller's "
+        "per-request retire_request scheduling",
+        read_latency));
+  }
 
   // Timing constraints (pre-computed by Python)
   timing_cons.resize(level_count, std::vector<std::vector<TimingConsEntry>>(command_count));
