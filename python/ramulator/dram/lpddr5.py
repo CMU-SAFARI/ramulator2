@@ -177,6 +177,10 @@ class LPDDR5(DRAMStandard):
 LPDDR5.org_presets = {
     "LPDDR5_8Gb_x16":  {"density": 8192,  "dq": 16, "channel_width": 16, "rank": 1, "bankgroup": 4, "bank": 4, "row": 1<<15, "column": 1<<10},
     "LPDDR5_16Gb_x16": {"density": 16384, "dq": 16, "channel_width": 16, "rank": 1, "bankgroup": 4, "bank": 4, "row": 1<<16, "column": 1<<10},
+    # LPDDR5_32Gb_x16 — top-end LPDDR5 die density. Used by current
+    # flagship smartphones / on-device AI inference accelerators.
+    # Row count doubled versus 16 Gb.
+    "LPDDR5_32Gb_x16": {"density": 32768, "dq": 16, "channel_width": 16, "rank": 1, "bankgroup": 4, "bank": 4, "row": 1<<17, "column": 1<<10},
 }
 
 # Primary timings only — secondary timings resolved by resolve_secondary_timings().
