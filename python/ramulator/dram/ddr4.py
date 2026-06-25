@@ -178,6 +178,9 @@ DDR4.org_presets = {
 # Primary timings only — secondary timings (nRRDS, nRRDL, nFAW, nRFC, nREFI)
 # are resolved from JEDEC tables in resolve_secondary_timings().
 DDR4.timing_presets = {
+    # DDR4-1333 (tCK = 1500 ps) — earliest DDR4 spec rate, used by
+    # 2014-2015 era validation silicon.
+    "DDR4_1333J":  {"rate": 1333, "nBL": 4, "nCL": 9,  "nRCD": 9,  "nRP": 9,  "nRAS": 24, "nRC": 33, "nWR": 10, "nRTP": 5,  "nCWL": 7,  "nCCDS": 4, "nCCDL": 4, "nWTRS": 2, "nWTRL": 5,  "nCS": 2, "tCK_ps": 1500},
     "DDR4_1600J":  {"rate": 1600, "nBL": 4, "nCL": 10, "nRCD": 10, "nRP": 10, "nRAS": 28, "nRC": 38, "nWR": 12, "nRTP": 6,  "nCWL": 9,  "nCCDS": 4, "nCCDL": 5, "nWTRS": 2, "nWTRL": 6,  "nCS": 2, "tCK_ps": 1250},
     "DDR4_1600K":  {"rate": 1600, "nBL": 4, "nCL": 11, "nRCD": 11, "nRP": 11, "nRAS": 28, "nRC": 39, "nWR": 12, "nRTP": 6,  "nCWL": 9,  "nCCDS": 4, "nCCDL": 5, "nWTRS": 2, "nWTRL": 6,  "nCS": 2, "tCK_ps": 1250},
     "DDR4_1600L":  {"rate": 1600, "nBL": 4, "nCL": 12, "nRCD": 12, "nRP": 12, "nRAS": 28, "nRC": 40, "nWR": 12, "nRTP": 6,  "nCWL": 9,  "nCCDS": 4, "nCCDL": 5, "nWTRS": 2, "nWTRL": 6,  "nCS": 2, "tCK_ps": 1250},
