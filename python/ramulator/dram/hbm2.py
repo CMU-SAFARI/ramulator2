@@ -208,6 +208,14 @@ HBM2.timing_presets = {
         "nCCDS": 2, "nCCDL": 4, "nWTRS": 6, "nWTRL": 8,
         "tCK_ps": 1000,
     },
+    # HBM2_2200Mbps — between the 2.0 Gbps and 2.4 Gbps JEDEC tiers,
+    # matches mid-bin Samsung HBM2 silicon (2018 era).
+    "HBM2_2200Mbps": {
+        "rate": 2200, "nBL": 2, "nCL": 15, "nRCDRD": 15, "nRCDWR": 13,
+        "nRP": 15, "nRAS": 36, "nRC": 51, "nWR": 18, "nRTPL": 5, "nCWL": 5,
+        "nCCDS": 2, "nCCDL": 4, "nWTRS": 7, "nWTRL": 9,
+        "tCK_ps": 909,
+    },
     "HBM2_2400Mbps": {
         "rate": 2400, "nBL": 2, "nCL": 17, "nRCDRD": 17, "nRCDWR": 14,
         "nRP": 17, "nRAS": 40, "nRC": 57, "nWR": 19, "nRTPL": 6, "nCWL": 6,
