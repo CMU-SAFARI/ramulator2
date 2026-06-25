@@ -33,7 +33,13 @@ template <typename Integral_t>
 Integral_t slice_lower_bits(Integral_t& addr, int num_bits) {
   static_assert(std::is_integral_v<Integral_t>, "Only integral types are allowed for bitwise operations!");
 
-  Integral_t lbits = addr & ((1 << num_bits) - 1);
+  // The mask literal must be widened to Integral_t before shifting; the
+  // plain literal `1` is `int`, so `1 << num_bits` is undefined for
+  // num_bits >= 31 on platforms with 32-bit int, even when the destination
+  // is a 64-bit Addr_t. In current Ramulator configs num_bits stays small
+  // (per-level address bits), but the address mappers slice from Addr_t
+  // (int64_t) and a forward-compatible mask is essentially free.
+  Integral_t lbits = addr & ((static_cast<Integral_t>(1) << num_bits) - 1);
   addr >>= num_bits;
   return lbits;
 };
