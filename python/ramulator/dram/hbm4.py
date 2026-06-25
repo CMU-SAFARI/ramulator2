@@ -187,6 +187,17 @@ HBM4.timing_presets = {
         "nRFCpb": 560, "nRREFD": 8,
         "tCK_ps": 500,
     },
+    # HBM4_8800Mbps — 1.1x of HBM4_8000Mbps; bridge bin.
+    "HBM4_8800Mbps": {
+        "rate": 8800, "nBL": 2, "nCL": 22, "nCWL": 11,
+        "nRC": 99, "nRAS": 63, "nRP": 36, "nRCDRD": 43, "nRCDWR": 21,
+        "nRRDL": 8, "nRRDS": 6, "nFAW": 33, "nRTP": 13, "nWR": 46,
+        "nCCDL": 4, "nCCDS": 2, "nCCDR": 2,
+        "nWTRL": 17, "nWTRS": 11, "nRTW": 28,
+        "nPPD": 2,
+        "nRFCpb": 616, "nRREFD": 8,
+        "tCK_ps": 455,
+    },
     "HBM4_16000Mbps": {
         "rate": 16000, "nBL": 2, "nCL": 40, "nCWL": 20,
         "nRC": 180, "nRAS": 114, "nRP": 66, "nRCDRD": 78, "nRCDWR": 38,
