@@ -175,6 +175,8 @@ class LPDDR5(DRAMStandard):
 # ---- LPDDR5 JEDEC preset data ----
 
 LPDDR5.org_presets = {
+    # LPDDR5_4Gb_x16 — entry-level LPDDR5 die for low-cost / IoT devices.
+    "LPDDR5_4Gb_x16":  {"density": 4096,  "dq": 16, "channel_width": 16, "rank": 1, "bankgroup": 4, "bank": 4, "row": 1<<14, "column": 1<<10},
     "LPDDR5_8Gb_x16":  {"density": 8192,  "dq": 16, "channel_width": 16, "rank": 1, "bankgroup": 4, "bank": 4, "row": 1<<15, "column": 1<<10},
     "LPDDR5_16Gb_x16": {"density": 16384, "dq": 16, "channel_width": 16, "rank": 1, "bankgroup": 4, "bank": 4, "row": 1<<16, "column": 1<<10},
 }
