@@ -273,4 +273,19 @@ GDDR6.timing_presets = {
         "nRREFD": 21, "nREFI": 3333,
         "tCK_ps": 570, "nRFCab": 315
     },
+    # GDDR6 2250 MHz (18 Gbps) — used in RTX 3070 Ti, RX 6750 XT-era cards.
+    # Timings scaled 1.125x from the 2000 MHz / 1.35 V double preset.
+    "GDDR6_2250_1350mV_double": {
+        "rate": 2250, "nBL": 4, "nCL": 27,
+        "nRCDRD": 29, "nRCDWD": 18,
+        "nRP": 29, "nRAS": 60, "nRC": 89,
+        "nWR": 29, "nRTP": 5, "nCWL": 7,
+        "nCCDS": 4, "nCCDL": 6,
+        "nRRDS": 8, "nRRDL": 8,
+        "nWTRS": 10, "nWTRL": 12,
+        "nFAW": 32,
+        "nRFC": 236, "nRFCpb": 118,
+        "nRREFD": 16, "nREFI": 3750,
+        "tCK_ps": 506, "nRFCab": 354
+    },
 }
