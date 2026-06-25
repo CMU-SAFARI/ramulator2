@@ -106,6 +106,10 @@ class ReadWriteTrace : public IFrontEnd, public Implementation {
     trace_file.close();
 
     m_trace_length = m_trace.size();
+    if (m_trace_length == 0) {
+      throw std::runtime_error(
+          fmt::format("Trace {} produced no entries — file is empty", file_path_str));
+    }
   };
 
   bool is_finished() override {

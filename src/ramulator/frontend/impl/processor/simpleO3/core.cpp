@@ -46,6 +46,11 @@ SimpleO3Core::Trace::Trace(std::string file_path_str) {
 
   trace_file.close();
   m_trace_length = m_trace.size();
+  if (m_trace_length == 0) {
+    throw std::runtime_error(
+        fmt::format("Trace {} produced no instructions — file is empty or all lines were skipped",
+                    file_path_str));
+  }
 }
 
 const SimpleO3Core::Trace::Inst& SimpleO3Core::Trace::get_next_inst() {
