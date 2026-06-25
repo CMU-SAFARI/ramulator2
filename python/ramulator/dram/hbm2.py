@@ -208,6 +208,15 @@ HBM2.timing_presets = {
         "nCCDS": 2, "nCCDL": 4, "nWTRS": 6, "nWTRL": 8,
         "tCK_ps": 1000,
     },
+    # HBM2_3000Mbps — between HBM2E entry (2.8 Gbps) and common
+    # 3.2 Gbps point. Matches SK hynix Aquabolt-XL intermediate
+    # bin for HBM2E silicon.
+    "HBM2_3000Mbps": {
+        "rate": 3000, "nBL": 2, "nCL": 21, "nRCDRD": 21, "nRCDWR": 18,
+        "nRP": 21, "nRAS": 50, "nRC": 71, "nWR": 24, "nRTPL": 8, "nCWL": 8,
+        "nCCDS": 2, "nCCDL": 5, "nWTRS": 10, "nWTRL": 13,
+        "tCK_ps": 667,
+    },
     "HBM2_2400Mbps": {
         "rate": 2400, "nBL": 2, "nCL": 17, "nRCDRD": 17, "nRCDWR": 14,
         "nRP": 17, "nRAS": 40, "nRC": 57, "nWR": 19, "nRTPL": 6, "nCWL": 6,
