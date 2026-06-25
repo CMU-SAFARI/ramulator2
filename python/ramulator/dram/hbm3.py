@@ -224,6 +224,18 @@ HBM3.org_presets = {
 # Timing presets — CK cycles. Non-refresh timing values are supplied directly
 # here; refresh-related values may be supplied here or resolved below.
 HBM3.timing_presets = {
+    # HBM3_5600Mbps — sub-rate validation point (0.875x). HBM3 silicon
+    # binned below 6.4 Gbps for low-power validation.
+    "HBM3_5600Mbps": {
+        "rate": 5600, "nBL": 2, "nCL": 18, "nRCDRD": 27, "nRCDWR": 13,
+        "nRP": 23, "nRAS": 39, "nRC": 63, "nWR": 29, "nRTP": 8, "nCWL": 9,
+        "nCCDS": 2, "nCCDL": 4, "nCCDR": 3,
+        "nRRDS": 4, "nRRDL": 5, "nFAW": 21,
+        "nWTRS": 6, "nWTRL": 9, "nRTW": 18,
+        "nRFCpb": 280, "nRREFD": 8, "nREFI": 5460,
+        "nPPD": 2,
+        "tCK_ps": 714,
+    },
     "HBM3_6400Mbps": {
         "rate": 6400, "nBL": 2, "nCL": 20, "nRCDRD": 31, "nRCDWR": 15,
         "nRP": 26, "nRAS": 45, "nRC": 72, "nWR": 33, "nRTP": 9, "nCWL": 10,
