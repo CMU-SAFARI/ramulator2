@@ -1,7 +1,9 @@
+#include <climits>
 #include <filesystem>
 #include <fmt/format.h>
 #include <fstream>
 #include <iostream>
+#include <stdexcept>
 
 #include "ramulator/base/param.h"
 #include "ramulator/frontend/i_frontend.h"
@@ -96,8 +98,18 @@ class ReadWriteTrace : public IFrontEnd, public Implementation {
       tokenize(addr_vec_tokens, tokens[1], ",");
 
       AddrVec_t addr_vec;
-      for (const auto& token : addr_vec_tokens) {
-        addr_vec.push_back(static_cast<int>(std::stoll(token)));
+      for (size_t k = 0; k < addr_vec_tokens.size(); k++) {
+        // AddrVec_t is std::vector<int>. Silently narrowing the parsed
+        // 64-bit value would let a too-large row index alias onto a
+        // wrong (or negative) bank/row index and the simulation would
+        // run with the wrong workload — fail loudly instead.
+        long long v = std::stoll(addr_vec_tokens[k]);
+        if (v < 0 || v > INT_MAX) {
+          throw std::runtime_error(fmt::format(
+              "Trace {} line {}: addr_vec[{}] = {} is outside [0, INT_MAX]",
+              file_path_str, line_num, k, v));
+        }
+        addr_vec.push_back(static_cast<int>(v));
       }
 
       m_trace.push_back({is_write, addr_vec});
@@ -106,6 +118,19 @@ class ReadWriteTrace : public IFrontEnd, public Implementation {
     trace_file.close();
 
     m_trace_length = m_trace.size();
+    // tick() reads m_trace[m_curr_trace_idx] and advances
+    // `(idx + 1) % m_trace_length`. An empty trace file leaves
+    // m_trace_length = 0; the very first tick would be
+    // out-of-bounds vector access plus modulo by zero (SIGFPE).
+    // is_finished() returns true immediately for empty input, so
+    // depending on the harness's tick / is_finished ordering the
+    // user either crashes or runs a simulation that did literally
+    // nothing — silent no-op trace.
+    if (m_trace_length == 0) {
+      throw std::runtime_error(fmt::format(
+          "Trace {} is empty — at least one R/W line is required",
+          file_path_str));
+    }
   };
 
   bool is_finished() override {
