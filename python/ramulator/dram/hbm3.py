@@ -224,6 +224,19 @@ HBM3.org_presets = {
 # Timing presets — CK cycles. Non-refresh timing values are supplied directly
 # here; refresh-related values may be supplied here or resolved below.
 HBM3.timing_presets = {
+    # HBM3_10800Mbps — 1.6875x of HBM3_6400. SK hynix HBM3 high-bin
+    # validation point above the HBM3E gen-3 9.6 Gbps but below the
+    # 12.8 Gbps Gen2 rate.
+    "HBM3_10800Mbps": {
+        "rate": 10800, "nBL": 2, "nCL": 34, "nRCDRD": 52, "nRCDWR": 25,
+        "nRP": 44, "nRAS": 76, "nRC": 122, "nWR": 56, "nRTP": 15, "nCWL": 17,
+        "nCCDS": 2, "nCCDL": 7, "nCCDR": 5,
+        "nRRDS": 7, "nRRDL": 8, "nFAW": 41,
+        "nWTRS": 12, "nWTRL": 17, "nRTW": 34,
+        "nRFCpb": 540, "nRREFD": 8, "nREFI": 10530,
+        "nPPD": 2,
+        "tCK_ps": 370,
+    },
     "HBM3_6400Mbps": {
         "rate": 6400, "nBL": 2, "nCL": 20, "nRCDRD": 31, "nRCDWR": 15,
         "nRP": 26, "nRAS": 45, "nRC": 72, "nWR": 33, "nRTP": 9, "nCWL": 10,
