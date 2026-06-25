@@ -83,7 +83,12 @@ void AllBankRefresh::init() {
 }
 
 void AllBankRefresh::tick() {
-  if (m_ctrl->m_clk == m_next_refresh_cycle) {
+  // Use >= rather than == so a tick that skips past the scheduled
+  // refresh clock (e.g. tick frequency adjustment, paused-and-resumed
+  // simulation) still fires the refresh on the next tick instead of
+  // silently dropping it forever — matches HBM34PerBankRefresh's
+  // defensive shape.
+  if (m_ctrl->m_clk >= m_next_refresh_cycle) {
     m_next_refresh_cycle += m_nrefi;
     for (auto* ref_node : m_ref_nodes) {
       AddrVec_t addr_vec = build_addr_vec(ref_node);

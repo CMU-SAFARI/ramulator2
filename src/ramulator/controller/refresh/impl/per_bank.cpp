@@ -48,7 +48,11 @@ void PerBankRefresh::init() {
 }
 
 void PerBankRefresh::tick() {
-  if (m_ctrl->m_clk == m_next_refresh_cycle) {
+  // Use >= rather than == so a tick that skips past the scheduled
+  // refresh clock still fires the refresh on the next tick instead of
+  // silently dropping it forever — matches HBM34PerBankRefresh's
+  // defensive shape.
+  if (m_ctrl->m_clk >= m_next_refresh_cycle) {
     m_next_refresh_cycle += m_nrefipb;
 
     // Refresh one bank in round-robin order
