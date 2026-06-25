@@ -187,6 +187,20 @@ HBM4.timing_presets = {
         "nRFCpb": 560, "nRREFD": 8,
         "tCK_ps": 500,
     },
+    "HBM4_12800Mbps": {
+        # 1.6x of HBM4_8000Mbps — JEDEC HBM4 timings are fixed in ns; the
+        # CK-domain values scale linearly with rate. This matches the
+        # SK hynix / Samsung second-wave HBM4 product target (after the
+        # 9.6 Gbps first wave at HBM4_9600Mbps) and rounds tCK_ps to 312.
+        "rate": 12800, "nBL": 2, "nCL": 32, "nCWL": 16,
+        "nRC": 144, "nRAS": 91, "nRP": 53, "nRCDRD": 62, "nRCDWR": 30,
+        "nRRDL": 11, "nRRDS": 8, "nFAW": 48, "nRTP": 19, "nWR": 67,
+        "nCCDL": 4, "nCCDS": 2, "nCCDR": 2,
+        "nWTRL": 21, "nWTRS": 14, "nRTW": 40,
+        "nPPD": 2,
+        "nRFCpb": 896, "nRREFD": 8,
+        "tCK_ps": 312,
+    },
     "HBM4_16000Mbps": {
         "rate": 16000, "nBL": 2, "nCL": 40, "nCWL": 20,
         "nRC": 180, "nRAS": 114, "nRP": 66, "nRCDRD": 78, "nRCDWR": 38,
