@@ -191,6 +191,9 @@ DDR5.timing_presets = {
     "DDR5_4800AN": {"rate": 4800, "nBL": 8, "nCL": 34, "nRCD": 34, "nRP": 34, "nRAS": 77, "nRC": 111, "nWR": 72, "nRTP": 18, "nCWL": 32, "nPPD": 2, "nCCDS": 8,  "nCCDL": 12, "nCCDS_WR": 8,  "nCCDL_WR": 48, "nWTRS": 6,  "nWTRL": 24, "nCS": 2, "tCK_ps": 416},
     "DDR5_4800BN": {"rate": 4800, "nBL": 8, "nCL": 36, "nRCD": 36, "nRP": 36, "nRAS": 77, "nRC": 113, "nWR": 72, "nRTP": 18, "nCWL": 34, "nPPD": 2, "nCCDS": 8,  "nCCDL": 12, "nCCDS_WR": 8,  "nCCDL_WR": 48, "nWTRS": 6,  "nWTRL": 24, "nCS": 2, "tCK_ps": 416},
     "DDR5_4800C":  {"rate": 4800, "nBL": 8, "nCL": 38, "nRCD": 38, "nRP": 38, "nRAS": 77, "nRC": 115, "nWR": 72, "nRTP": 18, "nCWL": 36, "nPPD": 2, "nCCDS": 8,  "nCCDL": 12, "nCCDS_WR": 8,  "nCCDL_WR": 48, "nWTRS": 6,  "nWTRL": 24, "nCS": 2, "tCK_ps": 416},
+    # DDR5-5200 (tCK = 384 ps) — JEDEC intermediate bin between 4800 and 5600.
+    "DDR5_5200AN": {"rate": 5200, "nBL": 8, "nCL": 38, "nRCD": 38, "nRP": 38, "nRAS": 84, "nRC": 122, "nWR": 78, "nRTP": 19, "nCWL": 35, "nPPD": 2, "nCCDS": 8,  "nCCDL": 12, "nCCDS_WR": 8,  "nCCDL_WR": 52, "nWTRS": 6,  "nWTRL": 26, "nCS": 2, "tCK_ps": 384},
+    "DDR5_5200BN": {"rate": 5200, "nBL": 8, "nCL": 40, "nRCD": 40, "nRP": 40, "nRAS": 84, "nRC": 124, "nWR": 78, "nRTP": 19, "nCWL": 37, "nPPD": 2, "nCCDS": 8,  "nCCDL": 12, "nCCDS_WR": 8,  "nCCDL_WR": 52, "nWTRS": 6,  "nWTRL": 26, "nCS": 2, "tCK_ps": 384},
     # DDR5-5600 (tCK = 357 ps)
     "DDR5_5600AN": {"rate": 5600, "nBL": 8, "nCL": 40, "nRCD": 40, "nRP": 40, "nRAS": 90, "nRC": 130, "nWR": 84, "nRTP": 20, "nCWL": 38, "nPPD": 2, "nCCDS": 8,  "nCCDL": 12, "nCCDS_WR": 8,  "nCCDL_WR": 56, "nWTRS": 5,  "nWTRL": 28, "nCS": 2, "tCK_ps": 357},
     # DDR5-6400 (tCK = 312 ps)
