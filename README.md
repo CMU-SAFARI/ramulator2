@@ -23,8 +23,8 @@ This Github repository contains the public version of Ramulator 2.1. From time t
 
 Currently, Ramulator 2.1 provides the DRAM device and memory controller models for the following standards:
 - DDR3, DDR4, DDR5
-- GDDR6
-- LPDDR5 (with WCK2CK sync and expiry tracking and tAAD deadline aware scheduling for separate ACT1 and ACT2)
+- GDDR6, GDDR7
+- LPDDR5, LPDDR6
 - HBM1, HBM2, HBM3, HBM4 (Row and column command dual-issue and pseudochannels)
 
 What has changed from Ramulator 2.0:
