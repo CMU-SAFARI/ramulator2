@@ -4,3 +4,35 @@ ext/
 ramulator2
 *.so
 autobuild.sh
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+ramulator2-venv/
+.venv/
+
+# Reference docs (large binaries)
+resources/jedec/
+
+# Generated/non-code artifacts
+*.ipynb
+*.pdf
+*.pkl
+*.png
+tests/plots/
+tests/latency_throughput/plots/
+sweep_log.txt
+.ipynb_checkpoints/tests/plots/
+
+*.out
+*.json
+
+# Visualizer
+*.ram2bin
+!visualizer/package.json
+!visualizer/package-lock.json
+!visualizer/tsconfig.json

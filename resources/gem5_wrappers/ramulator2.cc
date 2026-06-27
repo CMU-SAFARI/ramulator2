@@ -1,20 +1,23 @@
-#include "mem/ramulator2.hh"
+#include "mem/ramulator2/ramulator2.hh"
+
+#include <fstream>
 
 #include "base/callback.hh"
+#include "base/output.hh"
 #include "base/trace.hh"
 #include "debug/Ramulator2.hh"
 #include "debug/Drain.hh"
 #include "sim/system.hh"
 
-// spdlog collides with gem5...
+// gem5 defines warn as a macro — protect Ramulator headers
 #pragma push_macro("warn")
 #undef warn
 
-#include "ramulator2/src/base/base.h"
-#include "ramulator2/src/base/request.h"
-#include "ramulator2/src/base/config.h"
-#include "ramulator2/src/frontend/frontend.h"
-#include "ramulator2/src/memory_system/memory_system.h"
+#include "ramulator/base/base.h"
+#include "ramulator/base/request.h"
+#include "ramulator/base/config.h"
+#include "ramulator/frontend/i_frontend.h"
+#include "ramulator/memory_system/i_memory_system.h"
 
 namespace gem5
 {
@@ -25,7 +28,7 @@ namespace memory
 Ramulator2::Ramulator2(const Params &p) :
     AbstractMemory(p),
     port(name() + ".port", *this),
-    config_path(p.config_path),
+    ramulator_config(p.ramulator_config),
     retryReq(false), retryResp(false), startTick(0),
     nbrOutstandingReads(0), nbrOutstandingWrites(0),
     sendResponseEvent([this]{ sendResponse(); }, name()),
@@ -33,10 +36,21 @@ Ramulator2::Ramulator2(const Params &p) :
 {
     DPRINTF(Ramulator2, "Instantiated Ramulator2 \n");
 
-    registerExitCallback([this]() { 
+    registerExitCallback([this]() {
         ramulator2_frontend->finalize();
         ramulator2_memorysystem->finalize();
+
+        std::string path = simout.resolve("ramulator_stats.yaml");
+        std::ofstream ofs(path);
+        ramulator2_frontend->print_stats(ofs);
+        ramulator2_memorysystem->print_stats(ofs);
     });
+}
+
+Ramulator2::~Ramulator2()
+{
+    delete ramulator2_frontend;
+    delete ramulator2_memorysystem;
 }
 
 void
@@ -50,16 +64,15 @@ Ramulator2::init()
         port.sendRangeChange();
     }
 
-    YAML::Node config = Ramulator::Config::parse_config_file(config_path, {});
+    Ramulator::ConfigNode config = Ramulator::Config::parse_config_string(ramulator_config);
     ramulator2_frontend = Ramulator::Factory::create_frontend(config);
     ramulator2_memorysystem = Ramulator::Factory::create_memory_system(config);
 
     ramulator2_frontend->connect_memory_system(ramulator2_memorysystem);
     ramulator2_memorysystem->connect_frontend(ramulator2_frontend);
 
-    // if (system()->cacheLineSize() != wrapper.burstSize())
-    //     fatal("Ramulator2 burst size %d does not match cache line size %d\n",
-    //           wrapper.burstSize(), system()->cacheLineSize());
+    // gem5 packet size is passed through to Ramulator; the memory system
+    // validates that each request fits in one DRAM transaction.
 }
 
 void
@@ -67,8 +80,12 @@ Ramulator2::startup()
 {
     startTick = curTick();
 
-    // kick off the clock ticks
-    schedule(tickEvent, clockEdge());
+    // // kick off the clock ticks
+    // schedule(tickEvent, clockEdge());
+    // The below fixes crashing during full FS bootup, credits: @sangjae4309
+    // please check https://github.com/CMU-SAFARI/ramulator2/pull/79 and
+    // https://github.com/sangjae4309/gem5-ramulator2/issues/5 for details
+    schedule(tickEvent, 13121004000177);
 }
 
 void
@@ -89,8 +106,7 @@ Ramulator2::sendResponse()
         responseQueue.pop_front();
 
         DPRINTF(Ramulator2, "Have %d read, %d write, %d responses outstanding\n",
-                nbrOutstandingReads, nbrOutstandingWrites,
-                responseQueue.size());
+                nbrOutstandingReads, nbrOutstandingWrites, responseQueue.size());
 
         if (!responseQueue.empty() && !sendResponseEvent.scheduled())
             schedule(sendResponseEvent, curTick());
@@ -177,7 +193,7 @@ Ramulator2::recvTimingReq(PacketPtr pkt)
     {
         // Generate ramulator READ request and try to send to ramulator's memory system
         enqueue_success = ramulator2_frontend->
-            receive_external_requests(0, pkt->getAddr(), 0, 
+            receive_external_requests(0, pkt->getAddr(), 0,
             [this](Ramulator::Request& req) {
                 DPRINTF(Ramulator2, "Read to %ld completed.\n", req.addr);
                 auto& pkt_q = outstandingReads.find(req.addr)->second;
@@ -186,11 +202,11 @@ Ramulator2::recvTimingReq(PacketPtr pkt)
                 if (!pkt_q.size())
                     outstandingReads.erase(req.addr);
 
-                // added counter to track requests in flight
                 --nbrOutstandingReads;
 
                 accessAndRespond(pkt);
-            });
+            },
+            pkt->getSize());
 
         if (enqueue_success) 
         {
@@ -206,33 +222,22 @@ Ramulator2::recvTimingReq(PacketPtr pkt)
             retryReq = true;
         }
     } else if (pkt->isWrite()) {
-        // Generate ramulator WRITE request and try to send to ramulator's memory system
         enqueue_success = ramulator2_frontend->
-            receive_external_requests(1, pkt->getAddr(), 0, 
+            receive_external_requests(1, pkt->getAddr(), 0,
             [this](Ramulator::Request& req) {
                 DPRINTF(Ramulator2, "Write to %ld completed.\n", req.addr);
-                auto& pkt_q = outstandingWrites.find(req.addr)->second;
-                PacketPtr pkt = pkt_q.front();
-                pkt_q.pop_front();
-                if (!pkt_q.size())
-                    outstandingWrites.erase(req.addr);
-
-                // added counter to track requests in flight
                 --nbrOutstandingWrites;
+                if (nbrOutstanding() == 0)
+                    signalDrainDone();
+            },
+            pkt->getSize());
 
-                accessAndRespond(pkt);
-            });
-
-        if (enqueue_success) 
+        if (enqueue_success)
         {
-            outstandingWrites[pkt->getAddr()].push_back(pkt);
-
-            ++nbrOutstandingWrites;
-
-            // perform the access for writes
             accessAndRespond(pkt);
-        } 
-        else 
+            ++nbrOutstandingWrites;
+        }
+        else
         {
             retryReq = true;
         }

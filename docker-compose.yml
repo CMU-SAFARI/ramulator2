@@ -1,0 +1,54 @@
+services:
+  ramulator2:
+    build:
+      context: .
+      dockerfile: .devcontainer/Dockerfile
+      args:
+        USER_UID: ${HOST_UID:-1000}
+        USER_GID: ${HOST_GID:-1000}
+    init: true
+    cap_add:
+      - SYS_PTRACE
+    security_opt:
+      - seccomp=unconfined
+    environment:
+      CC: gcc
+      CXX: g++
+      VIRTUAL_ENV: /home/vscode/ramulator2-venv
+      PATH: /home/vscode/ramulator2-venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+    volumes:
+      - .:/workspace:cached
+    working_dir: /workspace
+    user: vscode
+    command: bash -c "bash .devcontainer/post-create.sh && sleep infinity"
+
+  visualizer:
+    profiles: [visualizer]
+    build:
+      context: ./visualizer
+      dockerfile: Dockerfile
+    init: true
+    ports:
+      - "${RAMULATOR_VISUALIZER_PORT:-3000}:3000"
+    environment:
+      PORT: "3000"
+      NITRO_PORT: "3000"
+      HOST: "0.0.0.0"
+
+  visualizer-dev:
+    profiles: [visualizer-dev]
+    image: node:22
+    init: true
+    working_dir: /app
+    volumes:
+      - ./visualizer:/app:cached
+      - visualizer_node_modules:/app/node_modules
+    ports:
+      - "${RAMULATOR_VISUALIZER_PORT:-3000}:3000"
+    environment:
+      RAMULATOR_VISUALIZER_PORT: "3000"
+      HOST: "0.0.0.0"
+    command: sh -c "npm install && npx nuxt dev --host 0.0.0.0"
+
+volumes:
+  visualizer_node_modules:

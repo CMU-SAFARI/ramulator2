@@ -1,0 +1,21 @@
+BasedOnStyle: Google
+IndentWidth: 2
+UseTab: Never
+BreakBeforeBraces: Attach
+ColumnLimit: 120
+PointerAlignment: Left
+NamespaceIndentation: None
+AccessModifierOffset: -1
+SortIncludes: CaseSensitive
+IncludeBlocks: Regroup
+IncludeCategories:
+  - Regex: '^<.*>'
+    Priority: 1
+  - Regex: '.*'
+    Priority: 2
+AllowShortFunctionsOnASingleLine: None
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+InsertBraces: true
+DerivePointerAlignment: false
+SpaceAfterCStyleCast: false

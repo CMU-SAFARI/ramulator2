@@ -1,0 +1,14 @@
+#include "ramulator/base/request.h"
+
+namespace Ramulator {
+
+Request::Request(Addr_t addr, int type) : addr(addr), type_id(type){};
+
+Request::Request(AddrVec_t addr_vec, int type) : addr_vec(std::move(addr_vec)), type_id(type){};
+
+Request::Request(Addr_t addr, int type, int source_id, std::function<void(Request&)> callback)
+    : addr(addr), type_id(type), source_id(source_id), callback(callback){};
+
+Request::Request(AddrVec_t addr_vec, Cmd_t, int final_cmd) : addr_vec(std::move(addr_vec)), final_command(final_cmd){};
+
+}  // namespace Ramulator

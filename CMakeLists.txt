@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.14)
 
 project(
   Ramulator
-  VERSION 2.0
+  VERSION 2.1
   LANGUAGES CXX
 )
 
@@ -34,60 +34,93 @@ option(YAML_BUILD_SHARED_LIBS "Build yaml-cpp as a shared library" OFF)
 FetchContent_Declare(
   yaml-cpp                             
   GIT_REPOSITORY https://github.com/jbeder/yaml-cpp.git
-  GIT_TAG        yaml-cpp-0.7.0                        
-  SOURCE_DIR     ${CMAKE_SOURCE_DIR}/ext/yaml-cpp
+  GIT_TAG        yaml-cpp-0.9.0                        
+  SOURCE_DIR     ${CMAKE_CURRENT_SOURCE_DIR}/ext/yaml-cpp
 )
 FetchContent_MakeAvailable(yaml-cpp)
 include_directories(${yaml-cpp_SOURCE_DIR}/include)
 message("Done configuring yaml-cpp.")
 
-message("Configuring spdlog...")
+message("Configuring fmt...")
 FetchContent_Declare(
-  spdlog                             
-  GIT_REPOSITORY https://github.com/gabime/spdlog.git
-  GIT_TAG        v1.11.0     
-  SOURCE_DIR     ${CMAKE_SOURCE_DIR}/ext/spdlog
+  fmt
+  GIT_REPOSITORY https://github.com/fmtlib/fmt.git
+  GIT_TAG        10.2.1
+  SOURCE_DIR     ${CMAKE_CURRENT_SOURCE_DIR}/ext/fmt
 )
-FetchContent_MakeAvailable(spdlog)
-include_directories(${spdlog_SOURCE_DIR}/include)
-message("Done configuring spdlog.")
+FetchContent_MakeAvailable(fmt)
+include_directories(${fmt_SOURCE_DIR}/include)
+message("Done configuring fmt.")
 
-message("Configuring argparse...")
-FetchContent_Declare(
-    argparse
-    GIT_REPOSITORY https://github.com/p-ranav/argparse.git
-    GIT_TAG        v2.9     
-    SOURCE_DIR     ${CMAKE_SOURCE_DIR}/ext/argparse
-)
-FetchContent_MakeAvailable(argparse)
-include_directories(${argparse_SOURCE_DIR}/include)
-message("Done configuring argparse.")
+option(RAMULATOR_PYTHON_BINDINGS "Build Python nanobind bindings" ON)
+if(RAMULATOR_PYTHON_BINDINGS)
+  find_package(Python 3.10 REQUIRED COMPONENTS Interpreter Development.Module)
+
+  message("Configuring nanobind...")
+  FetchContent_Declare(
+    nanobind
+    GIT_REPOSITORY https://github.com/wjakob/nanobind.git
+    GIT_TAG        v2.4.0
+    SOURCE_DIR     ${CMAKE_CURRENT_SOURCE_DIR}/ext/nanobind
+  )
+  FetchContent_MakeAvailable(nanobind)
+  message("Done configuring nanobind.")
+endif()
 ##################################
 
-include_directories(${CMAKE_SOURCE_DIR}/src)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src)
 
 add_library(ramulator SHARED)
 set_target_properties(ramulator PROPERTIES
   LIBRARY_OUTPUT_DIRECTORY  ${PROJECT_SOURCE_DIR}
 )
+# PUBLIC so consumers of the ramulator target get the include path transitively
+target_include_directories(ramulator PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
 target_link_libraries(
-  ramulator 
-  PUBLIC yaml-cpp
-  PUBLIC spdlog
+  ramulator
+  PRIVATE fmt::fmt
+  PRIVATE yaml-cpp::yaml-cpp
 )
 
-add_executable(ramulator-exe)
-target_link_libraries(
-  ramulator-exe 
-  # PRIVATE -Wl,--whole-archive ramulator -Wl,--no-whole-archive 
-  PRIVATE ramulator
-  PRIVATE argparse
-)
+add_subdirectory(src/ramulator)
 
-set_target_properties(
-  ramulator-exe
-  PROPERTIES 
-  OUTPUT_NAME ramulator2
-)
+if(RAMULATOR_PYTHON_BINDINGS)
+  # Run codegen before building — generates C++ headers from DRAM DSL
+  # and Python wrappers from C++ source. Only writes changed files.
+  # Post-codegen: run clang-format on generated C++ to match repo style.
+  find_program(CLANG_FORMAT clang-format)
+  add_custom_target(codegen
+    COMMAND ${CMAKE_COMMAND} -E env
+      "PYTHONPATH=${CMAKE_CURRENT_SOURCE_DIR}/python"
+      ${Python_EXECUTABLE} -m ramulator codegen
+      --src-dir ${CMAKE_CURRENT_SOURCE_DIR}/src/ramulator
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    COMMENT "Running ramulator codegen..."
+  )
+  if(CLANG_FORMAT)
+    add_custom_target(codegen_format
+      COMMAND find ${CMAKE_CURRENT_SOURCE_DIR}/src/ramulator/dram/impl -name "*.cpp" -exec ${CLANG_FORMAT} -i {} +
+      WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+      COMMENT "Formatting generated C++ files..."
+    )
+    add_dependencies(codegen_format codegen)
+    add_dependencies(ramulator codegen_format)
+  else()
+    message(STATUS "clang-format not found — generated C++ files will not be auto-formatted")
+    add_dependencies(ramulator codegen)
+  endif()
 
-add_subdirectory(src)
+  nanobind_add_module(_ramulator src/ramulator/python/bindings.cpp)
+  target_link_libraries(_ramulator PRIVATE ramulator)
+  target_include_directories(_ramulator PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+  set_target_properties(_ramulator PROPERTIES
+    LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/python/ramulator
+  )
+
+  nanobind_add_module(_ramulator_test tests/utils/test_harness.cpp)
+  target_link_libraries(_ramulator_test PRIVATE ramulator)
+  target_include_directories(_ramulator_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+  set_target_properties(_ramulator_test PROPERTIES
+    LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/python/ramulator
+  )
+endif()
