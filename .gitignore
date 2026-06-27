@@ -20,6 +20,7 @@ resources/jedec/
 
 # Generated/non-code artifacts
 *.ipynb
+!examples/ramulator2_tutorial.ipynb
 *.pdf
 *.pkl
 *.png
