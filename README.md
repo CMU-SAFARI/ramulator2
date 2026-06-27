@@ -25,7 +25,7 @@ Currently, Ramulator 2.1 provides the DRAM device and memory controller models f
 - DDR3, DDR4, DDR5
 - GDDR6, GDDR7
 - LPDDR5, LPDDR6
-- HBM1, HBM2, HBM3, HBM4 (Row and column command dual-issue and pseudochannels)
+- HBM1, HBM2, HBM3, HBM4
 
 What has changed from Ramulator 2.0:
 - Aggregated bug fixes
