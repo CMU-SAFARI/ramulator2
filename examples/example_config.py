@@ -16,7 +16,7 @@ ddr4 = ramulator.dram.DDR4(org_preset="DDR4_8Gb_x8", timing_preset="DDR4_2400R",
 ctrl = ramulator.controller.GenericDDR(
     dram=ddr4,
     scheduler=ramulator.scheduler.FRFCFS(),
-    refresh_manager=ramulator.refresh_manager.AllBank(scope="Rank"),
+    refresh_manager=ramulator.refresh_manager.AllBank(),
     row_policy=ramulator.row_policy.Open(),
     addr_mapper=ramulator.addr_mapper.RoBaRaCoCh(),
 )
