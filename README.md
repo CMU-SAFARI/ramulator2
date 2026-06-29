@@ -410,7 +410,9 @@ The built-in frontends serve different purposes:
 
 ### 4.5 `sim.stats` and `sim.stats_yaml`
 
-`sim.stats` returns all simulation statistics as a nested Python dict. This is the easiest way to access results that enables you to streamline your experiment workflow (configure, parameter sweep, result analyses) all in a single Python script. `sim.stats_yaml` returns the same data as a YAML-formatted string in case you want to save the results to disk.
+`sim.stats` returns all simulation statistics as a nested Python dict snapshot. This is the easiest way to access results that enables you to streamline your experiment workflow (configure, parameter sweep, result analyses) all in a single Python script. `sim.stats_yaml` returns the same data as a YAML-formatted snapshot in case you want to save the results to disk.
+
+Reading `sim.stats` or `sim.stats_yaml` updates derived statistics such as average latency and throughput, but it does not finalize the simulation or flush final plugin outputs. Call `sim.finalize()` when you need finalization side effects, such as command-counter CSVs or trace-recorder output. `sim.finalize()` is idempotent.
 
 ## 5. Validation and Regression Tests
 

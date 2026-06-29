@@ -412,7 +412,7 @@ void ControllerBase::set_write_mode() {
   }
 }
 
-void ControllerBase::finalize() {
+void ControllerBase::update_stats() {
   s_avg_read_latency = (s_num_read_reqs_served > 0) ? (float)s_read_latency / (float)s_num_read_reqs_served : 0;
 
   s_queue_len_avg = (m_measured_clk > 0) ? (float)s_queue_len / (float)m_measured_clk : 0;
@@ -425,6 +425,10 @@ void ControllerBase::finalize() {
   s_read_throughput_MBps = (time_ps > 0) ? s_num_read_reqs_served * tx_bytes * 1e6f / time_ps : 0;
   s_write_throughput_MBps = (time_ps > 0) ? s_num_write_reqs_served * tx_bytes * 1e6f / time_ps : 0;
   s_total_throughput_MBps = s_read_throughput_MBps + s_write_throughput_MBps;
+}
+
+void ControllerBase::finalize() {
+  update_stats();
 }
 
 void ControllerBase::reset_stats() {

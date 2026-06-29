@@ -15,6 +15,12 @@
 class Simulation {
   std::unique_ptr<IFrontEnd> m_frontend;
   std::unique_ptr<IMemorySystem> m_memory_system;
+  bool m_finalized = false;
+
+  void update_stats() {
+    m_frontend->update_stats_recursive();
+    m_memory_system->update_stats_recursive();
+  }
 
  public:
   explicit Simulation(nb::dict config) {
@@ -29,6 +35,13 @@ class Simulation {
 
   Simulation(const Simulation&) = delete;
   Simulation& operator=(const Simulation&) = delete;
+
+  ~Simulation() noexcept {
+    try {
+      finalize();
+    } catch (...) {
+    }
+  }
 
   void run() {
     int fe_tick = m_frontend->get_clock_ratio();
@@ -55,10 +68,17 @@ class Simulation {
     }
   }
 
-  nb::dict get_stats() {
+  void finalize() {
+    if (m_finalized) {
+      return;
+    }
     m_frontend->finalize();
     m_memory_system->finalize();
+    m_finalized = true;
+  }
 
+  nb::dict get_stats() {
+    update_stats();
     ConfigNode::Map root;
     root["frontend"] = m_frontend->collect_stats();
     root["memory_system"] = m_memory_system->collect_stats();
@@ -67,9 +87,7 @@ class Simulation {
   }
 
   std::string get_stats_yaml() {
-    m_frontend->finalize();
-    m_memory_system->finalize();
-
+    update_stats();
     std::ostringstream ss;
     m_frontend->print_stats(ss);
     m_memory_system->print_stats(ss);
@@ -85,6 +103,7 @@ NB_MODULE(_ramulator, m) {
   nb::class_<Simulation>(m, "Simulation")
       .def(nb::init<nb::dict>(), nb::arg("config"), "Create a simulation from a configuration dict.")
       .def("run", &Simulation::run, "Run the simulation to completion.")
-      .def("get_stats", &Simulation::get_stats, "Finalize the simulation and return stats as a dict.")
-      .def("get_stats_yaml", &Simulation::get_stats_yaml, "Finalize the simulation and return stats as a YAML string.");
+      .def("finalize", &Simulation::finalize, "Finalize the simulation and flush final outputs.")
+      .def("get_stats", &Simulation::get_stats, "Update derived stats and return them as a dict.")
+      .def("get_stats_yaml", &Simulation::get_stats_yaml, "Update derived stats and return them as a YAML string.");
 }

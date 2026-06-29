@@ -47,14 +47,18 @@ class Simulation:
         """Run the simulation to completion."""
         self._sim.run()
 
+    def finalize(self):
+        """Finalize the simulation and flush final outputs."""
+        self._sim.finalize()
+
     @property
     def stats(self):
-        """Finalize and return stats as a nested dict."""
+        """Update derived stats and return a nested dict snapshot."""
         return self._sim.get_stats()
 
     @property
     def stats_yaml(self):
-        """Finalize and return stats as a YAML-formatted string."""
+        """Update derived stats and return a YAML-formatted snapshot."""
         return self._sim.get_stats_yaml()
 
 

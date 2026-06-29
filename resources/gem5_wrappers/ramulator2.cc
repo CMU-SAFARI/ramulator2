@@ -7,6 +7,7 @@
 #include "base/trace.hh"
 #include "debug/Ramulator2.hh"
 #include "debug/Drain.hh"
+#include "sim/full_system.hh"
 #include "sim/system.hh"
 
 // gem5 defines warn as a macro — protect Ramulator headers
@@ -19,6 +20,8 @@
 #include "ramulator/frontend/i_frontend.h"
 #include "ramulator/memory_system/i_memory_system.h"
 
+#pragma pop_macro("warn")
+
 namespace gem5
 {
 
@@ -29,6 +32,8 @@ Ramulator2::Ramulator2(const Params &p) :
     AbstractMemory(p),
     port(name() + ".port", *this),
     ramulator_config(p.ramulator_config),
+    ramulator2_frontend(nullptr), ramulator2_memorysystem(nullptr),
+    ramulator2_finalized(false),
     retryReq(false), retryResp(false), startTick(0),
     nbrOutstandingReads(0), nbrOutstandingWrites(0),
     sendResponseEvent([this]{ sendResponse(); }, name()),
@@ -37,13 +42,9 @@ Ramulator2::Ramulator2(const Params &p) :
     DPRINTF(Ramulator2, "Instantiated Ramulator2 \n");
 
     registerExitCallback([this]() {
-        ramulator2_frontend->finalize();
-        ramulator2_memorysystem->finalize();
-
-        std::string path = simout.resolve("ramulator_stats.yaml");
-        std::ofstream ofs(path);
-        ramulator2_frontend->print_stats(ofs);
-        ramulator2_memorysystem->print_stats(ofs);
+        writeRamulatorStats(
+            simout.resolve("ramulator_stats.yaml"),
+            StatsWriteMode::Final);
     });
 }
 
@@ -80,17 +81,70 @@ Ramulator2::startup()
 {
     startTick = curTick();
 
-    // // kick off the clock ticks
-    // schedule(tickEvent, clockEdge());
-    // The below fixes crashing during full FS bootup, credits: @sangjae4309
-    // please check https://github.com/CMU-SAFARI/ramulator2/pull/79 and
-    // https://github.com/sangjae4309/gem5-ramulator2/issues/5 for details
-    schedule(tickEvent, 13121004000177);
+    if (FullSystem) {
+        // This delayed first tick avoids early FS boot issues observed by the
+        // original wrapper, while still supporting checkpoint restores after
+        // that point. credits: @sangjae4309
+        // please check https://github.com/CMU-SAFARI/ramulator2/pull/79 and
+        // https://github.com/sangjae4309/gem5-ramulator2/issues/5 for details
+        constexpr Tick fsBootWorkaroundTick = 13121004000177;
+        schedule(tickEvent,
+            curTick() < fsBootWorkaroundTick ?
+            fsBootWorkaroundTick : clockEdge());
+    } else {
+        schedule(tickEvent, clockEdge());
+    }
 }
 
 void
 Ramulator2::resetStats() {
-    // wrapper.resetStats();
+    ClockedObject::resetStats();
+
+    if (ramulator2_frontend)
+        ramulator2_frontend->reset_stats_recursive();
+    if (ramulator2_memorysystem)
+        ramulator2_memorysystem->reset_stats_recursive();
+}
+
+void
+Ramulator2::preDumpStats()
+{
+    ClockedObject::preDumpStats();
+
+    writeRamulatorStats(simout.resolve(
+        "ramulator_stats." + std::to_string(curTick()) + ".yaml"),
+        StatsWriteMode::Snapshot);
+}
+
+void
+Ramulator2::writeRamulatorStats(const std::string& path, StatsWriteMode mode)
+{
+    if (!ramulator2_frontend || !ramulator2_memorysystem)
+        return;
+
+    if (mode == StatsWriteMode::Final) {
+        if (!ramulator2_finalized) {
+            ramulator2_frontend->finalize();
+            ramulator2_memorysystem->finalize();
+            ramulator2_finalized = true;
+        }
+    } else {
+        ramulator2_frontend->update_stats_recursive();
+        ramulator2_memorysystem->update_stats_recursive();
+    }
+
+    std::ofstream ofs(path);
+    if (!ofs) {
+        fatal("Ramulator2 failed to open stats file %s\n", path.c_str());
+    }
+
+    ramulator2_frontend->print_stats(ofs);
+    ramulator2_memorysystem->print_stats(ofs);
+    ofs.flush();
+
+    if (!ofs) {
+        fatal("Ramulator2 failed to write stats file %s\n", path.c_str());
+    }
 }
 
 void
@@ -322,5 +376,3 @@ Ramulator2::MemorySystemPort::MemorySystemPort(const std::string& _name,
 
 } // namespace memory
 } // namespace gem5
-
-#pragma pop_macro("warn")

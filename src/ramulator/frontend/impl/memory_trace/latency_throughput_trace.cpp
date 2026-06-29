@@ -170,7 +170,7 @@ class LatencyThroughputTrace : public IFrontEnd, public Implementation {
     return s_latency_samples_completed >= m_latency_sample_count;
   }
 
-  void finalize() override {
+  void update_stats() override {
     if (s_probes_completed > 0) {
       s_avg_probe_latency = static_cast<float>(s_total_probe_latency) / s_probes_completed;
     }
@@ -178,6 +178,10 @@ class LatencyThroughputTrace : public IFrontEnd, public Implementation {
       s_avg_stream_latency =
           static_cast<float>(s_total_stream_latency) / s_stream_latency_samples_completed;
     }
+  }
+
+  void finalize() override {
+    update_stats();
   }
 
   void reset_stats() override {

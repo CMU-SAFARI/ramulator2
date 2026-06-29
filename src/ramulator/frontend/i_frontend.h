@@ -41,6 +41,13 @@ class IFrontEnd : public TopLevel<IFrontEnd> {
     }
   }
 
+  void update_stats_recursive() {
+    m_impl->update_stats();
+    for (auto component : m_components) {
+      component->update_stats();
+    }
+  }
+
   void reset_stats_recursive() {
     m_impl->reset_stats();
     for (auto component : m_components) {

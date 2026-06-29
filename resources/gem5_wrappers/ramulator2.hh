@@ -54,6 +54,7 @@ class Ramulator2 : public AbstractMemory
     std::string ramulator_config;
     Ramulator::IFrontEnd* ramulator2_frontend;
     Ramulator::IMemorySystem* ramulator2_memorysystem;
+    bool ramulator2_finalized;
 
     bool retryReq;
     bool retryResp;
@@ -88,6 +89,12 @@ class Ramulator2 : public AbstractMemory
     void accessAndRespond(PacketPtr pkt);
 
     void sendResponse();
+    enum class StatsWriteMode
+    {
+        Snapshot,
+        Final
+    };
+    void writeRamulatorStats(const std::string& path, StatsWriteMode mode);
 
     /**
      * Event to schedule sending of responses
@@ -125,6 +132,7 @@ class Ramulator2 : public AbstractMemory
     void startup() override;
 
     void resetStats() override;
+    void preDumpStats() override;
 
   protected:
 

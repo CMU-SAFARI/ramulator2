@@ -1,8 +1,10 @@
 #ifndef RAMULATOR_BASE_BASE_H
 #define RAMULATOR_BASE_BASE_H
 
+#include <algorithm>
 #include <functional>
 #include <iosfwd>
+#include <map>
 #include <memory>
 #include <queue>
 #include <stdexcept>
@@ -66,6 +68,11 @@ class Implementation {
   virtual void setup(IFrontEnd* frontend, IMemorySystem* memory_system) {
     return;
   };
+  // Refresh derived statistics without ending the simulation or closing
+  // outputs. This may be called before every stats dump.
+  virtual void update_stats() {
+    return;
+  };
   virtual void finalize() {
     return;
   };
@@ -127,17 +134,7 @@ class Implementation {
   virtual void print_stats(std::ostream& os, int indent = 0) {
     std::string pad(indent, ' ');
     os << pad << get_ifce_name() << ":\n";
-    os << pad << "  impl: " << get_name() << "\n";
-    if (get_id() != "_default_id") {
-      os << pad << "  id: " << get_id() << "\n";
-    }
-    m_stats.print(os, indent + 2);
-    for (auto& child_impl : m_children) {
-      if (!child_impl->m_stats.empty()) {
-        os << "\n";
-      }
-      child_impl->print_stats(os, indent + 2);
-    }
+    print_stats_body(os, indent + 2);
     os << "\n";
   };
 
@@ -161,7 +158,7 @@ class Implementation {
       auto key = child_impl->get_ifce_name();
       auto child_stats = child_impl->collect_stats();
       if (ifce_counts[key] > 1) {
-        // Multiple children with same interface → collect into list
+        // Multiple children with same interface -> collect into list
         auto it = result.find(key);
         if (it == result.end()) {
           ConfigNode::Seq seq;
@@ -192,6 +189,48 @@ class Implementation {
   };
 
  private:
+  void print_stats_body(std::ostream& os, int indent) {
+    std::string pad(indent, ' ');
+    os << pad << "impl: " << get_name() << "\n";
+    if (get_id() != "_default_id") {
+      os << pad << "id: " << get_id() << "\n";
+    }
+    m_stats.print(os, indent);
+
+    std::map<std::string, int> ifce_counts;
+    std::vector<std::string> ifce_order;
+    for (auto& child_impl : m_children) {
+      const auto& key = child_impl->get_ifce_name();
+      if (ifce_counts[key] == 0) {
+        ifce_order.push_back(key);
+      }
+      ifce_counts[key]++;
+    }
+
+    for (const auto& key : ifce_order) {
+      if (ifce_counts[key] == 1) {
+        auto& child_impl = *std::find_if(
+            m_children.begin(), m_children.end(),
+            [&key](const auto& child) { return child->get_ifce_name() == key; });
+        if (!child_impl->m_stats.empty()) {
+          os << "\n";
+        }
+        child_impl->print_stats(os, indent);
+      } else {
+        os << "\n";
+        os << pad << key << ":\n";
+        for (auto& child_impl : m_children) {
+          if (child_impl->get_ifce_name() != key) {
+            continue;
+          }
+          os << pad << "  -\n";
+          child_impl->print_stats_body(os, indent + 4);
+          os << "\n";
+        }
+      }
+    }
+  };
+
   template <class Interface_t>
   Interface_t* create_child(const ConfigNode& config, std::string desired_impl_name) {
     std::string ifce_name = Interface_t::get_name();
