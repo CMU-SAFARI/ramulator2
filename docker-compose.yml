@@ -14,8 +14,8 @@ services:
     environment:
       CC: gcc
       CXX: g++
-      VIRTUAL_ENV: /home/vscode/ramulator2-venv
-      PATH: /home/vscode/ramulator2-venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+      VIRTUAL_ENV: /workspace/ramulator2-venv
+      PATH: /workspace/ramulator2-venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
     volumes:
       - .:/workspace:cached
     working_dir: /workspace
