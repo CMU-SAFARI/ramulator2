@@ -120,6 +120,26 @@ def test_gddr7_per_bank_refresh_rotates_all_banks_and_pauses_before_repeating_se
     assert refs[16].clk - refs[15].clk >= dut.timing("nRFCpb")
 
 
+def test_gddr7_per_bank_set_pause_starts_when_the_boundary_refresh_issues():
+    dram = _dram(
+        nREFIpb=2,
+        nRFCpb=10,
+        nRREFD=1,
+        nRRD=1,
+        nRAS=2,
+        nRP=3,
+        nRC=4,
+    )
+    dut = _make_gddr7(dram, refresh_manager=ramulator.refresh_manager.PerBank())
+    terminal_bank = _addr(dut, bank=15)
+    dut.priority_send("ACT", terminal_bank)
+    assert [item.command for item in dut.tick()] == ["ACT"]
+
+    refs = _collect_issued(dut, command="REFpb", count=17, max_ticks=128)
+
+    assert refs[16].clk - refs[15].clk >= dut.timing("nRFCpb")
+
+
 def test_gddr7_controller_does_not_emit_rfm_or_rck_commands_automatically():
     dut = _make_gddr7()
     dut.send_request("Read", _addr(dut, bank=0, row=0))

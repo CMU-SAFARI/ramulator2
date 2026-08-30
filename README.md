@@ -1293,11 +1293,13 @@ The node tree represents the structural hierarchy of one channel. For DDR4, that
 Channel -> Rank -> BankGroup -> Bank
 ```
 
-For HBM3 it is:
+For HBM2, HBM3, and HBM4 it is:
 
 ```text
-Channel -> PseudoChannel -> BankGroup -> Bank
+Channel -> PseudoChannel -> Sid -> BankGroup -> Bank
 ```
+
+One Ramulator HBM controller models one JEDEC channel.
 
 The tree stops before the `Row` level. Ramulator does not instantiate one node per physical row. Instead, it tracks row state lazily inside the bank-like node that owns those rows.
 
