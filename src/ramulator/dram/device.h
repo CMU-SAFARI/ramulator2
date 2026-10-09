@@ -32,6 +32,12 @@ class DRAMDevice {
   void init(std::unique_ptr<DRAMSpec> spec);
   void set_channel_id(int channel_id);
 
+  // Reserve a slot on the nodes for one feature's state of type T (call at setup time).
+  template <typename T>
+  NodeExtensionSlot<T> register_node_extension() {
+    return NodeExtensionSlot<T>(m_num_node_extensions++);
+  }
+
   // Issue a command: update timing (hierarchical) then apply state (flat bank dispatch)
   void issue_command(int command, const AddrVec_t& addr_vec, Clk_t clk);
 
@@ -95,6 +101,8 @@ class DRAMDevice {
   }
 
  private:
+  int m_num_node_extensions = 0;
+
   // Flat bank dispatch — apply action to target banks
   void apply_action(int command, const AddrVec_t& addr_vec, Clk_t clk);
 };

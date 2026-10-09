@@ -258,3 +258,15 @@ HBM4.timing_presets = {
         # =============================
     },
 }
+
+# Iso-HBM4 baseline from FB-Banks: Adhinarayanan et al., "Folded Banks: 3D-Stacked HBM Design
+# for Fine-Grained Random-Access Bandwidth", ISCA 2025, Table 1, column Iso-HBM4 (the baseline,
+# not the FB-HBM design). Core timings in ns, projected by the paper from vendor HBM3 data,
+# converted at tCK = 500 ps and rounded up. Everything the paper does not give comes from
+# HBM4_8000Mbps. Its tCCDL (2 ns) is 4 CK, the resolver's value, so nCCDL is not set here.
+HBM4.timing_presets["HBM4_8000Mbps_folded_banks_baseline"] = {
+    **HBM4.timing_presets["HBM4_8000Mbps"],
+    "nRCDRD": 32, "nRP": 32, "nRAS": 58,     # tRCD 16, tRP 16, tRAS 29 ns
+    "nCL": 32, "nFAW": 32,                   # tCL 16, tFAW 16 ns
+    "nRRDS": 4, "nRRDL": 4,                  # tRRD 2 ns; Table 1 has one tRRD, so both get it
+}

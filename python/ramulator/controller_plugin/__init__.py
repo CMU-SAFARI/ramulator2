@@ -5,6 +5,7 @@
 # Regenerate:   python -m ramulator codegen
 ###############################################################################
 from .aqua import AQUA
+from .ayna import Ayna
 from .bin_trace_recorder import BinTraceRecorder
 from .cmd_trace_recorder import CmdTraceRecorder
 from .command_counter import CommandCounter
@@ -21,4 +22,4 @@ from .rrs import RRS
 from .samsung_trr import SamsungTRR
 from .t_wi_ce_ideal import TWiCeIdeal
 
-__all__ = ['AQUA', 'BinTraceRecorder', 'CmdTraceRecorder', 'CommandCounter', 'Graphene', 'Hydra', 'HynixTRR', 'IdealTRR', 'IssuedCommandValidationHook', 'LiveTraceStreamer', 'OracleRH', 'PARA', 'RFMManager', 'RRS', 'SamsungTRR', 'TWiCeIdeal']
+__all__ = ['AQUA', 'Ayna', 'BinTraceRecorder', 'CmdTraceRecorder', 'CommandCounter', 'Graphene', 'Hydra', 'HynixTRR', 'IdealTRR', 'IssuedCommandValidationHook', 'LiveTraceStreamer', 'OracleRH', 'PARA', 'RFMManager', 'RRS', 'SamsungTRR', 'TWiCeIdeal']
