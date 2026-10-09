@@ -336,6 +336,11 @@ class ControllerUnderTestCpp {
     return m_command_outstanding == 0 && m_read_completions_pending == 0;
   }
 
+  // Start a new stats window, as a frontend does after warmup.
+  void reset_stats() {
+    m_memory_system->reset_stats_recursive();
+  }
+
   nb::dict stats() {
     if (!m_stats_finalized) {
       m_memory_system->IMemorySystem::finalize();
@@ -421,5 +426,6 @@ NB_MODULE(_ramulator_test, m) {
       .def("priority_send", &ControllerUnderTestCpp::priority_send, nb::arg("command"), nb::arg("addr_vec"))
       .def("tick", &ControllerUnderTestCpp::tick)
       .def("is_idle", &ControllerUnderTestCpp::is_idle)
+      .def("reset_stats", &ControllerUnderTestCpp::reset_stats)
       .def("stats", &ControllerUnderTestCpp::stats);
 }

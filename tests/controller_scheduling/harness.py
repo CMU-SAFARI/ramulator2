@@ -139,6 +139,9 @@ class ControllerUnderTest:
     def is_idle(self) -> bool:
         return self._cpp.is_idle()
 
+    def reset_stats(self) -> None:
+        self._cpp.reset_stats()
+
     def stats(self):
         return self._cpp.stats()
 

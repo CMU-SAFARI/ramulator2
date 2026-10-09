@@ -354,6 +354,7 @@ The Ramulator Python package exposes the major components as a set of namespaces
 - `ramulator.translation`
 - `ramulator.controller_plugin`
 - `ramulator.memory_system`
+- `ramulator.power` (imported separately with `import ramulator.power`)
 
 ### 4.2 Common First Changes
 
@@ -436,6 +437,37 @@ The built-in frontends serve different purposes:
 `sim.stats` returns all simulation statistics as a nested Python dict snapshot. This is the easiest way to access results that enables you to streamline your experiment workflow (configure, parameter sweep, result analyses) all in a single Python script. `sim.stats_yaml` returns the same data as a YAML-formatted snapshot in case you want to save the results to disk.
 
 Reading `sim.stats` or `sim.stats_yaml` updates derived statistics such as average latency and throughput, but it does not finalize the simulation or flush final plugin outputs. Call `sim.finalize()` when you need finalization side effects, such as command-counter CSVs or trace-recorder output. `sim.finalize()` is idempotent.
+
+### 4.6 Estimating HBM Power with Ayna
+
+The `Ayna` controller plugin runs [Ayna](https://github.com/CMU-SAFARI/HBM-Power), SAFARI's HBM power model, on the commands an HBM2, HBM3 or HBM4 controller issues:
+
+```python
+import ramulator
+import ramulator.power
+
+hbm3 = ramulator.dram.HBM3(org_preset="HBM3_16Gb_8hi", timing_preset="HBM3_6400Mbps")
+ctrl = ramulator.controller.HBM34(
+    dram=hbm3,
+    scheduler=ramulator.scheduler.FRFCFS(),
+    refresh_manager=ramulator.refresh_manager.AllBank(),
+    row_policy=ramulator.row_policy.Open(),
+    addr_mapper=ramulator.addr_mapper.RoBaRaCoCh(),
+    controller_plugins=[ramulator.controller_plugin.Ayna(power=ramulator.power.ayna_power())],
+)
+# ... memory system, frontend, sim.run() as usual
+
+for channel in ramulator.power.summarize(sim.stats):
+    print(channel.channel, f"{channel.avg_power_mW:.1f} mW", f"{channel.pJ_per_bit:.2f} pJ/bit")
+```
+
+The plugin takes timings, organization and data rate from the controller's DRAM, and its stats under each controller hold the energy (in pJ, per channel and per pseudo-channel) and average power. `ramulator.power.ayna_power()` takes the options, such as the data pattern and current overrides.
+
+Limitations:
+
+- Ayna models all-bank refresh only; per-bank refresh and RFM commands are counted in `unmodelled_commands` and add no energy.
+- Currents are per pseudo-channel and do not depend on stack height. Ayna characterizes a 16-bank pseudo-channel; with more than one SID, all banks of the pseudo-channel form its bank set (32 banks at 8-high, 64 at 16-high).
+- Energy uses the controller tick in whole picoseconds (312 ps instead of 312.5 ps at `HBM3_6400Mbps`): energy is 0.16% low there; average power is unaffected.
 
 ## 5. Validation and Regression Tests
 
@@ -660,6 +692,17 @@ The canonical full controller example lives in:
 
 - `tests/controller_scheduling/examples/test_controller_example.py`
 
+### 5.7 Power Model
+
+```bash
+PYTHONPATH=python pytest tests/power -q
+```
+
+The self-contained tests check the ported model against closed forms (a single activation, idle standby, back-to-back refresh, auto-precharge timing, a warmup window) and check that attaching the plugin changes no other statistic. The equivalence tests replay the same workloads through Ayna's own runners, built from CMU-SAFARI/HBM-Power at `318d3d1`, with configurations exported from the same DRAM object, and require the same energy per pseudo-channel. They are skipped unless the runners are found:
+
+```bash
+HBM_POWER_AYNA_BIN=/path/to/HBM-Power/build/bin PYTHONPATH=python pytest tests/power -q
+```
 
 ### 5.8 When to Use Which Test
 
@@ -667,6 +710,7 @@ The canonical full controller example lives in:
 - Use fast latency-throughput when you change timing behavior, controller logic, or DRAM definitions
 - Use device timings when you change command legality or timing enforcement
 - Use controller scheduling when you change controller command sequencing or row-policy behavior
+- Use the power tests when you change the power model or how commands reach it
 - Use full latency-throughput when you want a more comprehensive sanity check
 
 

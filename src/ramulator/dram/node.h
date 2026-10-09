@@ -3,6 +3,7 @@
 
 #include <deque>
 #include <memory>
+#include <type_traits>
 #include <unordered_map>
 #include <vector>
 
@@ -10,6 +11,16 @@
 #include "ramulator/dram/dram_spec.h"
 
 namespace Ramulator {
+
+/**
+ * @brief     Feature-owned state attached to a DRAM node (e.g., a power model's per-bank counters).
+ *
+ * A feature reserves a typed slot with DRAMDevice::register_node_extension<T>() and attaches its
+ * objects to nodes through it. Slots keep features that observe the device from colliding.
+ */
+struct NodeExtension {
+  virtual ~NodeExtension() = default;
+};
 
 /**
  * @brief     DRAM Device Node — represents one level in the DRAM hierarchy
@@ -36,6 +47,8 @@ struct DRAMNode {
   std::vector<std::deque<Clk_t>> m_shared_window_history;  // Shared rolling-window histories
 
   std::unordered_map<int, int> m_row_state;  // The state of the rows, if I am a bank-ish node
+
+  std::vector<std::unique_ptr<NodeExtension>> m_ext;  // Feature-owned state, indexed by extension slot
 
   DRAMNode(DRAMSpec* spec, DRAMNode* parent, int level, int id);
 
@@ -67,6 +80,34 @@ struct DRAMNode {
       child->for_each_at_level(start_level, start_id, target_level, std::forward<Func>(fn));
     }
   }
+};
+
+/// A slot for one feature's state of type T on DRAM nodes (see DRAMDevice::register_node_extension).
+template <typename T>
+class NodeExtensionSlot {
+  static_assert(std::is_base_of_v<NodeExtension, T>, "T must derive from NodeExtension");
+
+ public:
+  NodeExtensionSlot() = default;
+  explicit NodeExtensionSlot(int index) : m_index(index) {
+  }
+
+  // Create this slot's T on the node.
+  T& attach(DRAMNode* node) const {
+    if (static_cast<int>(node->m_ext.size()) <= m_index) {
+      node->m_ext.resize(m_index + 1);
+    }
+    node->m_ext[m_index] = std::make_unique<T>();
+    return get(node);
+  }
+
+  // The node's T (the node must have been attached).
+  T& get(DRAMNode* node) const {
+    return static_cast<T&>(*node->m_ext[m_index]);
+  }
+
+ private:
+  int m_index = -1;
 };
 
 }  // namespace Ramulator
