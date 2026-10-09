@@ -466,9 +466,7 @@ The plugin takes timings, organization and data rate from the controller's DRAM,
 Limitations:
 
 - Ayna models all-bank refresh only; per-bank refresh and RFM commands are counted in `unmodelled_commands` and add no energy.
-- Ayna has no HBM3 characterization: HBM3 uses its HBM3E device. Its HBM2 currents are used unscaled at Ramulator's 1600-2400 MT/s HBM2 speedbins (with a warning), and HBM3/HBM4 rates outside its 4800-8000 MT/s study are extrapolated (with a warning).
 - Currents are per pseudo-channel and do not depend on stack height. Ayna characterizes a 16-bank pseudo-channel; with more than one SID, all banks of the pseudo-channel form its bank set (32 banks at 8-high, 64 at 16-high).
-- Ayna has two HBM4 data-pattern fits: the plugin uses the one in its device configurations (`config/`), not the one in its HBM4 case study.
 - Energy uses the controller tick in whole picoseconds (312 ps instead of 312.5 ps at `HBM3_6400Mbps`): energy is 0.16% low there; average power is unaffected.
 
 ## 5. Validation and Regression Tests
