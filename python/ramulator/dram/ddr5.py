@@ -4,7 +4,9 @@ from ramulator.dram.spec import DRAMStandard, TimingConstraint
 class DDR5(DRAMStandard):
     name = "DDR5"
     internal_prefetch_size = 16
-    read_latency = "nCL + nBL"
+    # JESD79-5C Fig. 35: RL is measured from the 2nd cycle of the 2-cycle RD;
+    # commands are timestamped at their 1st cycle.
+    read_latency = "nCL + nBL + 1"
 
     # ---- Hierarchy (level name → init state) ----
     levels = {
@@ -65,9 +67,13 @@ class DDR5(DRAMStandard):
         TimingConstraint(level="Rank", preceding=["RD", "RDA"], following=["WR", "WRA"], latency="nRTW"),
         # Rank — write-to-read turnaround
         TimingConstraint(level="Rank", preceding=["WR", "WRA"], following=["RD", "RDA"], latency="nCWL + nBL + nWTRS"),
-        # Rank — sibling (rank switching)
-        TimingConstraint(level="Rank", preceding=["RD", "RDA"], following=["RD", "RDA", "WR", "WRA"], latency="nBL + nCS", window=1, sibling=True),
+        # Rank — sibling (rank switching): nCS data-bus gap between ranks in each direction.
+        # RD→WR to another rank still needs the same postamble/preamble clearance as the
+        # same-rank tCCD_x_RTW (JESD79-5C Tables 330-334), so it is nRTW plus the rank gap.
+        TimingConstraint(level="Rank", preceding=["RD", "RDA"], following=["RD", "RDA"], latency="nBL + nCS", window=1, sibling=True),
+        TimingConstraint(level="Rank", preceding=["RD", "RDA"], following=["WR", "WRA"], latency="nRTW + nCS", window=1, sibling=True),
         TimingConstraint(level="Rank", preceding=["WR", "WRA"], following=["RD", "RDA"], latency="nCWL + nBL + nCS - nCL", window=1, sibling=True),
+        TimingConstraint(level="Rank", preceding=["WR", "WRA"], following=["WR", "WRA"], latency="nBL + nCS", window=1, sibling=True),
         # Rank — CAS to PREab
         TimingConstraint(level="Rank", preceding=["RD", "RDA"], following=["PREab"], latency="nRTP"),
         TimingConstraint(level="Rank", preceding=["WR", "WRA"], following=["PREab"], latency="nCWL + nBL + nWR"),
@@ -85,7 +91,8 @@ class DDR5(DRAMStandard):
         TimingConstraint(level="Rank", preceding=["PREpb", "PREab", "PREsb"], following=["REFab"], latency="nRP"),
         TimingConstraint(level="Rank", preceding=["RDA"], following=["REFab"], latency="nRP + nRTP"),
         TimingConstraint(level="Rank", preceding=["WRA"], following=["REFab"], latency="nCWL + nBL + nWR + nRP"),
-        TimingConstraint(level="Rank", preceding=["REFab"], following=["ACT", "PREab"], latency="nRFC"),
+        # JESD79-5C Table 68: tRFC1 between REFab commands; §4.13: only DES/NOP until tRFC.
+        TimingConstraint(level="Rank", preceding=["REFab"], following=["ACT", "PREpb", "PREab", "REFab"], latency="nRFC"),
 
         # Rank — RFMab timing
         TimingConstraint(level="Rank", preceding=["ACT"], following=["RFMab"], latency="nRC"),
@@ -104,6 +111,8 @@ class DDR5(DRAMStandard):
         TimingConstraint(level="Bank", preceding=["WR", "WRA"], following=["WR", "WRA"], latency="nCCDL_WR"),
         # Bank — same-bank write-to-read
         TimingConstraint(level="Bank", preceding=["WR", "WRA"], following=["RD", "RDA"], latency="nCWL + nBL + nWTRL"),
+        # Bank — JESD79-5C Tables 330-334: Write to Read with Auto Precharge, same bank: tCCD_WTRA = CWL + WBL/2 + tWR - tRTP
+        TimingConstraint(level="Bank", preceding=["WR"], following=["RDA"], latency="nCWL + nBL + nWR - nRTP"),
 
         # Sibling bank timings for high speedbins
         TimingConstraint(level="Bank", preceding=["RD", "RDA"], following=["RD", "RDA"], latency="nCCDM", sibling=True),
@@ -179,7 +188,12 @@ class DDR5(DRAMStandard):
 
         timing_dict["nCCDL_WR"] = cls._resolve_nCCDL_WR(dq, tCK_ps)
         timing_dict["nCCDM"] = cls._resolve_nCCDM(rate, tCK_ps, timing_dict["nCCDL"])
-        timing_dict["nCCDM_WR"] = cls._resolve_nCCDM_WR(rate, tCK_ps)
+        # JESD79-5C Tables 48/51/53, 330-334: x8/x16 writes are JW, so the whole bank group
+        # uses tCCD_L_WR2 (= nCCDL_WR); the RMW-sized tCCD_M_WR applies to x4.
+        if dq in (8, 16):
+            timing_dict["nCCDM_WR"] = timing_dict["nCCDL_WR"]
+        else:
+            timing_dict["nCCDM_WR"] = cls._resolve_nCCDM_WR(rate, tCK_ps)
         timing_dict["nWTRM"] = cls._resolve_nWTRM(rate, tCK_ps, timing_dict["nWTRL"])
         timing_dict["nRTW"] = cls._resolve_nRTW(
             rate,
