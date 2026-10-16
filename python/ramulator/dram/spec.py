@@ -70,6 +70,9 @@ class TimingConstraint:
         return f"TimingConstraint({', '.join(args)})"
 
 
+BANK_TARGET_NAMES = ("single", "all", "same_bank", "pair")
+
+
 class DRAMStandard(Component):
     """Base class for all DRAM standards.
 
@@ -92,6 +95,8 @@ class DRAMStandard(Component):
     read_latency = "nCL + nBL"
     row_commands = []  # type: list[str]  — commands on the row bus (dual-bus standards)
     column_commands = []  # type: list[str]  — commands on the column bus (dual-bus standards)
+    # Per-command bank-target overrides: "single" | "all" | "same_bank" | ("pair", level, xor_mask)
+    bank_targets = {}  # type: dict[str, str | tuple]
 
     # ---- Class-level: presets ----
     org_presets = {}  # type: dict[str, dict]
@@ -119,6 +124,11 @@ class DRAMStandard(Component):
     def resolve_secondary_timings(cls, timing_dict, org_dict):
         """Fill derived timing values in-place. Subclasses override."""
         pass
+
+    @classmethod
+    def resolve_bank_targets(cls, org_dict):
+        """Return the bank-target overrides for a resolved organization. Subclasses override."""
+        return cls.bank_targets
 
     @classmethod
     def validate_organization(cls, org_dict):
@@ -301,6 +311,20 @@ class DRAMStandard(Component):
         }
         if cls.data_payload_bytes is not None:
             config["data_payload_bytes"] = cls.data_payload_bytes
+
+        # Bank-target overrides: [command, pattern, level, xor_mask]
+        bank_targets = []
+        for cmd, target in cls.resolve_bank_targets(org_dict).items():
+            pattern, level, xor_mask = (target, None, 0) if isinstance(target, str) else target
+            rule = [-1, 0]
+            if pattern == "pair":
+                n = org_dict[level.lower()]
+                if xor_mask <= 0 or any(i ^ xor_mask >= n for i in range(n)):
+                    raise ValueError(f"{cls.name}: {cmd} pair mask {xor_mask} maps {level} ids outside 0..{n - 1}")
+                rule = [level_idx[level], xor_mask]
+            bank_targets.append([cmd_idx[cmd], pattern] + rule)
+        if bank_targets:
+            config["bank_targets"] = bank_targets
         if verbose_timing_dict is not None:
             print(self._format_final_timings(verbose_timing_dict), file=sys.stderr)
             self._verbose_printed = True
@@ -416,6 +440,11 @@ class DRAMStandard(Component):
                 )
             if tc.shared_window and tc.sibling:
                 raise ValueError("Shared-window TimingConstraint cannot be a sibling constraint")
+
+        for cmd, target in cls.bank_targets.items():
+            pattern, level, _ = (target, None, 0) if isinstance(target, str) else target
+            if cmd not in cmd_names or pattern not in BANK_TARGET_NAMES or (pattern == "pair") != (level in level_names):
+                raise ValueError(f"bank_targets['{cmd}'] = {target!r}: unknown command, pattern or level")
 
         # Validate supported_requests ordering: Read and Write remain the built-in
         # leading request names for controller compatibility.

@@ -7,6 +7,7 @@
 #include <memory>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <vector>
 
@@ -21,6 +22,16 @@ enum class BankTarget {
   Single,    // One specific bank (ACT, PREpb, RD, WR, RDA, WRA)
   All,       // All banks under scope (PREab, REFab, RFMab)
   SameBank,  // Same bank ID in every bank group (PREsb, REFsb, RFMsb — DDR5)
+  Pair,      // The addressed bank and its partner (one address bit flipped at one level)
+};
+
+// "single" | "all" | "same_bank" | "pair" -> BankTarget; throws on an unknown name
+BankTarget bank_target_from_name(std::string_view name);
+
+// Partner of a Pair-targeted command: addr_vec[level] ^ xor_mask
+struct PairRule {
+  int level = -1;
+  int xor_mask = 0;
 };
 
 // Organization hierarchy of the device
@@ -106,6 +117,7 @@ struct DRAMSpec {
   std::vector<std::vector<int8_t>> has_sibling_cons;  // [level][cmd] → has sibling timing constraint
   std::vector<DRAMCommandMeta> command_meta;
   std::vector<BankTarget> bank_targets;
+  std::vector<PairRule> pair_rules;  // per command, used by BankTarget::Pair
 
   // Non-templated function arrays (action, preq, rowhit, rowopen)
   FuncArrays funcs;

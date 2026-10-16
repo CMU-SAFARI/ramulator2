@@ -35,6 +35,7 @@ template <class... Cmds>
 void populate_commands(std::tuple<Cmds...>, DRAMSpec& spec) {
   spec.command_meta.resize(spec.command_count);
   spec.bank_targets.resize(spec.command_count);
+  spec.pair_rules.resize(spec.command_count);
   spec.funcs.resize(spec.command_count);
   int i = 0;
   (register_command<Cmds>(spec, i++), ...);

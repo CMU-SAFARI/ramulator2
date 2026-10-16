@@ -2,6 +2,22 @@
 
 namespace Ramulator {
 
+BankTarget bank_target_from_name(std::string_view name) {
+  if (name == "single") {
+    return BankTarget::Single;
+  }
+  if (name == "all") {
+    return BankTarget::All;
+  }
+  if (name == "same_bank") {
+    return BankTarget::SameBank;
+  }
+  if (name == "pair") {
+    return BankTarget::Pair;
+  }
+  throw std::runtime_error("Unknown bank target: " + std::string(name));
+}
+
 void DRAMSpec::load_config(const ConfigNode& config) {
   const ConfigNode dram = config["dram"];
 
@@ -96,6 +112,18 @@ std::unique_ptr<DRAMSpec> DRAMSpec::create(const std::string& name, const Config
   }
   auto spec = it->second(config);
   spec->standard_name = name;
+
+  // Per-configuration bank targets override the command defaults: [command, pattern, level, xor_mask]
+  const ConfigNode dram = config["dram"];
+  ConfigNode bt_node = dram["bank_targets"];
+  if (bt_node) {
+    for (const auto& entry : bt_node.seq()) {
+      const auto& e = entry.seq();
+      int cmd = e[0].as<int>();
+      spec->bank_targets[cmd] = bank_target_from_name(e[1].as<std::string>());
+      spec->pair_rules[cmd] = {e[2].as<int>(), e[3].as<int>()};
+    }
+  }
   return spec;
 }
 

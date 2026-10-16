@@ -6,8 +6,8 @@
 
 namespace Ramulator {
 
-// Per-bank refresh — issues REFpb to one bank at a time in round-robin order
-// every nREFIpb cycles.
+// Per-bank refresh — issues REFpb to one target set (bank or bank pair) at a time
+// in round-robin order every nREFIpb cycles.
 class PerBankRefresh : public IRefreshManager, public Implementation {
   RAMULATOR_REGISTER_IMPLEMENTATION(IRefreshManager, PerBankRefresh, "PerBank")
 
@@ -15,7 +15,6 @@ class PerBankRefresh : public IRefreshManager, public Implementation {
   ControllerBase* m_ctrl;
   Clk_t m_next_refresh_cycle = -1;
   int m_cmd_refpb = -1;
-  int m_bank_level = -1;
   int m_nrefipb = -1;  // Cached nREFIpb timing value (cycles)
   int m_nrfc_pb = -1;
   bool m_requires_set_pause = false;
@@ -23,8 +22,8 @@ class PerBankRefresh : public IRefreshManager, public Implementation {
   Clk_t m_pending_boundary_enqueue_clk = -1;
   Clk_t m_next_set_allowed_clk = 0;
 
-  std::vector<DRAMNode*> m_bank_nodes;
-  size_t m_next_bank_idx = 0;
+  std::vector<AddrVec_t> m_refresh_targets;  // one addr_vec per distinct REFpb target set
+  size_t m_next_idx = 0;
 
   AddrVec_t build_addr_vec(DRAMNode* node);
   void init() override;
@@ -47,7 +46,6 @@ void PerBankRefresh::init() {
         "PerBank refresh does not support HBM or PseudoChannel standards; use HBMPerBankRefresh instead");
   }
   m_cmd_refpb = info.get_command_id("REFpb");
-  m_bank_level = info.get_level_id("Bank");
   m_nrefipb = info.get_timing_value("nREFIpb");
   m_requires_set_pause = info.standard_name == "GDDR6" || info.standard_name == "GDDR7";
   if (m_requires_set_pause) {
@@ -56,8 +54,19 @@ void PerBankRefresh::init() {
 
   m_next_refresh_cycle = m_nrefipb;
 
-  // Collect all bank-level nodes
-  m_ctrl->m_device.m_root->for_each_at_level(m_bank_level, [&](DRAMNode* node) { m_bank_nodes.push_back(node); });
+  // Walk banks in order, skipping banks already covered by an earlier target set
+  const auto& banks = m_ctrl->m_device.m_bank_nodes;
+  std::vector<bool> covered(banks.size(), false);
+  for (size_t i = 0; i < banks.size(); i++) {
+    if (covered[i]) {
+      continue;
+    }
+    AddrVec_t addr_vec = build_addr_vec(banks[i]);
+    for (int bank_id : m_ctrl->m_device.get_target_banks(m_cmd_refpb, addr_vec)) {
+      covered[bank_id] = true;
+    }
+    m_refresh_targets.push_back(addr_vec);
+  }
 }
 
 void PerBankRefresh::tick() {
@@ -79,9 +88,8 @@ void PerBankRefresh::tick() {
     return;
   }
 
-  // Refresh one bank in round-robin order.
-  auto* bank_node = m_bank_nodes[m_next_bank_idx];
-  AddrVec_t addr_vec = build_addr_vec(bank_node);
+  // Refresh one target set in round-robin order.
+  const AddrVec_t& addr_vec = m_refresh_targets[m_next_idx];
   Request req(addr_vec, Request::Cmd, m_cmd_refpb);
 
   bool is_success = m_ctrl->priority_send(req);
@@ -89,12 +97,12 @@ void PerBankRefresh::tick() {
     throw std::runtime_error("Failed to send per-bank refresh!");
   }
 
-  if (m_requires_set_pause && m_next_bank_idx + 1 == m_bank_nodes.size()) {
-    m_pending_boundary_bank = bank_node;
+  if (m_requires_set_pause && m_next_idx + 1 == m_refresh_targets.size()) {
+    m_pending_boundary_bank = m_ctrl->m_device.m_bank_nodes[m_ctrl->m_device.get_flat_bank_id(addr_vec)];
     m_pending_boundary_enqueue_clk = m_ctrl->m_clk;
   }
 
-  m_next_bank_idx = (m_next_bank_idx + 1) % m_bank_nodes.size();
+  m_next_idx = (m_next_idx + 1) % m_refresh_targets.size();
   m_next_refresh_cycle += m_nrefipb;
 }
 

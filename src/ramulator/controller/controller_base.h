@@ -79,7 +79,6 @@ class ControllerBase : public IController, public Implementation {
   bool m_is_write_mode = false;
 
   // Cached spec lookups
-  int m_bank_level = -1;
   int m_tCK_ps = -1;
 
   // Per flat-bank count of requests in m_active_buffer (typically 0 or 1).

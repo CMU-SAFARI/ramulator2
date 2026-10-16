@@ -16,11 +16,20 @@ void DRAMDevice::set_channel_id(int channel_id) {
 
 void DRAMDevice::issue_command(int command, const AddrVec_t& addr_vec, Clk_t clk) {
   m_root->update_timing(command, addr_vec, clk);
+  if (m_spec->bank_targets[command] == BankTarget::Pair) {
+    // Partner path from the pair level down; the shared nodes above it are updated once
+    AddrVec_t partner = partner_addr_vec(command, addr_vec);
+    node_at(partner, m_spec->pair_rules[command].level)->update_timing(command, partner, clk);
+  }
   apply_action(command, addr_vec, clk);
 }
 
 bool DRAMDevice::check_timing(int command, const AddrVec_t& addr_vec, Clk_t clk) {
-  return m_root->check_timing(command, addr_vec, clk);
+  if (!m_root->check_timing(command, addr_vec, clk)) {
+    return false;
+  }
+  return m_spec->bank_targets[command] != BankTarget::Pair ||
+         m_root->check_timing(command, partner_addr_vec(command, addr_vec), clk);
 }
 
 int DRAMDevice::get_preq_command(int command, const AddrVec_t& addr_vec, Clk_t clk) {
@@ -34,6 +43,24 @@ int DRAMDevice::get_preq_command(int command, const AddrVec_t& addr_vec, Clk_t c
     return true;
   });
   return resolved;
+}
+
+AddrVec_t DRAMDevice::preq_addr_vec(int command, int preq, const AddrVec_t& addr_vec, Clk_t clk) const {
+  if (preq == command || m_spec->bank_targets[preq] != BankTarget::Single) {
+    return addr_vec;
+  }
+  AddrVec_t preq_addr = addr_vec;
+  for_each_target_bank_while(command, addr_vec, [&](int bank_id) {
+    DRAMNode* bank = m_bank_nodes[bank_id];
+    if (m_spec->funcs.preqs[command](bank, command, addr_vec, clk) == command) {
+      return true;
+    }
+    for (DRAMNode* n = bank; n != nullptr; n = n->m_parent_node) {
+      preq_addr[n->m_level] = n->m_node_id;
+    }
+    return false;
+  });
+  return preq_addr;
 }
 
 bool DRAMDevice::check_rowbuffer_hit(int command, const AddrVec_t& addr_vec, Clk_t clk) {
@@ -75,6 +102,21 @@ std::vector<int> DRAMDevice::get_target_banks(int command, const AddrVec_t& addr
   std::vector<int> ids;
   for_each_target_bank(command, addr_vec, [&](int id) { ids.push_back(id); });
   return ids;
+}
+
+AddrVec_t DRAMDevice::partner_addr_vec(int command, const AddrVec_t& addr_vec) const {
+  const PairRule& rule = m_spec->pair_rules[command];
+  AddrVec_t partner = addr_vec;
+  partner[rule.level] ^= rule.xor_mask;
+  return partner;
+}
+
+DRAMNode* DRAMDevice::node_at(const AddrVec_t& addr_vec, int level) const {
+  DRAMNode* node = m_root.get();
+  for (int lvl = 1; lvl <= level; lvl++) {
+    node = node->m_child_nodes[addr_vec[lvl]].get();
+  }
+  return node;
 }
 
 void DRAMDevice::apply_action(int command, const AddrVec_t& addr_vec, Clk_t clk) {

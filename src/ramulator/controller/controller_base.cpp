@@ -60,7 +60,6 @@ void ControllerBase::init_base() {
   m_device.init(DRAMSpec::create(dram_impl, m_config));
 
   // Cache frequently-used lookups
-  m_bank_level = m_device.m_spec->get_level_id("Bank");
   m_tCK_ps = m_device.m_spec->get_timing_value("tCK_ps");
 
   // Active buffer holds requests with in-flight opening commands (ACT).
@@ -286,6 +285,10 @@ ControllerBase::Candidate ControllerBase::pick_priority_if(RequestFilterRef filt
 
   auto it = m_priority_buffer.begin();
   it->command = get_preq_command(it->final_command, it->addr_vec);
+  // Re-address the prerequisite to the target bank that needs it
+  if (it->command != it->final_command) {
+    it->addr_vec = m_device.preq_addr_vec(it->final_command, it->command, it->addr_vec, m_clk);
+  }
   if (!check_timing(it->command, it->addr_vec)) {
     return c;
   }
@@ -321,28 +324,14 @@ bool ControllerBase::would_close_active(const Request& req) const {
     return false;
   }
 
-  auto target = m_device.m_spec->bank_targets[req.command];
-
   // Hot path: single-bank close (PREpb, RDA, WRA) — O(1) lookup.
-  if (target == BankTarget::Single) {
+  if (m_device.m_spec->bank_targets[req.command] == BankTarget::Single) {
     return m_active_per_bank[m_device.get_flat_bank_id(req.addr_vec)] > 0;
   }
 
-  // All / SameBank: scan occupied banks with proper scope checking.
-  // These are rare maintenance commands — linear scan skipping zeros is fine.
-  for (int i = 0; i < static_cast<int>(m_active_per_bank.size()); i++) {
-    if (m_active_per_bank[i] == 0) {
-      continue;
-    }
-    if (target == BankTarget::SameBank &&
-        m_device.m_bank_nodes[i]->m_node_id != req.addr_vec[m_bank_level]) {
-      continue;
-    }
-    if (m_device.bank_matches(m_device.m_bank_nodes[i], req.addr_vec)) {
-      return true;
-    }
-  }
-  return false;
+  // Multi-bank close: any target bank with an active request.
+  return !m_device.for_each_target_bank_while(req.command, req.addr_vec,
+                                              [&](int bank_id) { return m_active_per_bank[bank_id] == 0; });
 }
 
 void ControllerBase::update_request_stats(ReqBuffer::iterator& req) {

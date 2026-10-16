@@ -47,6 +47,9 @@ class DRAMDevice {
   // Prerequisite check — flat bank dispatch
   int get_preq_command(int command, const AddrVec_t& addr_vec, Clk_t clk);
 
+  // Address a single-bank prerequisite of a multi-bank command to the bank that needs it.
+  AddrVec_t preq_addr_vec(int command, int preq, const AddrVec_t& addr_vec, Clk_t clk) const;
+
   // Row buffer hit check — flat bank lookup (always single bank)
   bool check_rowbuffer_hit(int command, const AddrVec_t& addr_vec, Clk_t clk);
 
@@ -61,6 +64,12 @@ class DRAMDevice {
 
   // Get indices into m_bank_nodes for the target banks of a command (cold-path wrapper)
   std::vector<int> get_target_banks(int command, const AddrVec_t& addr_vec) const;
+
+  // Partner address of a Pair-targeted command
+  AddrVec_t partner_addr_vec(int command, const AddrVec_t& addr_vec) const;
+
+  // Node at `level` on the path of addr_vec
+  DRAMNode* node_at(const AddrVec_t& addr_vec, int level) const;
 
   /// Visit target bank(s) for a command with early-exit support.
   /// Visitor signature: bool(int bank_id) — return true to continue, false to stop.
@@ -87,6 +96,9 @@ class DRAMDevice {
         }
         return true;
       }
+
+      case BankTarget::Pair:
+        return visitor(get_flat_bank_id(addr_vec)) && visitor(get_flat_bank_id(partner_addr_vec(command, addr_vec)));
     }
     return true;
   }
