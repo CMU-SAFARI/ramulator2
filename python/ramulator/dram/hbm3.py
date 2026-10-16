@@ -105,6 +105,8 @@ class HBM3(DRAMStandard):
         TimingConstraint(level="PseudoChannel", preceding=["REFpb"], following=["REFpb", "RFMpb", "ACT"], latency="nRREFD"),
         TimingConstraint(level="PseudoChannel", preceding=["REFpb"], following=["REFab", "RFMab"], latency="nRFCpb"),
         TimingConstraint(level="PseudoChannel", preceding=["ACT"], following=["REFpb"], latency="nRRDS"),
+        # JESD238 Table 35 Note 2 (PDF p.65): a bank must be idle with tRP satisfied before it is refreshed
+        TimingConstraint(level="PseudoChannel", preceding=["PREab"], following=["REFpb", "RFMpb"], latency="nRP"),
         TimingConstraint(level="PseudoChannel", preceding=["ACT"], following=["RFMab"], latency="nRC"),
         TimingConstraint(level="PseudoChannel", preceding=["PREpb", "PREab"], following=["RFMab"], latency="nRP"),
         TimingConstraint(level="PseudoChannel", preceding=["RDA"], following=["RFMab"], latency="nRP + nRTP"),
@@ -120,6 +122,8 @@ class HBM3(DRAMStandard):
         TimingConstraint(level="Sid", preceding=["RD", "RDA"], following=["RD", "RDA"], latency="nCCDS"),
         TimingConstraint(level="Sid", preceding=["WR", "WRA"], following=["WR", "WRA"], latency="nCCDS"),
         TimingConstraint(level="Sid", preceding=["RD", "RDA"], following=["RD", "RDA"], latency="nCCDR", sibling=True),
+        # JESD238 Table 93 Note 17 (PDF p.178): seamless WRITEs across SIDs use tCCDS
+        TimingConstraint(level="Sid", preceding=["WR", "WRA"], following=["WR", "WRA"], latency="nCCDS", sibling=True),
 
         # ============================================================
         # BankGroup — same-group CAS timing
@@ -142,8 +146,11 @@ class HBM3(DRAMStandard):
         TimingConstraint(level="Bank", preceding=["PREpb"], following=["ACT"], latency="nRP"),
         TimingConstraint(level="Bank", preceding=["RD"], following=["PREpb"], latency="nRTP"),
         TimingConstraint(level="Bank", preceding=["WR"], following=["PREpb"], latency="nCWL + nBL + nWR"),
-        TimingConstraint(level="Bank", preceding=["RDA"], following=["ACT"], latency="nRTP + nRP"),
-        TimingConstraint(level="Bank", preceding=["WRA"], following=["ACT"], latency="nCWL + nBL + nWR + nRP"),
+        # JESD238 Table 33 (PDF p.58): WRITE → READ w/AP same bank = WL + 2 + MAX[RU(tWR/tCK) − tRTP, tWTR]
+        TimingConstraint(level="Bank", preceding=["WR"], following=["RDA"], latency="nCWL + nBL + max(nWR - nRTP, nWTRL)"),
+        # JESD238 Table 33 Note 8 (PDF p.58): READ/WRITE w/AP → ACTIVATE or PER BANK REFRESH (same bank); RFMpb as REFpb (§6.3.2.7, PDF p.67)
+        TimingConstraint(level="Bank", preceding=["RDA"], following=["ACT", "REFpb", "RFMpb"], latency="nRTP + nRP"),
+        TimingConstraint(level="Bank", preceding=["WRA"], following=["ACT", "REFpb", "RFMpb"], latency="nCWL + nBL + nWR + nRP"),
 
         # Bank — per-bank refresh
         TimingConstraint(level="Bank", preceding=["REFpb"], following=["REFpb", "RFMpb", "ACT"], latency="nRFCpb"),
