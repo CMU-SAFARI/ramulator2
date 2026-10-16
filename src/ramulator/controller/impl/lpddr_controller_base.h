@@ -40,7 +40,8 @@ class LPDDRControllerBase : public ControllerBase {
   int m_nAAD = 0;
 
   // WCK management
-  Clk_t m_wck_expiry = 0;
+  std::vector<Clk_t> m_wck_expiry;  // WCK2CK sync expiry per rank (JESD209-5C §7.2.1.6)
+  int m_rank_level = -1;
   int m_cmd_cas = -1;
   int m_cmd_cas_rd = -1;
   int m_cmd_cas_wr = -1;
@@ -75,8 +76,9 @@ class LPDDRControllerBase : public ControllerBase {
   bool is_read_cmd(int cmd) const;
   int burst_cycles_for_cmd(int cmd) const;
   WCKSyncMode parse_wck_sync_mode(const std::string& mode) const;
-  bool needs_wck_sync(int cmd) const;
-  void extend_wck_expiry(int cmd);
+  bool needs_wck_sync(int cmd, const AddrVec_t& addr_vec) const;
+  void extend_wck_expiry(int cmd, const AddrVec_t& addr_vec);
+  bool wck_sync_blocked(const Request& req);
 
   bool cas_would_block_deadline() const;
   bool would_block_activating(int cmd, const AddrVec_t& addr_vec) const;
