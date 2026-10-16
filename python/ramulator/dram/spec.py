@@ -90,6 +90,10 @@ class DRAMStandard(Component):
     timing_constraints = []  # type: list[TimingConstraint]
     command_cycles = {}  # type: dict[str, float] — CA bus cycles per command (default 1 CK)
     tick_multiplier = 1  # ticks per CK cycle (e.g. 2 for HBM3 half-CK ticks)
+    command_slot_cycles = 1
+    """Command issue granularity in ticks; serialized constraint latencies round up to a multiple of it."""
+    config_modes = []
+    """Organization fields serialized to C++ as string-valued "modes"."""
     internal_prefetch_size = 8
     data_payload_bytes = None
     read_latency = "nCL + nBL"
@@ -246,6 +250,7 @@ class DRAMStandard(Component):
         # (-1).  When both are the same cycle count the offsets cancel.
         constraints = []
         history_group = 0
+        slot = cls.command_slot_cycles
         for tc in cls.timing_constraints:
             nominal = cls._eval_expr(tc.latency, timing_dict)
             level = level_idx[tc.level]
@@ -263,6 +268,7 @@ class DRAMStandard(Component):
                     # shared history, so the preceding offset is already part
                     # of the stored timestamp.
                     adjusted = nominal - f_off if tc.shared_window else nominal + p_off - f_off
+                    adjusted = -(-adjusted // slot) * slot
                     if adjusted not in lat_groups:
                         lat_groups[adjusted] = ([], set())
                     p_id = cmd_idx[p_cmd]
@@ -305,12 +311,15 @@ class DRAMStandard(Component):
             },
             "timing": [timing_dict[k] for k in cls.timing_params],
             "command_cycles": [cmd_cycles.get(cmd, tick_mult) for cmd in cls.commands],
+            "command_slot_cycles": slot,
             "channel_width": org_dict["channel_width"],
             "read_latency": cls._eval_expr(cls.read_latency, timing_dict),
             "timing_constraints": constraints,
         }
         if cls.data_payload_bytes is not None:
             config["data_payload_bytes"] = cls.data_payload_bytes
+        if cls.config_modes:
+            config["modes"] = {name: org_dict[name] for name in cls.config_modes}
 
         # Bank-target overrides: [command, pattern, level, xor_mask]
         bank_targets = []

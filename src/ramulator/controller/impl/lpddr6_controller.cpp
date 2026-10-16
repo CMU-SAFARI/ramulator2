@@ -1,4 +1,5 @@
-#include <algorithm>
+#include <stdexcept>
+#include <string>
 
 #include "ramulator/base/base.h"
 #include "ramulator/controller/impl/lpddr_controller_base.h"
@@ -34,7 +35,14 @@ class LPDDR6Controller final : public LPDDRControllerBase {
     // so the long-burst WCK-expiry window is BL/n_min(BL48), not BL/n_max.
     m_burst_cycles_long = spec.get_timing_value("nBL_min_L");
     m_nWCKPST = spec.get_timing_value("nWCKPST");
-    m_cas_deadline_guard = std::max(2, spec.get_timing_value("nCAS"));
+
+    // RD/WR carry WS (JESD209-6 §7.3.3); WCK always-on mode keeps WCK synced (§7.3.4).
+    m_access_wck_sync = true;
+    const std::string& wck_mode = spec.mode("wck_mode");
+    if (wck_mode != "sync" && wck_mode != "always_on") {
+      throw std::runtime_error("LPDDR6Controller: invalid wck_mode '" + wck_mode + "'");
+    }
+    m_wck_sync_mode = wck_mode == "always_on" ? WCKSyncMode::AlwaysOn : WCKSyncMode::NeedSync;
   }
 };
 

@@ -70,16 +70,30 @@ class LPDDR6 : public DRAMSpec {
       nRTW_S_L,
       nRTW_L_L,
       nWCK2DQO,
+      nWCK2DQO_r2r,
       nRPST,
+      nRPRE,
       nODTLon,
+      nODTLoff,
+      nODTLoff_L,
       nODTon_min,
+      nODToff_max,
+      nR2R_RD_RD,
+      nR2R_RDL_RD,
+      nR2R_RD_WR,
+      nR2R_RDL_WR,
+      nR2R_WR_RD,
+      nR2R_WRL_RD,
+      nR2R_WR_WR,
+      nR2R_WRL_WR,
       nFAW,
       nRFC,
       nREFI,
       nWCKPST,
+      nWCKENL_RD,
+      nWCKENL_WR,
       nCAS,
       nAAD,
-      nCS,
       tCK_ps,
       COUNT
     };
@@ -103,13 +117,16 @@ class LPDDR6 : public DRAMSpec {
               {"ACT1", "ACT2", "PREpb", "PREab", "CAS", "RD_S", "WR_S", "RDA_S", "WRA_S", "RD_L", "WR_L", "RDA_L",
                "WRA_L", "REFab"});
     set_names(states, state_names, {"Opened", "Closed", "Activating", "N_A"});
-    set_names(
-        timings, timing_names,
-        {"rate",   "nBL_min", "nBL_max",  "nBL_min_L", "nBL_max_L", "nRL",        "nWL",     "nACU",       "nRCDr",
-         "nRCDw",  "nRP",     "nRPab",    "nRAS",      "nRC",       "nWTP",       "nRTP",    "nRTP_L",     "nPPD",
-         "nCCDS",  "nCCDL",   "nCCDL_L",  "nCCDS_WR",  "nCCDL_WR",  "nCCDL_WR_L", "nRRD",    "nWTRS",      "nWTRL",
-         "nRTW_S", "nRTW_L",  "nRTW_S_L", "nRTW_L_L",  "nWCK2DQO",  "nRPST",      "nODTLon", "nODTon_min", "nFAW",
-         "nRFC",   "nREFI",   "nWCKPST",  "nCAS",      "nAAD",      "nCS",        "tCK_ps"});
+    set_names(timings, timing_names,
+              {"rate",       "nBL_min",     "nBL_max",    "nBL_min_L",   "nBL_max_L",    "nRL",         "nWL",
+               "nACU",       "nRCDr",       "nRCDw",      "nRP",         "nRPab",        "nRAS",        "nRC",
+               "nWTP",       "nRTP",        "nRTP_L",     "nPPD",        "nCCDS",        "nCCDL",       "nCCDL_L",
+               "nCCDS_WR",   "nCCDL_WR",    "nCCDL_WR_L", "nRRD",        "nWTRS",        "nWTRL",       "nRTW_S",
+               "nRTW_L",     "nRTW_S_L",    "nRTW_L_L",   "nWCK2DQO",    "nWCK2DQO_r2r", "nRPST",       "nRPRE",
+               "nODTLon",    "nODTLoff",    "nODTLoff_L", "nODTon_min",  "nODToff_max",  "nR2R_RD_RD",  "nR2R_RDL_RD",
+               "nR2R_RD_WR", "nR2R_RDL_WR", "nR2R_WR_RD", "nR2R_WRL_RD", "nR2R_WR_WR",   "nR2R_WRL_WR", "nFAW",
+               "nRFC",       "nREFI",       "nWCKPST",    "nWCKENL_RD",  "nWCKENL_WR",   "nCAS",        "nAAD",
+               "tCK_ps"});
 
     // Static spec data
     internal_prefetch_size = 16;

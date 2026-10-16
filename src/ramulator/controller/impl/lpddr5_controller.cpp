@@ -1,3 +1,5 @@
+#include <string>
+
 #include "ramulator/base/base.h"
 #include "ramulator/controller/impl/lpddr_controller_base.h"
 #include "ramulator/dram/dram_spec.h"
@@ -10,6 +12,10 @@ class LPDDR5Controller final : public LPDDRControllerBase {
  public:
   void init() override {
     LPDDRControllerBase::init();
+
+    std::string wck_sync_mode_str;
+    RAMULATOR_PARSE_PARAM(wck_sync_mode_str, std::string, "wck_sync_mode").default_val("need_sync");
+    m_wck_sync_mode = parse_wck_sync_mode(wck_sync_mode_str);
 
     const auto& spec = *m_device.m_spec;
     m_cmd_act1 = spec.get_command_id("ACT1");

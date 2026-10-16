@@ -15,10 +15,7 @@ namespace Ramulator {
 void LPDDRControllerBase::init() {
   init_base();
 
-  std::string wck_sync_mode_str;
-  RAMULATOR_PARSE_PARAM(wck_sync_mode_str, std::string, "wck_sync_mode").default_val("need_sync");
-  m_wck_sync_mode = parse_wck_sync_mode(wck_sync_mode_str);
-
+  m_command_slot_cycles = m_device.m_spec->command_slot_cycles;
   m_activating_buffer.max_size = m_device.m_bank_nodes.size();
   m_act2_owner_valid.assign(m_device.m_bank_nodes.size(), false);
   m_act2_deadline.assign(m_device.m_bank_nodes.size(), -1);
@@ -33,6 +30,9 @@ void LPDDRControllerBase::setup(IFrontEnd* frontend, IMemorySystem* memory_syste
   m_stats.add("cas_skipped", s_cas_skipped);
   m_stats.add("act2_deadline_forced", s_act2_deadline_forced);
   m_stats.add("act2_deferred", s_act2_deferred);
+  if (m_access_wck_sync) {
+    m_stats.add("wck_syncs", s_wck_syncs);
+  }
 }
 
 void LPDDRControllerBase::reset_stats() {
@@ -41,6 +41,7 @@ void LPDDRControllerBase::reset_stats() {
   s_cas_skipped = 0;
   s_act2_deadline_forced = 0;
   s_act2_deferred = 0;
+  s_wck_syncs = 0;
 }
 
 void LPDDRControllerBase::tick() {
@@ -52,6 +53,18 @@ void LPDDRControllerBase::tick() {
     p->pre_schedule();
   }
 
+  // Commands issue only on command slots (JESD209-6 Tables 383-385 Note 2).
+  if (m_clk % m_command_slot_cycles == 0) {
+    schedule_command();
+  }
+
+  m_rowpolicy->post_schedule();
+  for (auto* p : m_plugins) {
+    p->post_schedule();
+  }
+}
+
+void LPDDRControllerBase::schedule_command() {
   Candidate urgent_act2 = pick_urgent_act2();
 
   // CAS continuation: last cycle issued CAS, now issue the RD/WR.
@@ -81,11 +94,6 @@ void LPDDRControllerBase::tick() {
         retire_request(m_cas_req_it, *m_cas_buffer);
       }
     }
-
-    m_rowpolicy->post_schedule();
-    for (auto* p : m_plugins) {
-      p->post_schedule();
-    }
     return;
   }
 
@@ -108,11 +116,6 @@ void LPDDRControllerBase::tick() {
     issue_owned_act2(cand, act2_kind);
   } else if (cand.valid && !try_issue_cas_sync(cand)) {
     issue_standard_candidate(cand);
-  }
-
-  m_rowpolicy->post_schedule();
-  for (auto* p : m_plugins) {
-    p->post_schedule();
   }
 }
 
@@ -156,9 +159,15 @@ bool LPDDRControllerBase::needs_wck_sync(int cmd, const AddrVec_t& addr_vec) con
   return m_clk >= m_wck_expiry[addr_vec[m_rank_level]];
 }
 
+// A separate CAS(WS) precedes a WCK-cold access unless the access carries WS itself (JESD209-6 §7.3.3).
+bool LPDDRControllerBase::needs_cas_sync(int cmd, const AddrVec_t& addr_vec) const {
+  return !m_access_wck_sync && needs_wck_sync(cmd, addr_vec);
+}
+
 void LPDDRControllerBase::extend_wck_expiry(int cmd, const AddrVec_t& addr_vec) {
   int lat = is_read_cmd(cmd) ? m_read_latency : m_write_latency;
-  Clk_t exp = m_clk + lat + burst_cycles_for_cmd(cmd) + m_nWCKPST;
+  // Sync-off timing counts from the command's last CK edge (JESD209-6 §7.3.3.5, §7.4.2.2).
+  Clk_t exp = m_clk + m_device.m_spec->command_cycles[cmd] - 1 + lat + burst_cycles_for_cmd(cmd) + m_nWCKPST;
   Clk_t& expiry = m_wck_expiry[addr_vec[m_rank_level]];
   if (exp > expiry) {
     expiry = exp;
@@ -168,7 +177,7 @@ void LPDDRControllerBase::extend_wck_expiry(int cmd, const AddrVec_t& addr_vec) 
 // An access whose WCK2CK sync CAS is not timing-ready this cycle is skipped so it cannot block the scheduler.
 bool LPDDRControllerBase::wck_sync_blocked(const Request& req) {
   int cas = m_cmd_cas >= 0 ? m_cmd_cas : (is_read_cmd(req.command) ? m_cmd_cas_rd : m_cmd_cas_wr);
-  return needs_wck_sync(req.command, req.addr_vec) && !check_timing(cas, req.addr_vec);
+  return needs_cas_sync(req.command, req.addr_vec) && !check_timing(cas, req.addr_vec);
 }
 
 bool LPDDRControllerBase::cas_would_block_deadline() const {
@@ -291,7 +300,7 @@ ControllerBase::Candidate LPDDRControllerBase::pick_cas_lookahead_candidate() {
 
   auto it = m_scheduler->get_best_request(m_active_buffer, [&](const Request& req) {
     int cmd = req.command;
-    if (!is_access_cmd(cmd) || !needs_wck_sync(cmd, req.addr_vec) ||
+    if (!is_access_cmd(cmd) || !needs_cas_sync(cmd, req.addr_vec) ||
         !is_allowed_during_pending_act2(cmd, req.addr_vec)) {
       return false;
     }
@@ -401,7 +410,7 @@ bool LPDDRControllerBase::try_issue_cas_sync(Candidate& cand) {
   assert(cand.buffer != &m_activating_buffer);
 
   int cmd = cand.it->command;
-  if (!needs_wck_sync(cmd, cand.it->addr_vec)) {
+  if (!needs_cas_sync(cmd, cand.it->addr_vec)) {
     return false;
   }
 
@@ -445,6 +454,9 @@ void LPDDRControllerBase::issue_standard_candidate(Candidate cand) {
   }
 
   if (is_access_cmd(cmd)) {
+    if (m_access_wck_sync && needs_wck_sync(cmd, cand.it->addr_vec)) {
+      s_wck_syncs++;
+    }
     if (m_wck_sync_mode == WCKSyncMode::NeedSync) {
       extend_wck_expiry(cmd, cand.it->addr_vec);
     }

@@ -41,7 +41,7 @@ def test_lpddr6_closed_row_read_uses_short_read_command():
     dut.send_request("Read", addr)
     history = dut.run_until_idle(max_ticks=2048)
 
-    dut.assert_commands(["ACT1", "ACT2", "CAS", "RD_S"], history=history)
+    dut.assert_commands(["ACT1", "ACT2", "RD_S"], history=history)
 
 
 def test_lpddr6_closed_row_write_uses_short_write_command():
@@ -51,7 +51,7 @@ def test_lpddr6_closed_row_write_uses_short_write_command():
     dut.send_request("Write", addr)
     history = dut.run_until_idle(max_ticks=2048)
 
-    dut.assert_commands(["ACT1", "ACT2", "CAS", "WR_S"], history=history)
+    dut.assert_commands(["ACT1", "ACT2", "WR_S"], history=history)
 
 
 def test_lpddr6_payload_transaction_size_is_32_bytes():
@@ -67,7 +67,7 @@ def test_lpddr6_payload_transaction_size_is_32_bytes():
 
 
 def test_lpddr6_act1_must_be_followed_by_act2_before_next_act1():
-    dut = make_lpddr6_dut(wck_sync_mode="always_on")
+    dut = make_lpddr6_dut(dram_kwargs={"wck_mode": "always_on"})
     first = lpddr6_addr(dut, bankgroup=0, bank=0, row=0)
     second = lpddr6_addr(dut, bankgroup=1, bank=0, row=0)
 
@@ -79,7 +79,7 @@ def test_lpddr6_act1_must_be_followed_by_act2_before_next_act1():
 
 
 def test_lpddr6_different_bg_row_hit_reads_use_nccds():
-    dut = make_lpddr6_dut(wck_sync_mode="always_on")
+    dut = make_lpddr6_dut(dram_kwargs={"wck_mode": "always_on"})
     first = lpddr6_addr(dut, bankgroup=0, bank=0, row=0)
     second = lpddr6_addr(dut, bankgroup=1, bank=0, row=0)
     open_row(dut, first)
@@ -95,7 +95,7 @@ def test_lpddr6_different_bg_row_hit_reads_use_nccds():
 
 
 def test_lpddr6_same_bg_row_hit_reads_use_nccdl():
-    dut = make_lpddr6_dut(wck_sync_mode="always_on")
+    dut = make_lpddr6_dut(dram_kwargs={"wck_mode": "always_on"})
     first = lpddr6_addr(dut, bankgroup=0, bank=0, row=0)
     second = lpddr6_addr(dut, bankgroup=0, bank=1, row=0)
     open_row(dut, first)
@@ -111,7 +111,7 @@ def test_lpddr6_same_bg_row_hit_reads_use_nccdl():
 
 
 def test_lpddr6_write_to_precharge_uses_nbl_max():
-    dut = make_lpddr6_dut(wck_sync_mode="always_on")
+    dut = make_lpddr6_dut(dram_kwargs={"wck_mode": "always_on"})
     addr = lpddr6_addr(dut)
     open_row(dut, addr)
 
@@ -128,7 +128,7 @@ def test_lpddr6_write_to_precharge_uses_nbl_max():
 
 
 def test_lpddr6_same_bg_read_to_write_uses_nrtw_l():
-    dut = make_lpddr6_dut(wck_sync_mode="always_on")
+    dut = make_lpddr6_dut(dram_kwargs={"wck_mode": "always_on"})
     addr = lpddr6_addr(dut)
     open_row(dut, addr)
 
@@ -145,7 +145,7 @@ def test_lpddr6_same_bg_write_to_read_uses_array_cycle_time():
     # Regression guard: same-BG WRITE->READ turnaround must use BL/n_max (the
     # column array cycle time), not BL/n_min. JESD209-6 Table 383:
     # WL + BL/n_max + RU(tWTR_L/tCK). At 10667 that is 26 + 12 + 32 = 70 nCK.
-    dut = make_lpddr6_dut(wck_sync_mode="always_on")
+    dut = make_lpddr6_dut(dram_kwargs={"wck_mode": "always_on"})
     addr = lpddr6_addr(dut)
     open_row(dut, addr)
 
@@ -180,7 +180,7 @@ def test_lpddr6_long_burst_quantities_match_table_381():
 def test_lpddr6_long_read_to_precharge_uses_nrtp_l():
     # RD_L is not issued on the normal request path; inject it directly to
     # exercise the BL48 read-to-precharge constraint (nRTP_L).
-    dut = make_lpddr6_dut(wck_sync_mode="always_on")
+    dut = make_lpddr6_dut(dram_kwargs={"wck_mode": "always_on"})
     addr = lpddr6_addr(dut)
     open_row(dut, addr)
 
@@ -197,7 +197,7 @@ def test_lpddr6_long_read_to_precharge_uses_nrtp_l():
 
 def test_lpddr6_same_bg_long_read_to_read_uses_nccdl_l():
     # Two injected same-BG BL48 reads must be spaced by nCCDL_L (JESD209-6 Table 382).
-    dut = make_lpddr6_dut(wck_sync_mode="always_on")
+    dut = make_lpddr6_dut(dram_kwargs={"wck_mode": "always_on"})
     first = lpddr6_addr(dut, bankgroup=0, bank=0, row=0)
     second = lpddr6_addr(dut, bankgroup=0, bank=1, row=0)
     open_row(dut, first)

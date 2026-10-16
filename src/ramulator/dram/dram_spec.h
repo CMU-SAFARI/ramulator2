@@ -113,6 +113,8 @@ struct DRAMSpec {
   std::vector<int> supported_requests;  // per request type
   std::vector<int> timing_vals;         // per timing parameter
   std::vector<int> command_cycles;      // per command: CA bus cycles (ticks)
+  int command_slot_cycles = 1;          // commands issue only on multiples of this (ticks)
+  std::map<std::string, std::string> modes;  // config-time mode switches (e.g. "wck_mode")
   TimingCons timing_cons;                // per level x command
   std::vector<std::vector<int8_t>> has_sibling_cons;  // [level][cmd] → has sibling timing constraint
   std::vector<DRAMCommandMeta> command_meta;
@@ -151,6 +153,13 @@ struct DRAMSpec {
     auto it = timings.find(name);
     if (it == timings.end()) throw std::runtime_error("DRAMSpec: unknown timing '" + name + "'");
     return timing_vals[it->second];
+  }
+
+  // Config-time mode value — throws if not found.
+  const std::string& mode(const std::string& name) const {
+    auto it = modes.find(name);
+    if (it == modes.end()) throw std::runtime_error("DRAMSpec: unknown mode '" + name + "'");
+    return it->second;
   }
 
   // Combined level lookup + organization count — throws if not found.

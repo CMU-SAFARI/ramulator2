@@ -58,6 +58,15 @@ void DRAMSpec::load_config(const ConfigNode& config) {
       command_cycles[i] = cycles[i].as<int>();
     }
   }
+  command_slot_cycles = dram["command_slot_cycles"].as<int>(1);
+
+  // Config-time mode switches (pre-resolved by Python)
+  ConfigNode modes_node = dram["modes"];
+  if (modes_node) {
+    for (const auto& [name, value] : modes_node.map()) {
+      modes[name] = value.as<std::string>();
+    }
+  }
 
   // Read latency (pre-computed by Python)
   read_latency = dram["read_latency"].as<int>();

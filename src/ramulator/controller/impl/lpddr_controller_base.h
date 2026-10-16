@@ -59,7 +59,9 @@ class LPDDRControllerBase : public ControllerBase {
   int m_burst_cycles_long = 0;
   int m_nWCKPST = 0;
   int m_cas_deadline_guard = 1;
-  WCKSyncMode m_wck_sync_mode = WCKSyncMode::NeedSync;
+  WCKSyncMode m_wck_sync_mode = WCKSyncMode::NeedSync;  // set by the subclass
+  bool m_access_wck_sync = false;  // RD/WR carry the WS bit instead of a separate CAS (JESD209-6 §7.3.3)
+  int m_command_slot_cycles = 1;
 
   // Pending access after CAS
   bool m_cas_issued = false;
@@ -71,12 +73,14 @@ class LPDDRControllerBase : public ControllerBase {
   size_t s_cas_skipped = 0;
   size_t s_act2_deadline_forced = 0;
   size_t s_act2_deferred = 0;
+  size_t s_wck_syncs = 0;  // accesses issued with WS=1
 
   bool is_access_cmd(int cmd) const;
   bool is_read_cmd(int cmd) const;
   int burst_cycles_for_cmd(int cmd) const;
   WCKSyncMode parse_wck_sync_mode(const std::string& mode) const;
   bool needs_wck_sync(int cmd, const AddrVec_t& addr_vec) const;
+  bool needs_cas_sync(int cmd, const AddrVec_t& addr_vec) const;
   void extend_wck_expiry(int cmd, const AddrVec_t& addr_vec);
   bool wck_sync_blocked(const Request& req);
 
@@ -88,6 +92,7 @@ class LPDDRControllerBase : public ControllerBase {
   bool is_owned_act2_candidate(const Request& req) const;
   bool can_start_act1(const Request& req);
 
+  void schedule_command();
   Candidate select_normal_candidate();
   Candidate pick_cas_lookahead_candidate();
   Candidate pick_urgent_act2();

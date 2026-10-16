@@ -2,6 +2,9 @@ import math
 
 from ramulator.dram.spec import DRAMStandard, TimingConstraint
 
+# Values of the "wck_mode" organization field; see LPDDR6._resolve_wck_mode.
+WCK_MODES = ("sync", "always_on")
+
 
 class LPDDR6(DRAMStandard):
     name = "LPDDR6"
@@ -10,7 +13,8 @@ class LPDDR6(DRAMStandard):
     # payload size through data_payload_bytes.
     internal_prefetch_size = 16
     data_payload_bytes = 32
-    read_latency = "nRL + nBL_min"
+    # RL counts from the command's second CK edge, then tWCK2DQO (JESD209-6 §7.4.2.2, Table 477).
+    read_latency = "1 + nRL + nWCK2DQO + nBL_min"
 
     levels = {
         "Channel":      "N_A",
@@ -38,6 +42,9 @@ class LPDDR6(DRAMStandard):
         "RD_L": 2, "WR_L": 2, "RDA_L": 2, "WRA_L": 2,
         "REFab": 2,
     }
+    # Even nCK command gaps (JESD209-6 Tables 383-385 Note 2).
+    command_slot_cycles = 2
+    config_modes = ["wck_mode"]
 
     states = ["Opened", "Closed", "Activating", "N_A"]
 
@@ -51,20 +58,22 @@ class LPDDR6(DRAMStandard):
         "nRRD",
         "nWTRS", "nWTRL",
         "nRTW_S", "nRTW_L", "nRTW_S_L", "nRTW_L_L",
-        "nWCK2DQO", "nRPST", "nODTLon", "nODTon_min",
+        "nWCK2DQO", "nWCK2DQO_r2r", "nRPST", "nRPRE",
+        "nODTLon", "nODTLoff", "nODTLoff_L", "nODTon_min", "nODToff_max",
+        "nR2R_RD_RD", "nR2R_RDL_RD", "nR2R_RD_WR", "nR2R_RDL_WR",
+        "nR2R_WR_RD", "nR2R_WRL_RD", "nR2R_WR_WR", "nR2R_WRL_WR",
         "nFAW", "nRFC", "nREFI",
-        "nWCKPST", "nCAS", "nAAD", "nCS", "tCK_ps",
+        "nWCKPST", "nWCKENL_RD", "nWCKENL_WR", "nCAS", "nAAD", "tCK_ps",
     ]
 
     supported_requests = {"Read": "RD_S", "Write": "WR_S"}
 
     timing_constraints = [
-        # Channel — DQ-bus occupancy (JESD209-6 Table 381 BL/n_min).
-        # BL48 is modeled as two transferred BL24 segments.
+        # Channel — DQ-bus occupancy, BL24 and BL48 BL/n_min (JESD209-6 Table 381).
         TimingConstraint(level="Channel", preceding=["RD_S", "RDA_S"], following=["RD_S", "RDA_S", "RD_L", "RDA_L"], latency="nBL_min"),
         TimingConstraint(level="Channel", preceding=["WR_S", "WRA_S"], following=["WR_S", "WRA_S", "WR_L", "WRA_L"], latency="nBL_min"),
-        TimingConstraint(level="Channel", preceding=["RD_L", "RDA_L"], following=["RD_S", "RDA_S", "RD_L", "RDA_L"], latency="nBL_min + nBL_min"),
-        TimingConstraint(level="Channel", preceding=["WR_L", "WRA_L"], following=["WR_S", "WRA_S", "WR_L", "WRA_L"], latency="nBL_min + nBL_min"),
+        TimingConstraint(level="Channel", preceding=["RD_L", "RDA_L"], following=["RD_S", "RDA_S", "RD_L", "RDA_L"], latency="nBL_min_L"),
+        TimingConstraint(level="Channel", preceding=["WR_L", "WRA_L"], following=["WR_S", "WRA_S", "WR_L", "WRA_L"], latency="nBL_min_L"),
 
         # Bank — CAS access gap (JESD209-6 Table 394).
         TimingConstraint(level="Bank", preceding=["CAS"], following=["RD_S", "RDA_S", "RD_L", "RDA_L", "WR_S", "WRA_S", "WR_L", "WRA_L"], latency="nCAS"),
@@ -82,18 +91,21 @@ class LPDDR6(DRAMStandard):
         TimingConstraint(level="Rank", preceding=["WR_S", "WRA_S"], following=["RD_S", "RDA_S", "RD_L", "RDA_L"], latency="nWL + nBL_min + nWTRS"),
         TimingConstraint(level="Rank", preceding=["WR_L", "WRA_L"], following=["RD_S", "RDA_S", "RD_L", "RDA_L"], latency="nWL + nBL_min_L + nWTRS"),
 
-        # Rank switching (sibling) — local bus-clear model: transferred beats + nCS.
-        TimingConstraint(level="Rank", preceding=["RD_S", "RDA_S"], following=["RD_S", "RDA_S", "RD_L", "RDA_L", "WR_S", "WRA_S", "WR_L", "WRA_L"], latency="nBL_min + nCS", window=1, sibling=True),
-        TimingConstraint(level="Rank", preceding=["RD_L", "RDA_L"], following=["RD_S", "RDA_S", "RD_L", "RDA_L", "WR_S", "WRA_S", "WR_L", "WRA_L"], latency="nBL_min + nBL_min + nCS", window=1, sibling=True),
-        TimingConstraint(level="Rank", preceding=["WR_S", "WRA_S"], following=["RD_S", "RDA_S", "RD_L", "RDA_L"], latency="nRL + nBL_min + nCS - nWL", window=1, sibling=True),
-        TimingConstraint(level="Rank", preceding=["WR_L", "WRA_L"], following=["RD_S", "RDA_S", "RD_L", "RDA_L"], latency="nRL + nBL_min + nBL_min + nCS - nWL", window=1, sibling=True),
+        # Rank — rank to rank, DQ ODT on (JESD209-6 Tables 401 and 404, selected by wck_mode).
+        TimingConstraint(level="Rank", preceding=["RD_S", "RDA_S"], following=["RD_S", "RDA_S", "RD_L", "RDA_L"], latency="nR2R_RD_RD", window=1, sibling=True),
+        TimingConstraint(level="Rank", preceding=["RD_L", "RDA_L"], following=["RD_S", "RDA_S", "RD_L", "RDA_L"], latency="nR2R_RDL_RD", window=1, sibling=True),
+        TimingConstraint(level="Rank", preceding=["RD_S", "RDA_S"], following=["WR_S", "WRA_S", "WR_L", "WRA_L"], latency="nR2R_RD_WR", window=1, sibling=True),
+        TimingConstraint(level="Rank", preceding=["RD_L", "RDA_L"], following=["WR_S", "WRA_S", "WR_L", "WRA_L"], latency="nR2R_RDL_WR", window=1, sibling=True),
+        TimingConstraint(level="Rank", preceding=["WR_S", "WRA_S"], following=["RD_S", "RDA_S", "RD_L", "RDA_L"], latency="nR2R_WR_RD", window=1, sibling=True),
+        TimingConstraint(level="Rank", preceding=["WR_L", "WRA_L"], following=["RD_S", "RDA_S", "RD_L", "RDA_L"], latency="nR2R_WRL_RD", window=1, sibling=True),
+        TimingConstraint(level="Rank", preceding=["WR_S", "WRA_S"], following=["WR_S", "WRA_S", "WR_L", "WRA_L"], latency="nR2R_WR_WR", window=1, sibling=True),
+        TimingConstraint(level="Rank", preceding=["WR_L", "WRA_L"], following=["WR_S", "WRA_S", "WR_L", "WRA_L"], latency="nR2R_WRL_WR", window=1, sibling=True),
 
-        # Direct all-bank precharge after column commands
-        # (JESD209-6 Tables 383 and 391).
-        TimingConstraint(level="Rank", preceding=["RD_S"], following=["PREab"], latency="nRTP"),
-        TimingConstraint(level="Rank", preceding=["RD_L"], following=["PREab"], latency="nRTP_L"),
-        TimingConstraint(level="Rank", preceding=["WR_S"], following=["PREab"], latency="nWL + nBL_max + nWTP"),
-        TimingConstraint(level="Rank", preceding=["WR_L"], following=["PREab"], latency="nWL + nBL_max_L + nWTP"),
+        # Rank — column command to PREab, with or without auto-precharge (JESD209-6 Tables 383 and 391-393).
+        TimingConstraint(level="Rank", preceding=["RD_S", "RDA_S"], following=["PREab"], latency="nRTP"),
+        TimingConstraint(level="Rank", preceding=["RD_L", "RDA_L"], following=["PREab"], latency="nRTP_L"),
+        TimingConstraint(level="Rank", preceding=["WR_S", "WRA_S"], following=["PREab"], latency="nWL + nBL_max + nWTP"),
+        TimingConstraint(level="Rank", preceding=["WR_L", "WRA_L"], following=["PREab"], latency="nWL + nBL_max_L + nWTP"),
 
         # RAS and activation constraints (JESD209-6 Figures 67-72 and Tables 383-385, 414).
         TimingConstraint(level="Rank", preceding=["ACT2"], following=["ACT2"], latency="nRRD"),
@@ -103,15 +115,16 @@ class LPDDR6(DRAMStandard):
         TimingConstraint(level="Rank", preceding=["PREpb", "PREab"], following=["PREpb", "PREab"], latency="nPPD"),
 
         # Rank — all-bank refresh timing (JESD209-6 Figure 111 and Tables 300-302, 414).
-        TimingConstraint(level="Rank", preceding=["ACT2"], following=["REFab"], latency="nRAS + nRPab"),
+        TimingConstraint(level="Rank", preceding=["ACT2"], following=["REFab"], latency="nRAS + nRP"),
         TimingConstraint(level="Rank", preceding=["PREpb"], following=["REFab"], latency="nRP"),
         TimingConstraint(level="Rank", preceding=["PREab"], following=["REFab"], latency="nRPab"),
         TimingConstraint(level="Rank", preceding=["RDA_S"], following=["REFab"], latency="nRP + nRTP"),
         TimingConstraint(level="Rank", preceding=["RDA_L"], following=["REFab"], latency="nRP + nRTP_L"),
         TimingConstraint(level="Rank", preceding=["WRA_S"], following=["REFab"], latency="nWL + nBL_max + nWTP + nRP"),
         TimingConstraint(level="Rank", preceding=["WRA_L"], following=["REFab"], latency="nWL + nBL_max_L + nWTP + nRP"),
+        # tRFCab ends at ACT-2 and blocks PRE/REF (JESD209-6 Table 300, Figure 111 Notes 1 and 3).
         TimingConstraint(level="Rank", preceding=["REFab"], following=["ACT2"], latency="nRFC"),
-        TimingConstraint(level="Rank", preceding=["REFab"], following=["PREab"], latency="nRFC"),
+        TimingConstraint(level="Rank", preceding=["REFab"], following=["PREab", "PREpb", "REFab"], latency="nRFC"),
 
         # BankGroup — same-BG column timing (JESD209-6 Tables 382-384).
         TimingConstraint(level="BankGroup", preceding=["RD_S", "RDA_S"], following=["RD_S", "RDA_S", "RD_L", "RDA_L"], latency="nCCDL"),
@@ -147,6 +160,13 @@ class LPDDR6(DRAMStandard):
     ]
 
     @classmethod
+    def validate_organization(cls, org_dict):
+        super().validate_organization(org_dict)
+        mode = org_dict["wck_mode"]
+        if mode not in WCK_MODES:
+            raise ValueError(f"{cls.name}: wck_mode must be one of {WCK_MODES}, got {mode!r}")
+
+    @classmethod
     def resolve_secondary_timings(cls, timing_dict, org_dict):
         rate = timing_dict["rate"]
         tCK_ps = timing_dict["tCK_ps"]
@@ -166,6 +186,7 @@ class LPDDR6(DRAMStandard):
         timing_dict["nRC"] = cls._resolve_nRC(
             timing_dict["nRAS"], timing_dict["nRP"]
         )
+        cls._resolve_wck_mode(timing_dict, org_dict["wck_mode"], org_dict["odt_enabled"])
 
         nRL = timing_dict["nRL"]
         nWCK2DQO = timing_dict["nWCK2DQO"]
@@ -190,10 +211,48 @@ class LPDDR6(DRAMStandard):
             timing_dict["nBL_max_L"],
             nRL, nWCK2DQO, nRPST, nODTLon, nODTon_min, nWL, odt_enabled,
         )
+        # JESD209-6 Table 2 Note 1: die density is twice sub-channel density.
         timing_dict["nRFC"] = cls._resolve_nRFC(
-            org_dict["die_density"], tCK_ps
+            2 * org_dict["subchannel_density"], tCK_ps
         )
         timing_dict["nREFI"] = cls._resolve_nREFI(tCK_ps)
+
+    # Rank-to-rank gaps (JESD209-6 §8.9); "always_on" is WCK always-on mode (MR22 OP[5], Table 117).
+    # RU((tWCKPST - 0.5tWCK)/tCK) = nWCKPST (Table 117); RU((tRPST [+ tRPRE] - 0.5tWCK)/tCK) = nRPST [+ nRPRE] (Table 90, 1:1 WCK:RDQS).
+    @staticmethod
+    def _resolve_wck_mode(timing_dict, mode, odt_enabled):
+        t = timing_dict
+        for burst, nBL, nODTLoff in (("", t["nBL_min"], t["nODTLoff"]), ("L", t["nBL_min_L"], t["nODTLoff_L"])):
+            if nBL == -1 or not isinstance(odt_enabled, bool):
+                rd_rd = rd_wr = wr_rd = wr_wr = -1
+            elif mode == "sync" and odt_enabled:
+                # Table 404: DQ ODT on, WCK always-on off.
+                rd_rd = t["nRL"] + nBL + t["nWCKPST"] - t["nWCKENL_RD"]
+                rd_wr = t["nRL"] + nBL + t["nWCKPST"] - min(t["nODTLon"] + t["nODTon_min"], t["nWCKENL_WR"])
+                wr_rd = t["nWL"] + nBL + max(t["nODToff_max"], t["nWCKPST"]) - t["nWCKENL_RD"]
+                wr_wr = t["nWL"] + nBL + max(t["nODToff_max"], t["nWCKPST"]) - t["nWCKENL_WR"]
+            elif mode == "sync":
+                # Table 405: DQ ODT off, WCK always-on off.
+                rd_rd = t["nRL"] + nBL + t["nWCKPST"] - t["nWCKENL_RD"]
+                rd_wr = t["nRL"] + nBL + t["nWCKPST"] - t["nWCKENL_WR"]
+                wr_rd = t["nWL"] + nBL + t["nWCKPST"] - t["nWCKENL_RD"]
+                wr_wr = t["nWL"] + nBL + t["nWCKPST"] - t["nWCKENL_WR"]
+            elif odt_enabled:
+                # Table 401: DQ ODT on, WCK always-on on.
+                rd_rd = nBL + t["nWCK2DQO_r2r"] + t["nRPST"] + t["nRPRE"]
+                rd_wr = t["nRL"] + nBL + t["nWCK2DQO"] - t["nODTLon"] - t["nODTon_min"] + 1
+                wr_rd = nODTLoff + t["nODToff_max"] - t["nRL"]
+                wr_wr = nODTLoff + t["nODToff_max"] - t["nODTLon"]
+            else:
+                # Table 403: DQ ODT off, WCK always-on on; Notes 3-4: RU(tWCK2DQI[_rank2rank](max)/tCK) = 1.
+                rd_rd = nBL + t["nWCK2DQO_r2r"] + t["nRPST"] + t["nRPRE"]
+                rd_wr = t["nRL"] + nBL + t["nWCK2DQO"] + t["nRPST"] - t["nWL"]
+                wr_rd = t["nWL"] + nBL + 1 - t["nRL"]
+                wr_wr = nBL + 1
+            t[f"nR2R_RD{burst}_RD"] = rd_rd
+            t[f"nR2R_RD{burst}_WR"] = rd_wr
+            t[f"nR2R_WR{burst}_RD"] = wr_rd
+            t[f"nR2R_WR{burst}_WR"] = wr_wr
 
     @staticmethod
     def _lookup_speed_grade(rate, table):
@@ -245,47 +304,44 @@ class LPDDR6(DRAMStandard):
             return -1
         return nRAS + nRP
 
-    # JESD209-6 Tables 381-382: remaining BL24 and BL48 quantities.
-    @classmethod
-    def _resolve_nBL_max(cls, rate):
-        return cls._lookup_speed_grade(rate, {
-            (80, 3200): 6,
-            (3200, 10667): 12,
-        })
+    # JESD209-6 Table 381: burst timing splits at WCK 3200 MHz = 6400 Mb/s.
+    @staticmethod
+    def _resolve_nBL_max(rate):
+        if rate <= 80:
+            return -1
+        return 6 if rate <= 6400 else 12
 
-    @classmethod
-    def _resolve_nBL_min_L(cls, rate):
-        return cls._lookup_speed_grade(rate, {
-            (80, 3200): 12,
-            (3200, 10667): 18,
-        })
+    @staticmethod
+    def _resolve_nBL_min_L(rate):
+        if rate <= 80:
+            return -1
+        return 12 if rate <= 6400 else 18
 
-    @classmethod
-    def _resolve_nBL_max_L(cls, rate):
-        return cls._lookup_speed_grade(rate, {
-            (80, 3200): 12,
-            (3200, 10667): 24,
-        })
+    @staticmethod
+    def _resolve_nBL_max_L(rate):
+        if rate <= 80:
+            return -1
+        return 12 if rate <= 6400 else 24
 
-    @classmethod
-    def _resolve_nCCDL_L(cls, rate, nCCDL):
-        return cls._lookup_speed_grade(rate, {
-            (80, 3200): 12,
-            (3200, 10667): 12 + nCCDL,
-        })
+    @staticmethod
+    def _resolve_nCCDL_L(rate, nCCDL):
+        if rate <= 80:
+            return -1
+        return 12 if rate <= 6400 else 12 + nCCDL
 
-    @classmethod
-    def _resolve_nCCDL_WR_L(cls, rate, nCCDL_WR):
-        return cls._lookup_speed_grade(rate, {
-            (80, 3200): 12,
-            (3200, 10667): 12 + nCCDL_WR,
-        })
+    @staticmethod
+    def _resolve_nCCDL_WR_L(rate, nCCDL_WR):
+        if rate <= 80:
+            return -1
+        return 12 if rate <= 6400 else 12 + nCCDL_WR
 
     # JESD209-6 Tables 389-390: read-to-write gaps are rounded to even nCK.
     @staticmethod
     def _resolve_nRTW_S(
         nBL_min, nRL, nWCK2DQO, nRPST, nODTLon, nODTon_min, nWL, odt_enabled
     ):
+        if nBL_min == -1:
+            return -1
         if odt_enabled is True:
             value = nRL + nBL_min + nWCK2DQO + nRPST - nODTLon - nODTon_min + 1
         elif odt_enabled is False:
@@ -298,6 +354,8 @@ class LPDDR6(DRAMStandard):
     def _resolve_nRTW_L(
         nBL_max, nRL, nWCK2DQO, nRPST, nODTLon, nODTon_min, nWL, odt_enabled
     ):
+        if nBL_max == -1:
+            return -1
         if odt_enabled is True:
             value = nRL + nBL_max + nWCK2DQO + nRPST - nODTLon - nODTon_min + 1
         elif odt_enabled is False:
@@ -310,6 +368,8 @@ class LPDDR6(DRAMStandard):
     def _resolve_nRTW_S_L(
         nBL_min_L, nRL, nWCK2DQO, nRPST, nODTLon, nODTon_min, nWL, odt_enabled
     ):
+        if nBL_min_L == -1:
+            return -1
         if odt_enabled is True:
             value = nRL + nBL_min_L + nWCK2DQO + nRPST - nODTLon - nODTon_min + 1
         elif odt_enabled is False:
@@ -322,6 +382,8 @@ class LPDDR6(DRAMStandard):
     def _resolve_nRTW_L_L(
         nBL_max_L, nRL, nWCK2DQO, nRPST, nODTLon, nODTon_min, nWL, odt_enabled
     ):
+        if nBL_max_L == -1:
+            return -1
         if odt_enabled is True:
             value = nRL + nBL_max_L + nWCK2DQO + nRPST - nODTLon - nODTon_min + 1
         elif odt_enabled is False:
@@ -356,13 +418,12 @@ class LPDDR6(DRAMStandard):
 
 LPDDR6.org_presets = {
     "LPDDR6_16Gb_x12": {
-        # JESD209-6 Tables 2 and 302: one modeled x12 sub-channel is 16 Gb;
-        # the corresponding two-sub-channel die is 32 Gb.
+        # JESD209-6 Table 2: one modeled x12 sub-channel.
         "subchannel_density": 16384,
-        "die_density": 32768,
         "dq": 12,
         "channel_width": 12,
         "odt_enabled": True,
+        "wck_mode": "sync",
         "rank": 1,
         "bankgroup": 4,
         "bank": 4,
@@ -389,13 +450,23 @@ LPDDR6.timing_presets = {
         "nRRD": 10, "nWTRS": 17, "nWTRL": 32,
         # JESD209-6 Tables 319-320 and 477: ODT-enabled, high-frequency mode.
         "nWCK2DQO": 5,
-        "nODTLon": 16, "nODTon_min": 4,
-        "nFAW": 40,
-        "nWCKPST": 3, "nCAS": 2,
+        "nODTLon": 16, "nODTon_min": 4, "nODToff_max": 10,
+        # JESD209-6 Table 319: ODTLoff = WL + BL/n_min + RU(tWCK2DQI_HF(max)/tCK) for BL24 and BL48 (Table 477).
+        "nODTLoff": 34, "nODTLoff_L": 46,
         # === Ramulator Guesstimate ===
-        "nRPST": 0,
-        "nAAD": 8, "nCS": 2,
+        # RU(tWCK2DQO_rank2rank(max)/tCK): JESD209-6 §9.3 is TBD; JESD209-5C Table 338 HF max 400 ps.
+        "nWCK2DQO_r2r": 2,
         # =============================
+        "nFAW": 40,
+        # JESD209-6 Tables 256 and 260: tWCKENL_RD at RL Set 0, tWCKENL_WR at WL Set A.
+        "nWCKENL_RD": 32, "nWCKENL_WR": 10,
+        # JESD209-6 §7.3.3.5 and Table 117: RD(tWCKPST/tCK) at the MR22 default 2.5 tWCK.
+        "nWCKPST": 1,
+        "nCAS": 2,
+        # JESD209-6 Table 90: RD(tRPST/tCK) and RU(tRPRE/tCK) at the MR10 defaults 0.5 tWCK and 4 tWCK.
+        "nRPST": 0, "nRPRE": 2,
+        # JESD209-6 §7.4.1: tAAD = 8 nCK.
+        "nAAD": 8,
         "tCK_ps": 375,
     },
 }
