@@ -264,7 +264,8 @@ def test_gddr7_refresh_and_rfm_require_closed_banks():
         ("REFpb", "RFMab", False, "nRFCpb"),
         ("RFMpb", "REFab", False, "nRFMpb"),
         ("RFMpb", "RFMab", False, "nRFMpb"),
-        ("REFpb", "RFMpb", False, "nRREFD"),
+        # JESD239D §6.13 (PDF p.220): the set-pause rule REFpb -> RFMpb nRFCpb applies after every REFpb.
+        ("REFpb", "RFMpb", False, "nRFCpb"),
         ("RFMpb", "REFpb", False, "nRREFD"),
         ("REFpb", "REFpb", True, "nRFCpb"),
         ("RFMpb", "REFpb", True, "nRFMpb"),

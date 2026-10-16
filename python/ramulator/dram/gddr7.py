@@ -81,6 +81,10 @@ class GDDR7(DRAMStandard):
         # Row activation/precharge.
         TimingConstraint("Channel", ["ACT"], ["ACT"], "nRRD"),
         TimingConstraint("Channel", ["PREpb", "PREab"], ["PREpb", "PREab"], "nPPD"),
+        # JESD239D Table 150 (PDF p.319): tRAS, Activate to Precharge command period.
+        TimingConstraint("Channel", ["ACT"], ["PREab"], "nRAS"),
+        # JESD239D §6.11 (PDF p.212): a bank can be activated tRP after the Precharge command.
+        TimingConstraint("Channel", ["PREab"], ["ACT"], "nRP"),
         TimingConstraint("Bank", ["ACT"], ["ACT"], "nRC"),
         TimingConstraint("Bank", ["ACT"], ["RD", "RDA"], "nRCDRD"),
         TimingConstraint("Bank", ["ACT"], ["WR", "WRA"], "nRCDWR"),
@@ -91,6 +95,8 @@ class GDDR7(DRAMStandard):
         # Explicit precharge and auto-precharge follow-up.
         TimingConstraint("Bank", ["RD"], ["PREpb"], "nRTPSB"),
         TimingConstraint("Bank", ["WR"], ["PREpb"], "nWL + nBL + nWR"),
+        # JESD239D Table 90 (PDF p.213): WRITE → READ w/AP same bank = WL + BL/8 + MAX(RU(tWR) − RU(tRTPSB), RU(tWTR))
+        TimingConstraint("Bank", ["WR"], ["RDA"], "nWL + nBL + max(nWR - nRTPSB, nWTRSB)"),
         TimingConstraint("Channel", ["RD", "RDA"], ["PREab"], "nRTPSB"),
         TimingConstraint("Channel", ["WR", "WRA"], ["PREab"], "nWL + nBL + nWR"),
         TimingConstraint("Bank", ["RDA"], ["ACT", "REFpb", "RFMpb"], "nRTPSB + nRP"),
@@ -107,6 +113,8 @@ class GDDR7(DRAMStandard):
         # Per-bank refresh.
         TimingConstraint("Channel", ["REFpb"], ["REFpb", "RFMpb", "ACT"], "nRREFD"),
         TimingConstraint("Channel", ["REFpb"], ["REFab", "RFMab"], "nRFCpb"),
+        # JESD239D §6.13 (PDF p.220): no RFMpb in the tRFCpb pause between REFpb sets; applied after every REFpb
+        TimingConstraint("Channel", ["REFpb"], ["RFMpb"], "nRFCpb"),
         TimingConstraint("Channel", ["ACT"], ["REFpb", "RFMpb"], "nRRD"),
         TimingConstraint("Channel", ["PREab"], ["REFpb", "RFMpb"], "nRP"),
         TimingConstraint("Bank", ["REFpb"], ["ACT", "REFpb", "RFMpb"], "nRFCpb"),
@@ -168,7 +176,7 @@ class GDDR7(DRAMStandard):
             timing_dict["nRCKSTOP_LAT"],
         )
         timing_dict["nRCKST2SP"] = cls._resolve_nRCKST2SP(
-            timing_dict["nRL"], timing_dict["nRCKSTRT2RD"]
+            timing_dict["nRCKEN"], timing_dict["nRCK_LS"], timing_dict["nRCK_HS_min"]
         )
 
     @staticmethod
@@ -217,9 +225,9 @@ class GDDR7(DRAMStandard):
         return max(1, nRL + nDQERL + nBL + nRCKPST - nRCKSTOP_LAT)
 
     @staticmethod
-    def _resolve_nRCKST2SP(nRL, nRCKSTRT2RD):
-        # JESD239D Table 150, Note 24, Start-with-RCKSTRT mode.
-        return nRL + nRCKSTRT2RD
+    def _resolve_nRCKST2SP(nRCKEN, nRCK_LS, nRCK_HS_min):
+        # tRCKST2SP = RCKEN + RCK_LS + tRCK_HS(min) (JESD239D Table 150, PDF p.317; Table 88, PDF p.190).
+        return nRCKEN + nRCK_LS + nRCK_HS_min
 
 
 # One Ramulator GDDR7 instance models one channel; channels_per_device
@@ -272,6 +280,8 @@ GDDR7.timing_presets = {
         "nWTR": 9, "nWTRSB": 11,
         "nRCKEN": 6, "nRCKSTOP_LAT": 10,
         "nRCK_LS": 2, "nRCKSP2ST": 8,
+        # tRCK_HS(min) is vendor specific (§6.9.2, PDF p.188); 18 = RL + tRCKSTRT2RD − RCKEN − RCK_LS, the value for a read issued tRCKSTRT2RD after RCKSTRT
+        "nRCK_HS_min": 18,
         # =============================
         "tCK_ps": 571,
     },
