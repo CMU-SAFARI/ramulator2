@@ -118,7 +118,7 @@ def test_lpddr5_timing_mapping_for_all_org_and_timing_presets(org_preset, timing
         for idx, name in enumerate(timing_params)
     }
 
-    density = ramulator.dram.LPDDR5.org_presets[org_preset]["density"]
+    density = ramulator.dram.LPDDR5.org_presets[org_preset]["die_density"]
     tCK_ps = timing_by_name["tCK_ps"]
 
     expected = {
