@@ -14,15 +14,34 @@ export default defineNuxtConfig({
     '@pinia/nuxt',
     '@nuxtjs/google-fonts'
   ],
+  app: {
+    head: {
+      title: 'RamViz',
+      link: [
+        { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' },
+        { rel: 'alternate icon', href: '/favicon.ico' },
+      ],
+    },
+  },
   googleFonts: {
     families: {
-      'DM Sans': true,
-      'JetBrains Mono': true,
+      'IBM Plex Sans': [400, 500, 600, 700],
+      'IBM Plex Mono': [400, 500],
     },
   },
   colorMode: {
-    preference: 'dark',
-    storageKey: 'color-mode-ramwiz',
+    preference: 'light',
+    fallback: 'light',
+    storageKey: 'color-mode-ramviz',
   },
   css: ['~/assets/css/main.css'],
+  // The trace pages hold client-side data and WebGL only; render them in the browser.
+  routeRules: {
+    '/trace': { ssr: false },
+    '/trace/**': { ssr: false },
+  },
+  vite: {
+    // regl is CommonJS; pre-bundling it avoids a full page reload on first dev load.
+    optimizeDeps: { include: ['regl'] },
+  },
 })

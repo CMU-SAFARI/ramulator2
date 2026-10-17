@@ -30,6 +30,8 @@ export const useSessionStore = defineStore('session', {
     spec: null as TraceSpec | null,
     arrays: null as TraceArrays | null,
     pendingTrace: null as ParsedTrace | null,
+    /** Display name of the loaded trace (file name, example title, or "Live session"). */
+    traceName: '',
     commandColors: {} as CommandColors,
     /** Request view bar colors (Read / Write / Maintenance). */
     requestTypeColors: defaultRequestTypeColors(),
@@ -93,8 +95,9 @@ export const useSessionStore = defineStore('session', {
       this.dataVersion++;
     },
 
-    setPendingTrace(trace: ParsedTrace) {
+    setPendingTrace(trace: ParsedTrace, name = '') {
       this.pendingTrace = trace;
+      this.traceName = name;
     },
 
     clearPendingTrace() {
@@ -183,6 +186,7 @@ export const useSessionStore = defineStore('session', {
       this.spec = null;
       this.arrays = null;
       this.pendingTrace = null;
+      this.traceName = '';
       this.commandColors = {};
       this.requestTypeColors = { ...defaultRequestTypeColors() };
       this.requestLaneStackDepth = [];

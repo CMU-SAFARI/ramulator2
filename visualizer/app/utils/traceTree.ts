@@ -1,15 +1,8 @@
 import type { TraceSpec } from '~/composables/useTrace';
 
 /** Mirrors `stores/ui` (kept local to avoid circular imports with the Pinia store). */
-export type TraceViewMode = 'command' | 'request' | 'throughput';
-export type TraceBusType = 'command' | 'data' | 'request' | 'tp_data' | 'tp_cmd';
-
-export interface TraceRowHit {
-  path: number[];
-  top: number;
-  height: number;
-  busType: TraceBusType;
-}
+export type TraceViewMode = 'command' | 'request' | 'throughput' | 'bank';
+export type TraceBusType = 'command' | 'data' | 'request' | 'tp_data' | 'tp_cmd' | 'tp_node' | 'bank' | 'bk_bus' | 'bk_faw' | 'bk_hdr' | 'cmd_sum';
 
 export function nodeId(prefix: string, path: number[]): string {
   return prefix + '.' + path.map((v, i) => `L${i}_${v}`).join('.');
@@ -55,83 +48,22 @@ export function pathFromAddrForTree(
   return path;
 }
 
-/**
- * Keep Command Bus and Data Bus subtrees expanded in lockstep (see trace.vue).
- */
-export function mirrorCmdDataExpansion(ids: string[], previous: string[]): string[] {
-  const incoming = new Set(ids);
-  const result = new Set(ids);
+/** Tree node-id prefix per view; every view shares the organization hierarchy of the trace. */
+export const TREE_PREFIX: Record<TraceViewMode, string> = { command: 'cmd', request: 'req', throughput: 'tp', bank: 'bk' };
 
-  for (const id of previous) {
-    if (!incoming.has(id)) {
-      if (id.startsWith('cmd.')) {
-        result.delete(`data.${id.slice(4)}`);
-      }
-      else if (id.startsWith('data.')) {
-        result.delete(`cmd.${id.slice(5)}`);
-      }
-    }
-  }
-
-  for (const id of [...result]) {
-    if (id.startsWith('cmd.')) {
-      const sib = `data.${id.slice(4)}`;
-      if (!result.has(sib)) result.add(sib);
-    }
-    else if (id.startsWith('data.')) {
-      const sib = `cmd.${id.slice(5)}`;
-      if (!result.has(sib)) result.add(sib);
-    }
-  }
-
-  return [...result];
-}
-
+/** Default expansion: every group node down to the bank level, so each bank has its own row. */
 export function computeDefaultExpanded(viewMode: TraceViewMode, spec: TraceSpec): string[] {
-  const base = channelBasePath(spec);
-  const rl = rankLevelIndex(spec);
-  const rankCount = spec.levelSizes[rl] ?? 0;
-
-  if (viewMode === 'throughput') {
-    return ['_channel'];
-  }
-
-  if (viewMode === 'request') {
-    const ids: string[] = ['_channel'];
-    for (let i = 0; i < rankCount; i++) {
-      ids.push(nodeId('req', [...base, i]));
+  const prefix = TREE_PREFIX[viewMode];
+  const sd = structuralDepth(spec);
+  const ids: string[] = ['_channel'];
+  const walk = (level: number, path: number[]) => {
+    if (level >= sd - 1) return;
+    for (let i = 0; i < (spec.levelSizes[level] ?? 0); i++) {
+      const p = [...path, i];
+      ids.push(nodeId(prefix, p));
+      walk(level + 1, p);
     }
-    return ids;
-  }
-
-  const ids: string[] = ['_channel', '_bus_cmd', '_bus_data'];
-  for (let i = 0; i < rankCount; i++) {
-    ids.push(nodeId('cmd', [...base, i]));
-    ids.push(nodeId('data', [...base, i]));
-  }
-
+  };
+  walk(rankLevelIndex(spec), channelBasePath(spec));
   return ids;
-}
-
-/** Deepest visible sidebar row whose path is a prefix of `targetPath` (same bus section). */
-export function findDeepestRowPrefix(
-  rows: TraceRowHit[],
-  busType: TraceBusType,
-  targetPath: number[],
-): TraceRowHit | null {
-  let best: TraceRowHit | null = null;
-  for (const r of rows) {
-    if (r.busType !== busType) continue;
-    if (r.path.length > targetPath.length) continue;
-    let ok = true;
-    for (let i = 0; i < r.path.length; i++) {
-      if (r.path[i] !== targetPath[i]) {
-        ok = false;
-        break;
-      }
-    }
-    if (!ok) continue;
-    if (!best || r.path.length > best.path.length) best = r;
-  }
-  return best;
 }

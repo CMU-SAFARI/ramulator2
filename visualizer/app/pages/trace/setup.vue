@@ -1,11 +1,14 @@
 <template>
-  <main v-if="pendingTrace" class="flex h-screen w-full items-center justify-center overflow-hidden bg-neutral-950 p-6 text-neutral-100">
+  <main v-if="pendingTrace" class="flex h-screen w-full items-center justify-center overflow-hidden bg-white p-6 text-neutral-900">
     <div class="flex h-[720px] max-h-[calc(100vh-3rem)] w-full max-w-2xl flex-col">
       <div class="mb-5 flex items-center justify-between gap-4">
         <div>
-          <h1 class="text-xl font-semibold tracking-tight text-neutral-50">
-            Timing Parameters
+          <h1 class="text-xl font-semibold tracking-tight text-neutral-900">
+            Timing parameters
           </h1>
+          <p class="mt-1 text-sm text-neutral-500">
+            {{ sessionStore.traceName || 'Trace' }} · values in controller clocks; edits apply to this session only
+          </p>
         </div>
 
         <UButton
@@ -18,10 +21,10 @@
         />
       </div>
 
-      <div class="min-h-0 flex-1 overflow-y-auto rounded-lg border border-neutral-800 bg-neutral-900/60">
-        <div class="grid grid-cols-[minmax(8rem,1fr)_9rem] items-center gap-4 border-b border-neutral-800 px-4 py-3">
+      <div class="min-h-0 flex-1 overflow-y-auto border border-neutral-200 bg-white">
+        <div class="grid grid-cols-[minmax(8rem,1fr)_9rem] items-center gap-4 border-b border-neutral-200 px-4 py-3">
           <div class="min-w-0">
-            <p class="truncate font-mono text-sm text-neutral-200">
+            <p class="truncate font-mono text-sm text-neutral-800">
               readLatency
             </p>
             <p class="mt-0.5 text-xs text-neutral-500">
@@ -45,10 +48,10 @@
         <div
           v-for="(row, idx) in timingRows"
           :key="row.name"
-          class="grid grid-cols-[minmax(8rem,1fr)_9rem] items-center gap-4 border-b border-neutral-800/70 px-4 py-3 last:border-b-0"
+          class="grid grid-cols-[minmax(8rem,1fr)_9rem] items-center gap-4 border-b border-neutral-200 px-4 py-3 last:border-b-0"
         >
           <div class="min-w-0">
-            <p class="truncate font-mono text-sm text-neutral-200">
+            <p class="truncate font-mono text-sm text-neutral-800">
               {{ row.name }}
             </p>
             <p class="mt-0.5 text-xs text-neutral-500">

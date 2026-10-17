@@ -1518,7 +1518,7 @@ That path starts from the public API, then drops into the execution path, then f
 
 ## 10. Trace Visualizer
 
-Ramulator 2.1 includes a browser-based trace visualizer that renders command timelines, request swimlanes, and throughput charts. It supports two modes:
+Ramulator 2.1 includes a browser-based trace visualizer (RamViz) with four views of a trace: command timelines, request swimlanes, throughput charts, and reconstructed per-bank states. Views stack as panels on one shared time axis; drag a header tab into the panel area to stack it, or a panel's title bar onto the tabs to park it. It supports two modes:
 
 - **Offline** — Record a `.ram2bin` trace file, then open it in the browser.
 - **Live** — Stream events from a running simulation to the browser in real time.

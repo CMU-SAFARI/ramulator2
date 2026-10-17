@@ -275,6 +275,7 @@ export function useStreamSession() {
     const run = () => {
       _refreshTimer = null;
       const sessionStore = useSessionStore();
+      if (!_hasLoadedThisSession) sessionStore.traceName = 'Live session';
       sessionStore.loadTrace(
         _buildTrace(_header!, _spec!, copyArrays),
         { streamingRefresh: _hasLoadedThisSession },

@@ -1,13 +1,13 @@
 import type { CommandMeta } from '~/composables/useTrace';
 
-/** Default semantic palette for command categories (matches WebGL lookup defaults). */
+/** Default semantic palette for command categories (RamViz paper theme; matches WebGL lookup defaults). */
 export const CMD_PALETTE = {
-  opening: '#22c55e',
-  closing: '#ef4444',
-  readAccess: '#3b82f6',
-  writeAccess: '#f97316',
-  refreshing: '#a855f7',
-  fallback: '#6b7280',
+  opening: '#222222',
+  closing: '#9a9a9a',
+  readAccess: '#1f5fb4',
+  writeAccess: '#0f9488',
+  refreshing: '#7a4fd0',
+  fallback: '#c4c4c4',
 } as const;
 
 export function isWriteCommand(name: string): boolean {

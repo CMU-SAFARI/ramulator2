@@ -1,15 +1,18 @@
 <template>
   <div
     ref="root"
-    class="w-full bg-neutral-950 border-t border-neutral-800 select-none shrink-0"
-    style="height: 52px"
+    class="w-full select-none shrink-0"
+    style="height: 56px; background: var(--rv-bg); border-top: 1px solid var(--rv-rule)"
   >
     <canvas ref="canvas" class="block w-full h-full" />
   </div>
 </template>
 
 <script setup lang="ts">
-import type { ViewState } from '~/composables/useRenderer';
+import type { ViewState } from '~/composables/useTimeline';
+import { PAPER } from '~/utils/theme';
+
+const C = PAPER.overview;
 
 const props = defineProps<{
   viewState: ViewState;
@@ -128,7 +131,7 @@ function draw() {
   const eps = minorStep / 1000;
 
   ctx.beginPath();
-  ctx.strokeStyle = '#3f3f46';
+  ctx.strokeStyle = C.tick;
   ctx.lineWidth = 1;
 
   for (let t = startTick; t <= endTick + eps; t += minorStep) {
@@ -142,8 +145,8 @@ function draw() {
 
   ctx.textAlign = 'left';
   ctx.textBaseline = 'top';
-  ctx.fillStyle = '#71717a';
-  ctx.font = '10px "JetBrains Mono", monospace';
+  ctx.fillStyle = C.label;
+  ctx.font = '10px "IBM Plex Mono", monospace';
 
   const majorStart = Math.ceil(start / step) * step;
   for (let t = majorStart; t <= endTick + eps; t += step) {
@@ -172,11 +175,11 @@ function draw() {
   ctx.lineTo(w, seekTop + chartH);
   ctx.closePath();
 
-  const grad = ctx.createLinearGradient(0, seekTop, 0, seekTop + chartH);
-  grad.addColorStop(0, 'rgba(59, 130, 246, 0.30)');
-  grad.addColorStop(1, 'rgba(59, 130, 246, 0.04)');
-  ctx.fillStyle = grad;
+  ctx.fillStyle = C.fill;
   ctx.fill();
+  ctx.strokeStyle = C.line;
+  ctx.lineWidth = 1;
+  ctx.stroke();
 
   // Compute viewport pixel bounds, enforcing a minimum rendered width.
   const rawVpLeft = ((start - minTime) / totalSpan) * w;
@@ -195,12 +198,12 @@ function draw() {
   }
 
   // Dim outside viewport.
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
+  ctx.fillStyle = C.dim;
   if (vpLeft > 0) ctx.fillRect(0, seekTop, vpLeft, seekH);
   if (vpRight < w) ctx.fillRect(vpRight, seekTop, w - vpRight, seekH);
 
   // Viewport border.
-  ctx.strokeStyle = '#f97316';
+  ctx.strokeStyle = C.window;
   ctx.lineWidth = 1.5;
   ctx.strokeRect(
     Math.round(vpLeft) + 0.5,
@@ -220,14 +223,14 @@ function draw() {
 
     ctx.beginPath();
     ctx.roundRect(pillX, handleY, pillW, handleH, handleR);
-    ctx.fillStyle = '#f97316';
+    ctx.fillStyle = C.handle;
     ctx.fill();
 
     const gripCount = 3;
     const gripGap = 2.5;
     const gripTotalH = (gripCount - 1) * gripGap;
     const gripStartY = handleY + (handleH - gripTotalH) / 2;
-    ctx.strokeStyle = 'rgba(0, 0, 0, 0.35)';
+    ctx.strokeStyle = C.grip;
     ctx.lineWidth = 1;
     ctx.beginPath();
     for (let g = 0; g < gripCount; g++) {
@@ -242,14 +245,14 @@ function draw() {
     for (const hx of [Math.round(vpLeft) - 1, Math.round(vpRight) - handleW + 1]) {
       ctx.beginPath();
       ctx.roundRect(hx, handleY, handleW, handleH, handleR);
-      ctx.fillStyle = '#f97316';
+      ctx.fillStyle = C.handle;
       ctx.fill();
 
       const gripCount = 3;
       const gripGap = 2.5;
       const gripTotalH = (gripCount - 1) * gripGap;
       const gripStartY = handleY + (handleH - gripTotalH) / 2;
-      ctx.strokeStyle = 'rgba(0, 0, 0, 0.35)';
+      ctx.strokeStyle = C.grip;
       ctx.lineWidth = 1;
       ctx.beginPath();
       for (let g = 0; g < gripCount; g++) {
@@ -262,16 +265,16 @@ function draw() {
   }
 
   // Separator line between tick ruler and seek area.
-  ctx.fillStyle = '#27272a';
+  ctx.fillStyle = PAPER.overview.tick;
   ctx.fillRect(0, seekTop, w, 1);
 
   if (props.cursorTime != null && totalSpan > 0) {
     const x = ((props.cursorTime - minTime) / totalSpan) * w;
     if (x >= 0 && x <= w) {
       const sx = Math.round(x) + 0.5;
-      ctx.fillStyle = 'rgba(251, 191, 36, 0.14)';
+      ctx.fillStyle = C.cursorFill;
       ctx.fillRect(Math.max(0, sx - 2.5), TICK_H, 5, h - TICK_H);
-      ctx.strokeStyle = 'rgba(251, 191, 36, 0.95)';
+      ctx.strokeStyle = C.cursor;
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.moveTo(sx, 0);

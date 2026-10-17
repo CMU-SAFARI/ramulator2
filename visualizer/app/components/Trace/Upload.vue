@@ -1,5 +1,5 @@
 <template>
-  <div class="w-96 min-h-48 mx-auto space-y-4">
+  <div class="w-full space-y-3">
     <UFileUpload
       v-model="selectedFile"
       label="Drop your trace here"
@@ -15,7 +15,7 @@
       :loading="loading"
       @click="loadTrace"
     >
-      Load Trace
+      Load trace
     </UButton>
   </div>
 </template>
@@ -53,7 +53,7 @@ const loadTrace = async () => {
       stream.disconnect();
     }
 
-    sessionStore.setPendingTrace(trace);
+    sessionStore.setPendingTrace(trace, selectedFile.value.name);
     await flushPaint();
     await navigateTo('/trace/setup');
   } catch (e: any) {

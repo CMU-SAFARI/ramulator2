@@ -2,6 +2,32 @@
 @import "@nuxt/ui";
 
 @theme {
-  --font-mono: 'JetBrains Mono', monospace;
-  --font-sans: 'DM Sans', monospace;
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+  --font-sans: 'IBM Plex Sans', system-ui, sans-serif;
+}
+
+/* RamViz chrome tokens (paper). Canvas colours live in app/utils/theme.ts. */
+:root {
+  --rv-bg: #ffffff;
+  --rv-side: #f8f8f8;
+  --rv-ink: #1f2328;
+  --rv-muted: #59636e;
+  --rv-rule: #e1e4e8;
+  --rv-rule-strong: #d0d7de;
+  --rv-track: #eef0f2;
+  --rv-accent: #1f5fb4;
+  --rv-hover: #eef3fb;
+}
+
+body {
+  background: var(--rv-bg);
+  color: var(--rv-ink);
+  font-family: var(--font-sans);
+}
+
+/* While a panel or tab is dragged (useDockDrag). */
+html.rv-dragging,
+html.rv-dragging * {
+  cursor: grabbing !important;
+  user-select: none;
 }

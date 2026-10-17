@@ -1,53 +1,28 @@
 <template>
-  <main class="min-h-screen flex items-center justify-center w-full">
-    <div class="flex flex-col items-center gap-6">
-      <div
-        v-if="hasSessionAlert"
-        class="flex items-center gap-3 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-4 py-2 text-sm text-emerald-100 shadow-lg shadow-emerald-950/20"
-      >
-        <span
-          class="inline-block size-2 rounded-full"
-          :class="stream.status.value === 'streaming' ? 'bg-emerald-400 animate-pulse' : 'bg-zinc-400'"
-        />
-        <span>
-          {{ stream.status.value === 'streaming' ? 'Live session active' : 'Simulation completed' }}
-        </span>
-        <span class="font-mono text-emerald-200/80">
-          {{ stream.eventCount.value.toLocaleString() }} events
-        </span>
-        <UButton
-          size="xs"
-          :color="stream.status.value === 'streaming' ? 'success' : 'neutral'"
-          variant="ghost"
-          class="rounded-full"
-          @click="connectToSession"
-        >
+  <main class="rv-home">
+    <div class="rv-col">
+      <header>
+        <h1 class="rv-brand"><RamVizMark :size="36" />RamViz</h1>
+        <p class="rv-sub">DRAM command and bank-state visualizer for Ramulator traces</p>
+      </header>
+
+      <div v-if="hasSessionAlert" class="rv-live" role="status">
+        <span class="rv-live-dot" :class="{ on: stream.status.value === 'streaming' }" />
+        <span>{{ stream.status.value === 'streaming' ? 'Live session active' : 'Simulation completed' }}</span>
+        <span class="rv-mono">{{ stream.eventCount.value.toLocaleString() }} events</span>
+        <UButton size="xs" color="neutral" variant="outline" class="ml-auto" @click="connectToSession">
           {{ stream.status.value === 'streaming' ? 'Connect to session' : 'View session' }}
         </UButton>
       </div>
 
       <TraceUpload />
 
-      <!-- <div class="flex items-center gap-2 text-sm text-zinc-500">
-        <span
-          class="inline-block size-2 rounded-full"
-          :class="stream.connected.value ? 'bg-emerald-500' : 'bg-zinc-600'"
-        />
-        <template v-if="stream.status.value === 'streaming'">
-          <span class="text-zinc-300">Receiving live trace…</span>
-          <span class="font-mono text-zinc-400">{{ stream.eventCount.value.toLocaleString() }} events</span>
-        </template>
-        <template v-else-if="stream.status.value === 'finalizing'">
-          <span class="text-zinc-300">Loading streamed trace…</span>
-        </template>
-        <template v-else-if="stream.status.value === 'done'">
-          <span class="text-zinc-300">Simulation completed</span>
-          <span class="font-mono text-zinc-400">{{ stream.eventCount.value.toLocaleString() }} events</span>
-        </template>
-        <template v-else>
-          <span>Live stream {{ stream.connected.value ? 'ready' : 'disconnected' }}</span>
-        </template>
-      </div> -->
+      <TraceExamples />
+
+      <p class="rv-note">
+        Record a trace with the <code>BinTraceRecorder</code> controller plugin (<code>.ram2bin</code>),
+        or stream one live with <code>LiveTraceStreamer</code>.
+      </p>
     </div>
   </main>
 </template>
@@ -62,3 +37,76 @@ function connectToSession() {
 
 onMounted(() => stream.connect());
 </script>
+
+<style scoped>
+.rv-home {
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  padding: 72px 24px 48px;
+  background: var(--rv-bg);
+  color: var(--rv-ink);
+}
+
+.rv-col {
+  width: 100%;
+  max-width: 560px;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.rv-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0;
+  font-size: 30px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.rv-sub {
+  margin: 4px 0 0;
+  color: var(--rv-muted);
+}
+
+.rv-live {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--rv-rule);
+  font-size: 13px;
+}
+
+.rv-live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--rv-rule-strong);
+}
+
+.rv-live-dot.on {
+  background: #1a7f37;
+}
+
+.rv-mono {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--rv-muted);
+}
+
+.rv-note {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--rv-muted);
+}
+
+.rv-note code {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--rv-ink);
+}
+</style>
