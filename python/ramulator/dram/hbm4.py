@@ -72,15 +72,17 @@ class HBM4(DRAMStandard):
         TimingConstraint(level="PseudoChannel", preceding=["RDA"], following=["REFab"], latency="nRP + nRTP"),
         TimingConstraint(level="PseudoChannel", preceding=["WRA"], following=["REFab"], latency="nCWL + nBL + nWR + nRP"),
         # JESD270-4A Table 38.
-        TimingConstraint(level="PseudoChannel", preceding=["REFab"], following=["ACT", "PREab", "REFab", "REFpb", "RFMab", "RFMpb"], latency="nRFC"),
+        TimingConstraint(level="PseudoChannel", preceding=["REFab"], following=["ACT", "PREpb", "PREab", "REFab", "REFpb", "RFMab", "RFMpb"], latency="nRFC"),
         TimingConstraint(level="PseudoChannel", preceding=["REFpb"], following=["REFpb", "RFMpb", "ACT"], latency="nRREFD"),
         TimingConstraint(level="PseudoChannel", preceding=["REFpb"], following=["REFab", "RFMab"], latency="nRFCpb"),
         TimingConstraint(level="PseudoChannel", preceding=["ACT"], following=["REFpb"], latency="nRRDS"),
+        # JESD270-4A Table 38 Note 2 (PDF p.74): a bank must be idle with tRP satisfied before it is refreshed
+        TimingConstraint(level="PseudoChannel", preceding=["PREab"], following=["REFpb", "RFMpb"], latency="nRP"),
         TimingConstraint(level="PseudoChannel", preceding=["ACT"], following=["RFMab"], latency="nRC"),
         TimingConstraint(level="PseudoChannel", preceding=["PREpb", "PREab"], following=["RFMab"], latency="nRP"),
         TimingConstraint(level="PseudoChannel", preceding=["RDA"], following=["RFMab"], latency="nRP + nRTP"),
         TimingConstraint(level="PseudoChannel", preceding=["WRA"], following=["RFMab"], latency="nCWL + nBL + nWR + nRP"),
-        TimingConstraint(level="PseudoChannel", preceding=["RFMab"], following=["ACT", "PREab", "REFab", "REFpb", "RFMab", "RFMpb"], latency="nRFMab"),
+        TimingConstraint(level="PseudoChannel", preceding=["RFMab"], following=["ACT", "PREpb", "PREab", "REFab", "REFpb", "RFMab", "RFMpb"], latency="nRFMab"),
         TimingConstraint(level="PseudoChannel", preceding=["RFMpb"], following=["REFpb", "RFMpb", "ACT"], latency="nRREFD"),
         TimingConstraint(level="PseudoChannel", preceding=["RFMpb"], following=["REFab", "RFMab"], latency="nRFMpb"),
         TimingConstraint(level="PseudoChannel", preceding=["ACT"], following=["RFMpb"], latency="nRRDS"),
@@ -107,6 +109,8 @@ class HBM4(DRAMStandard):
         TimingConstraint(level="Bank", preceding=["PREpb"], following=["ACT"], latency="nRP"),
         TimingConstraint(level="Bank", preceding=["RD"], following=["PREpb"], latency="nRTP"),
         TimingConstraint(level="Bank", preceding=["WR"], following=["PREpb"], latency="nCWL + nBL + nWR"),
+        # JESD270-4A Table 36 (PDF p.66): WRITE → READ w/AP same bank = WL + 2 + MAX[RU(tWR/tCK) − tRTP, tWTR]
+        TimingConstraint(level="Bank", preceding=["WR"], following=["RDA"], latency="nCWL + nBL + max(nWR - nRTP, nWTRL)"),
         TimingConstraint(level="Bank", preceding=["RDA"], following=["ACT", "REFpb", "RFMpb"], latency="nRTP + nRP"),
         TimingConstraint(level="Bank", preceding=["WRA"], following=["ACT", "REFpb", "RFMpb"], latency="nCWL + nBL + nWR + nRP"),
         TimingConstraint(level="Bank", preceding=["REFpb"], following=["REFpb", "RFMpb", "ACT"], latency="nRFCpb"),
@@ -122,7 +126,6 @@ class HBM4(DRAMStandard):
         tCK_ps = timing_dict["tCK_ps"]
         channel_density = org_dict["channel_density"]
         timing_dict["nRC"] = timing_dict["nRAS"] + timing_dict["nRP"]
-        timing_dict["nCCDL"] = cls._resolve_nCCDL(tCK_ps)
         timing_dict["nCCDR"] = cls._resolve_nCCDR(
             timing_dict["rate"], tCK_ps, org_dict["sid"], timing_dict["nCCDS"]
         )
@@ -146,14 +149,6 @@ class HBM4(DRAMStandard):
         timing_dict["nRREFD"] = cls._resolve_nRREFD(tCK_ps)
 
     @staticmethod
-    def _resolve_nCCDL(tCK_ps):
-        # JESD270-4A Table 108: max(4 nCK, 2.5 ns).
-        # This resolves to 5 CK at HBM4-8000, preventing full throughput.
-        # So we set to 4 here
-        # return max(4, math.ceil(2_500 / tCK_ps))
-        return 4
-
-    @staticmethod
     def _resolve_nCCDR(rate, tCK_ps, num_sids, nCCDS):
         # JESD270-4A Table 108 Note 17 specifies tCCDR only for multi-SID
         # stacks.
@@ -169,16 +164,14 @@ class HBM4(DRAMStandard):
 
     @staticmethod
     def _resolve_nRTW(timing_dict, tCK_ps):
-        if timing_dict["rate"] == 8_000 and tCK_ps == 500:
-            # JESD270-4A Tables 107 and 108, Note 18.
-            base_cycles = (
-                timing_dict["nCL"] + timing_dict["nBL"] - timing_dict["nCWL"]
-            )
-            analog_numerator = 5 * tCK_ps + 10 * (2_500 - 100)
-            return base_cycles + math.ceil(analog_numerator / (10 * tCK_ps))
-        if timing_dict["rate"] == 16_000 and tCK_ps == 250:
-            return 50  # Ramulator guesstimate
-        return -1
+        if min(timing_dict["nCL"], timing_dict["nBL"], timing_dict["nCWL"]) < 0:
+            return -1
+        # JESD270-4A Tables 107 and 108, Note 18.
+        base_cycles = (
+            timing_dict["nCL"] + timing_dict["nBL"] - timing_dict["nCWL"]
+        )
+        analog_numerator = 5 * tCK_ps + 10 * (2_500 - 100)
+        return base_cycles + math.ceil(analog_numerator / (10 * tCK_ps))
 
     @staticmethod
     def _resolve_nRFC(die_density, stack_height, channel_density, tCK_ps):
@@ -235,6 +228,8 @@ HBM4.timing_presets = {
     "HBM4_8000Mbps": {
         "rate": 8000, "nBL": 2,
         "nCCDS": 2,
+        # Table 108 (PDF p.208): tCCDL = max(4 nCK, 2.5 ns)
+        "nCCDL": 5,
         # === Ramulator Guesstimate ===
         "nCL": 20, "nCWL": 10,
         "nRAS": 57, "nRP": 33,
@@ -247,6 +242,8 @@ HBM4.timing_presets = {
     },
     "HBM4_16000Mbps": {
         "nCWL": -1,
+        # Table 108 (PDF p.208): tCCDL = max(4 nCK, 2.5 ns)
+        "nCCDL": 10,
         # === Ramulator Guesstimate ===
         "rate": 16000, "nBL": 2, "nCL": 40,
         "nRAS": 114, "nRP": 66,
@@ -263,10 +260,11 @@ HBM4.timing_presets = {
 # for Fine-Grained Random-Access Bandwidth", ISCA 2025, Table 1, column Iso-HBM4 (the baseline,
 # not the FB-HBM design). Core timings in ns, projected by the paper from vendor HBM3 data,
 # converted at tCK = 500 ps and rounded up. Everything the paper does not give comes from
-# HBM4_8000Mbps. Its tCCDL (2 ns) is 4 CK, the resolver's value, so nCCDL is not set here.
+# HBM4_8000Mbps.
 HBM4.timing_presets["HBM4_8000Mbps_folded_banks_baseline"] = {
     **HBM4.timing_presets["HBM4_8000Mbps"],
     "nRCDRD": 32, "nRP": 32, "nRAS": 58,     # tRCD 16, tRP 16, tRAS 29 ns
     "nCL": 32, "nFAW": 32,                   # tCL 16, tFAW 16 ns
     "nRRDS": 4, "nRRDL": 4,                  # tRRD 2 ns; Table 1 has one tRRD, so both get it
+    "nCCDL": 4,                              # tCCDL 2 ns
 }
