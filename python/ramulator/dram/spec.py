@@ -84,6 +84,13 @@ class DRAMStandard(Component):
     name = None  # type: str  — C++ class name, e.g. "DDR4"
     levels = {}  # type: dict[str, str]  — level name → init state
     commands = []  # type: list[str]  — command names
+    # Optional: command name -> C++ Cmd:: class implementing it, for when the
+    # class is not named after the command.  Lets a standard keep a standard
+    # command name while supplying different behaviour (e.g. subarray-aware
+    # ACT/RD for a standard that has a Subarray level).
+    command_impls = {}  # type: dict[str, str]
+    # Extra command headers to include, for impls sharing one header file.
+    command_headers = []  # type: list[str]
     states = []  # type: list[str]  — state names
     timing_params = []  # type: list[str]
     supported_requests = {}  # type: dict[str, str]

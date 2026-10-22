@@ -20,10 +20,16 @@ target_sources(
   commands/RCKSTRT.h  commands/RCKSTOP.h
   commands/CAS.h  commands/CAS_RD.h  commands/CAS_WR.h
   commands/VRR.h
+  commands/subarray.h
+  commands/PUM_OP.h
+  commands/AAP.h  commands/AP.h
+  commands/GB_MOV.h  commands/LC_MOV.h
+  commands/PMAJ3.h  commands/PNOT.h
   commands/populate.h
 
   impl/DDR3.cpp
   impl/DDR4.cpp
+  impl/DDR4_PUM.cpp
   impl/DDR4_VRR.cpp
   impl/DDR5.cpp
   impl/DDR5_VRR.cpp

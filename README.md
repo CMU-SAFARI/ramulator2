@@ -23,6 +23,7 @@ This Github repository contains the public version of Ramulator 2.1. From time t
 
 Currently, Ramulator 2.1 provides the DRAM device and memory controller models for the following standards:
 - DDR3, DDR4, DDR5
+- DDR4_PUM (DDR4 with processing-using-DRAM commands)
 - GDDR6, GDDR7
 - LPDDR5, LPDDR6
 - HBM1, HBM2, HBM3, HBM4
@@ -468,6 +469,67 @@ Limitations:
 - Ayna models all-bank refresh only; per-bank refresh and RFM commands are counted in `unmodelled_commands` and add no energy.
 - Currents are per pseudo-channel and do not depend on stack height. Ayna characterizes a 16-bank pseudo-channel; with more than one SID, all banks of the pseudo-channel form its bank set (32 banks at 8-high, 64 at 16-high).
 - Energy uses the controller tick in whole picoseconds (312 ps instead of 312.5 ps at `HBM3_6400Mbps`): energy is 0.16% low there; average power is unaffected.
+
+### 4.7 Processing-Using-DRAM with DDR4_PUM
+
+`DDR4_PUM` is DDR4 with a Subarray level between Bank and Row and six in-DRAM compute commands: `AAP` and `AP` ([SIMDRAM](https://arxiv.org/abs/2105.12839)), `GB_MOV` and `LC_MOV` ([MIMDRAM](https://arxiv.org/abs/2402.19080)), and `PMAJ3` and `PNOT` ([PRADA](https://doi.org/10.1145/3676536.3676771)):
+
+```python
+dram = ramulator.dram.DDR4_PUM(
+    org_preset="DDR4_8Gb_x8",
+    timing_preset="DDR4_2400R",
+    rows_per_subarray=1024,  # 64 subarrays per bank
+)
+```
+
+Without `rows_per_subarray`, a bank has one subarray and behaves like stock DDR4. A compute command needs its bank closed and leaves it closed. Commands to the same subarray are spaced by the command's latency, commands to different subarrays of a bank by `nCCDM` (default `nRRDL`).
+
+The `PUM` controller serves the compute requests `PUM_AAP`, `PUM_AP`, `PUM_GB_MOV`, `PUM_LC_MOV`, `PUM_PMAJ3` and `PUM_PNOT` alongside reads and writes. A compute request carries the full `addr_vec` of its target subarray and completes after its command's latency:
+
+```python
+ctrl = ramulator.controller.PUM(
+    dram=dram,
+    scheduler=ramulator.scheduler.FRFCFS(),
+    refresh_manager=ramulator.refresh_manager.AllBank(),
+    row_policy=ramulator.row_policy.Open(),
+    addr_mapper=ramulator.addr_mapper.PassThroughAddrMapper(),
+)
+```
+
+Its stats count compute requests per command (`num_pum_AAP_reqs`, `num_pum_AAP_reqs_served`, ...).
+
+The `PUMTrace` frontend replays a trace of reads, writes and compute requests once. Each line is a request type and its `addr_vec` (`Channel,Rank,BankGroup,Bank,Subarray,Row,Column`); `FENCE` waits until every request sent so far has completed:
+
+```
+W 0,0,0,0,0,3,1
+PUM_AAP 0,0,0,0,1,0,0
+FENCE
+PUM_AP 0,0,0,0,1,0,0
+```
+
+```python
+org, _ = dram.resolve()
+frontend = ramulator.frontend.PUMTrace(
+    clock_ratio=1,
+    path="kernel.trace",
+    request_types=list(type(dram).supported_requests),
+    level_counts=[org.get(level.lower(), 1) for level in type(dram).levels],
+)
+mem = ramulator.memory_system.GenericDRAM(
+    clock_ratio=1,
+    controllers=[ctrl],
+    channel_mapper=ramulator.channel_mapper.PassThroughChannelMapper(),
+)
+sim = ramulator.Simulation(frontend, mem)
+sim.run()
+```
+
+`sim.stats["frontend"]["cycles"]` is the cycle the last request completed.
+
+Limitations:
+
+- Compute commands are not subject to nRRDS, nRRDL or nFAW.
+- A bank has one open row: ordinary reads and writes do not use several open subarrays.
 
 ## 5. Validation and Regression Tests
 

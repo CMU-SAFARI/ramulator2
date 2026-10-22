@@ -72,7 +72,8 @@ def generate_header(cls):
     timing_enum = "\n".join(timing_lines)
 
     # CommandImpls tuple
-    cmd_impl_entries = [f"Cmd::{c}<{name}>" for c in cls.commands]
+    impl_of = getattr(cls, "command_impls", {})
+    cmd_impl_entries = [f"Cmd::{impl_of.get(c, c)}<{name}>" for c in cls.commands]
     impl_lines = []
     current_line = "      "
     for i, entry in enumerate(cmd_impl_entries):
@@ -103,7 +104,10 @@ def generate_header(cls):
     supported_requests_body = "\n".join(req_entries)
 
     # Command include headers
-    cmd_header_names = sorted(set(cls.commands))
+    # Commands are declared in a header named after them, except remapped ones
+    # whose class may share a header -- those come from command_headers.
+    cmd_header_names = sorted({c for c in cls.commands if c not in impl_of}
+                              | set(getattr(cls, "command_headers", [])))
     cmd_includes = "\n".join(f'#include "ramulator/dram/commands/{h}.h"' for h in cmd_header_names)
 
     # set_names call arguments
