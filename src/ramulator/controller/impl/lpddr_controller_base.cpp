@@ -277,7 +277,7 @@ ControllerBase::Candidate LPDDRControllerBase::select_normal_candidate() {
              can_start_act1(req) && !wck_sync_blocked(req);
     });
   }
-  if (!cand.valid && m_priority_buffer.size() == 0) {
+  if (!cand.valid) {
     cand = pick_rw_if([&](const Request& req) {
       return is_owned_act2_candidate(req) && is_allowed_during_pending_act2(req.command, req.addr_vec) &&
              can_start_act1(req) && !wck_sync_blocked(req);
@@ -445,7 +445,7 @@ void LPDDRControllerBase::issue_standard_candidate(Candidate cand) {
   assert(cand.valid);
   assert(cand.buffer != &m_activating_buffer);
 
-  m_rowpolicy->try_upgrade_command(*cand.it);
+  upgrade_by_row_policy(cand);
   int cmd = cand.it->command;
   int flat_bank_id = m_device.get_flat_bank_id(cand.it->addr_vec);
 

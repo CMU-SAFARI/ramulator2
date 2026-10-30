@@ -66,6 +66,7 @@ void ControllerBase::init_base() {
   // One request per bank at most, so size to total bank count.
   m_active_buffer.max_size = m_device.m_bank_nodes.size();
   m_active_per_bank.assign(m_device.m_bank_nodes.size(), 0);
+  m_reserved_banks.assign(m_device.m_bank_nodes.size(), 0);
 
   // Create sub-components (must be specified in config — no defaults)
   RAMULATOR_CREATE_CHILD(m_scheduler, IScheduler);
@@ -308,7 +309,13 @@ ControllerBase::Candidate ControllerBase::pick_priority_if(RequestFilterRef filt
 ControllerBase::Candidate ControllerBase::pick_rw_if(RequestFilterRef filter) {
   set_write_mode();
   auto& buffer = m_is_write_mode ? m_write_buffer : m_read_buffer;
+  // A pending maintenance command holds back only the banks it targets: a per-bank refresh leaves
+  // accesses to other banks unaffected (JESD235D §6.3.2.6, JESD239D §6.12.2, JESD250C §7.17).
+  const bool any_reserved = mark_reserved_banks();
   return pick_best_ready_from(buffer, [&](const Request& req) {
+    if (any_reserved && m_reserved_banks[m_device.get_flat_bank_id(req.addr_vec)]) {
+      return false;
+    }
     if (would_close_active(req)) {
       return false;
     }
@@ -316,7 +323,41 @@ ControllerBase::Candidate ControllerBase::pick_rw_if(RequestFilterRef filter) {
   });
 }
 
-bool ControllerBase::would_close_active(const Request& req) const {
+bool ControllerBase::mark_reserved_banks() {
+  if (m_priority_buffer.size() == 0) {
+    return false;
+  }
+  std::fill(m_reserved_banks.begin(), m_reserved_banks.end(), 0);
+  auto reserve = [&](int bank_id) { m_reserved_banks[bank_id] = 1; };
+  for (const Request& req : m_priority_buffer) {
+    const AddrVec_t& addr_vec = req.addr_vec;
+    // A wildcard where the command needs a concrete bank reserves every bank the address covers.
+    bool resolved = true;
+    switch (m_device.m_spec->bank_targets[req.final_command]) {
+      case BankTarget::All:
+        break;
+      case BankTarget::SameBank:
+        resolved = addr_vec[m_device.m_bank_level] >= 0;
+        break;
+      default:
+        resolved = std::all_of(addr_vec.begin() + 1, addr_vec.begin() + m_device.m_bank_level + 1,
+                               [](int id) { return id >= 0; });
+        break;
+    }
+    if (resolved) {
+      m_device.for_each_target_bank(req.final_command, addr_vec, reserve);
+      continue;
+    }
+    for (int i = 0; i < static_cast<int>(m_device.m_bank_nodes.size()); i++) {
+      if (DRAMDevice::bank_matches(m_device.m_bank_nodes[i], addr_vec)) {
+        reserve(i);
+      }
+    }
+  }
+  return true;
+}
+
+bool ControllerBase::would_close_active(const Request& req, bool req_is_active) const {
   if (!m_device.m_spec->command_meta[req.command].is_closing) {
     return false;
   }
@@ -324,14 +365,27 @@ bool ControllerBase::would_close_active(const Request& req) const {
     return false;
   }
 
+  const int own_bank_id = req_is_active ? m_device.get_flat_bank_id(req.addr_vec) : -1;
+  auto others_active = [&](int bank_id) { return m_active_per_bank[bank_id] - (bank_id == own_bank_id ? 1 : 0); };
+
   // Hot path: single-bank close (PREpb, RDA, WRA) — O(1) lookup.
   if (m_device.m_spec->bank_targets[req.command] == BankTarget::Single) {
-    return m_active_per_bank[m_device.get_flat_bank_id(req.addr_vec)] > 0;
+    return others_active(m_device.get_flat_bank_id(req.addr_vec)) > 0;
   }
 
   // Multi-bank close: any target bank with an active request.
   return !m_device.for_each_target_bank_while(req.command, req.addr_vec,
-                                              [&](int bank_id) { return m_active_per_bank[bank_id] == 0; });
+                                              [&](int bank_id) { return others_active(bank_id) == 0; });
+}
+
+void ControllerBase::upgrade_by_row_policy(Candidate& cand) {
+  const int command = cand.it->command;
+  const int final_command = cand.it->final_command;
+  m_rowpolicy->try_upgrade_command(*cand.it);
+  if (cand.it->command != command && would_close_active(*cand.it, cand.buffer == &m_active_buffer)) {
+    cand.it->command = command;
+    cand.it->final_command = final_command;
+  }
 }
 
 void ControllerBase::update_request_stats(ReqBuffer::iterator& req) {

@@ -54,7 +54,7 @@ std::optional<HBMControllerBase::IssuedCommand> HBMControllerBase::try_issue_slo
       return slot_matches(req, slot);
     });
   }
-  if (!cand.valid && m_priority_buffer.size() == 0) {
+  if (!cand.valid) {
     cand = pick_rw_if([&](const Request& req) {
       return slot_matches(req, slot);
     });
@@ -65,7 +65,7 @@ std::optional<HBMControllerBase::IssuedCommand> HBMControllerBase::try_issue_slo
   }
 
   int original_cmd = cand.it->command;
-  m_rowpolicy->try_upgrade_command(*cand.it);
+  upgrade_by_row_policy(cand);
   if (cand.it->command != original_cmd && !slot_matches(*cand.it, slot)) {
     cand.it->command = original_cmd;
   }

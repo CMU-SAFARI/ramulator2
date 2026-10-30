@@ -194,7 +194,7 @@ void PUMController::tick() {
     cand = pick_best_ready_from(m_pum_buffer, [&](const Request& req) { return !would_close_active(req); });
   }
 
-  if (!cand.valid && m_priority_buffer.size() == 0) {
+  if (!cand.valid) {
     cand = pick_rw_if();
   }
 
@@ -202,7 +202,7 @@ void PUMController::tick() {
     const bool is_pum = (cand.buffer == &m_pum_buffer);
 
     if (!is_pum) {
-      m_rowpolicy->try_upgrade_command(*cand.it);
+      upgrade_by_row_policy(cand);
     }
 
     if (!cand.it->is_stat_updated) {

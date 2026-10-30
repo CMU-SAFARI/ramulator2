@@ -222,6 +222,34 @@ def test_hbm2_per_bank_refresh_waits_nrfc_after_the_complete_bank_set():
     assert pc1_repeat.clk - pc1_last.clk >= dut.timings["nRFCpb"]
 
 
+def test_hbm2_pending_refpb_does_not_stall_the_other_pseudochannel():
+    dut = _make_hbm2(refresh_manager=ramulator.refresh_manager.NoRefresh())
+    pc_idx = _level_index(dut, "PseudoChannel")
+
+    def addr(pc, bankgroup, column=0, row=0):
+        return dut.addr_vec(
+            PseudoChannel=pc, Sid=0, BankGroup=bankgroup, Bank=0, Row=row, Column=column
+        )
+
+    dut.send_request("Read", addr(1, 1))
+    dut.run_until_idle(max_ticks=200)
+    # A freshly opened bank on PC0: its REFpb waits tRAS for the PREpb, then tRP.
+    dut.send_request("Read", addr(0, 2))
+    for _ in range(3):
+        dut.tick()
+    dut.priority_send("REFpb", addr(0, 2, column=dut.ALL, row=dut.ALL))
+    for column in range(1, 9):
+        dut.send_request("Read", addr(1, 1, column=4 * column))
+    history = dut.run_until_idle(max_ticks=400)
+
+    prepb = next(item for item in history if item.command == "PREpb")
+    pc1_reads = [
+        item.clk for item in history if item.command == "RD" and item.addr_vec[pc_idx] == 1
+    ]
+    assert len(pc1_reads) == 8
+    assert max(pc1_reads) < prepb.clk
+
+
 def test_hbm1_per_bank_refresh_observes_the_set_boundary():
     dram = ramulator.dram.HBM1(
         org_preset="HBM1_4Gb",

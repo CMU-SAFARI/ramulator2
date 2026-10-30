@@ -136,6 +136,36 @@ def test_priority_send_tracks_maintenance_stats():
     assert stats["num_maintenance_reqs_served"] == 1
 
 
+def test_pending_refpb_holds_back_only_the_bank_it_refreshes():
+    dut = make_gddr6_dut()
+
+    def refreshed(column):
+        return dut.addr_vec(BankGroup=0, Bank=0, Row=0, Column=column)
+
+    def other(column):
+        return dut.addr_vec(BankGroup=1, Bank=1, Row=0, Column=column)
+
+    dut.send_request("Read", refreshed(0))
+    dut.send_request("Read", other(0))
+    dut.run_until_idle(max_ticks=128)
+
+    # The refreshed bank is open, so the REFpb waits tRP after its PREpb. Row hits to the other
+    # bank go on meanwhile; the row hit to the refreshed bank waits for the refresh.
+    dut.priority_send("REFpb", dut.addr_vec(BankGroup=0, Bank=0, Row=dut.ALL, Column=dut.ALL))
+    dut.send_request("Read", refreshed(16))
+    for i in range(1, 9):
+        dut.send_request("Read", other(16 * i))
+    history = dut.run_until_idle(max_ticks=512)
+
+    refpb = next(item for item in history if item.command == "REFpb")
+    reads = [item for item in history if item.command == "RD"]
+    other_reads = [item.clk for item in reads if item.addr_vec[1:3] == [1, 1]]
+    refreshed_read = next(item for item in reads if item.addr_vec[1:3] == [0, 0])
+    assert len(other_reads) == 8
+    assert max(other_reads) < refpb.clk
+    assert refreshed_read.clk > refpb.clk
+
+
 def test_controller_addr_vec_rejects_none():
     dut = make_dut()
 

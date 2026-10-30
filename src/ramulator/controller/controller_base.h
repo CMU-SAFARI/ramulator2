@@ -85,6 +85,10 @@ class ControllerBase : public IController, public Implementation {
   // Maintained by promote_to_active / retire_request.
   std::vector<int> m_active_per_bank;
 
+  // Per flat-bank flag: a request in m_priority_buffer targets the bank.
+  // Rebuilt by mark_reserved_banks on every pick_rw_if.
+  std::vector<char> m_reserved_banks;
+
   // Stats
   Clk_t m_measured_clk = 0;
 
@@ -149,10 +153,17 @@ class ControllerBase : public IController, public Implementation {
 
   Candidate pick_best_ready_from(ReqBuffer& buffer, RequestFilterRef filter);
   Candidate pick_priority_if(RequestFilterRef filter = {});
+  // Reads and writes skip the banks that requests in m_priority_buffer target; other banks keep going.
   Candidate pick_rw_if(RequestFilterRef filter = {});
+  // Marks the banks targeted by m_priority_buffer requests; returns false if the buffer is empty.
+  bool mark_reserved_banks();
 
   // Scheduling helpers
-  bool would_close_active(const Request& req) const;
+  // req_is_active: req itself sits in m_active_buffer and does not count as another active request.
+  bool would_close_active(const Request& req, bool req_is_active = false) const;
+  // Lets the row policy upgrade the candidate (e.g. RD → RDA), but undoes an upgrade that would
+  // close a bank another active request still needs: that request could never finish.
+  void upgrade_by_row_policy(Candidate& cand);
   void update_request_stats(ReqBuffer::iterator& req);
   void serve_completed_reads();
   void set_write_mode();

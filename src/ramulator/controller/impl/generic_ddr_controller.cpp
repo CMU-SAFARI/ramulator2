@@ -41,15 +41,16 @@ void GenericDDRController::tick() {
     cand = pick_priority_if();
   }
 
-  // 3. If no candidate found, try to schedule from read/write (with write mode check)
-  if (!cand.valid && m_priority_buffer.size() == 0) {
+  // 3. If no candidate found, try to schedule from read/write (with write mode check);
+  //    banks a pending priority request targets are skipped
+  if (!cand.valid) {
     cand = pick_rw_if();
   }
 
   // We have a valid request to serve this cycle
   if (cand.valid) {
     // Rowpolicy *may* upgrade the command to AutoPrecharge version
-    m_rowpolicy->try_upgrade_command(*cand.it);
+    upgrade_by_row_policy(cand);
 
     if (!cand.it->is_stat_updated) {
       update_request_stats(cand.it);

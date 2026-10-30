@@ -354,14 +354,14 @@ void PRACController::tick() {
     cand = pick_priority_if(fits_filter);
   }
 
-  if (!cand.valid && !prac_buffer_stalled && m_priority_buffer.size() == 0) {
+  if (!cand.valid && !prac_buffer_stalled) {
     cand = pick_rw_if(fits_filter);
   }
 
   bool request_found = cand.valid;
   Request issued_req;
   if (cand.valid) {
-    m_rowpolicy->try_upgrade_command(*cand.it);
+    upgrade_by_row_policy(cand);
 
     if (!cand.it->is_stat_updated) {
       update_request_stats(cand.it);

@@ -438,12 +438,12 @@ void BlockHammerController::tick() {
     cand = pick_priority_if();
   }
 
-  if (!cand.valid && m_priority_buffer.size() == 0) {
+  if (!cand.valid) {
     cand = pick_rw_if(bh_filter);
   }
 
   if (cand.valid) {
-    m_rowpolicy->try_upgrade_command(*cand.it);
+    upgrade_by_row_policy(cand);
 
     if (!cand.it->is_stat_updated) {
       update_request_stats(cand.it);
