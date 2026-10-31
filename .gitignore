@@ -20,11 +20,13 @@ resources/jedec/
 
 # Generated/non-code artifacts
 *.ipynb
+!examples/tutorial_micro_26.ipynb
 *.pdf
 *.pkl
 *.png
 tests/plots/
 tests/latency_throughput/plots/
+examples/tutorial_output/
 sweep_log.txt
 .ipynb_checkpoints/tests/plots/
 
