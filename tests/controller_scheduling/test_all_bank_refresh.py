@@ -138,6 +138,20 @@ def test_all_bank_refresh_uses_rank_scope_for_ddr4():
     _assert_wildcard_levels(dut, ref, ["BankGroup", "Bank", "Row", "Column"])
 
 
+def test_all_bank_refresh_scope_param_overrides_the_standard_default():
+    dram = ramulator.dram.DDR4(
+        org_preset="DDR4_8Gb_x8", timing_preset="DDR4_2400R", rank=2, nREFI=4
+    )
+    dut = cs.ControllerUnderTest.make_generic_ddr(
+        dram,
+        refresh_manager=ramulator.refresh_manager.AllBank(scope="Channel"),
+    )
+
+    ref = _collect_issued(dut, command="REFab", count=1, max_ticks=16)[0]
+
+    _assert_wildcard_levels(dut, ref, ["Rank", "BankGroup", "Bank", "Row", "Column"])
+
+
 def test_all_bank_refresh_uses_channel_scope_for_hbm1():
     dram = ramulator.dram.HBM1(org_preset="HBM1_2Gb", timing_preset="HBM1_2Gbps", nREFI=4)
     dut = cs.ControllerUnderTest.make_hbm12(

@@ -14,3 +14,4 @@ class AllBank(Component):
     impl = "AllBank"
     scatter_interval = Param(int, default=0)
     debug = Param(bool, default=False)
+    scope = Param(str, default='')

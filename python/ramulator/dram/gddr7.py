@@ -110,11 +110,11 @@ class GDDR7(DRAMStandard):
         TimingConstraint("Channel", ["WRA"], ["REFab", "RFMab"], "nWL + nBL + nWR + nRP"),
         TimingConstraint("Channel", ["REFab"], ["ACT", "PREab", "REFab", "REFpb", "RFMab", "RFMpb"], "nRFCab"),
 
-        # Per-bank refresh.
+        # Per-bank refresh. JESD239D Table 93 Note 1 (PDF p.219): REFpb to another bank waits tRREFD
+        # inside a set; the tRFCpb pause between sets, which also holds RFMpb (§6.13, PDF p.220), is
+        # enforced by the per-bank refresh manager, which knows where a set ends.
         TimingConstraint("Channel", ["REFpb"], ["REFpb", "RFMpb", "ACT"], "nRREFD"),
         TimingConstraint("Channel", ["REFpb"], ["REFab", "RFMab"], "nRFCpb"),
-        # JESD239D §6.13 (PDF p.220): no RFMpb in the tRFCpb pause between REFpb sets; applied after every REFpb
-        TimingConstraint("Channel", ["REFpb"], ["RFMpb"], "nRFCpb"),
         TimingConstraint("Channel", ["ACT"], ["REFpb", "RFMpb"], "nRRD"),
         TimingConstraint("Channel", ["PREab"], ["REFpb", "RFMpb"], "nRP"),
         TimingConstraint("Bank", ["REFpb"], ["ACT", "REFpb", "RFMpb"], "nRFCpb"),

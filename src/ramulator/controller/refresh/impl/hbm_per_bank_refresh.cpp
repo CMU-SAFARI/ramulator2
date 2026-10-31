@@ -54,7 +54,7 @@ class HBMPerBankRefreshCore {
   bool service_pending_refpb();
 
  public:
-  void init(ControllerBase* ctrl);
+  void init(ControllerBase* ctrl, const std::string& set_scope);
   void tick();
 };
 
@@ -72,13 +72,9 @@ int HBMPerBankRefreshCore::flat_bank_in_scope(const AddrVec_t& addr_vec) const {
   return sid * m_banks_per_sid + flat_bank_in_sid;
 }
 
-void HBMPerBankRefreshCore::init(ControllerBase* ctrl) {
+void HBMPerBankRefreshCore::init(ControllerBase* ctrl, const std::string& set_scope) {
   m_ctrl = ctrl;
   const auto& info = *m_ctrl->m_device.m_spec;
-  if (info.standard_name != "HBM1" && info.standard_name != "HBM2" &&
-      info.standard_name != "HBM3" && info.standard_name != "HBM4") {
-    throw std::runtime_error("HBMPerBankRefresh requires an HBM1, HBM2, HBM3, or HBM4 standard");
-  }
 
   m_cmd_refpb = info.get_command_id("REFpb");
   m_level_scope = info.has_level("PseudoChannel") ? info.get_level_id("PseudoChannel")
@@ -92,13 +88,28 @@ void HBMPerBankRefreshCore::init(ControllerBase* ctrl) {
   m_banks_per_group = info.get_level_size("Bank");
   m_banks_per_sid = m_bank_groups * m_banks_per_group;
   m_banks_per_scope = m_sid_count * m_banks_per_sid;
-  // JESD235D uses one REFSB set per selected channel/pseudochannel, spanning
-  // all of its SIDs and banks. JESD238 and JESD270-4 use a 16-bank REFpb set
-  // per SID.
-  m_boundary_block_size =
-      (info.standard_name == "HBM3" || info.standard_name == "HBM4")
-          ? m_banks_per_sid
-          : m_banks_per_scope;
+  // A REFpb set covers every bank under one node of the set level. JESD235D uses one REFSB
+  // set per selected channel/pseudochannel, spanning all of its SIDs and banks. JESD238 and
+  // JESD270-4 use a 16-bank REFpb set per SID. Other standards name the level in set_scope.
+  int set_level = -1;
+  if (!set_scope.empty()) {
+    set_level = info.get_level_id(set_scope);
+  } else if (info.standard_name == "HBM3" || info.standard_name == "HBM4") {
+    set_level = m_level_sid;
+  } else if (info.standard_name == "HBM1" || info.standard_name == "HBM2") {
+    set_level = m_level_scope;
+  } else {
+    throw std::runtime_error("HBMPerBankRefresh: no default set_scope for DRAM standard '" + info.standard_name +
+                             "'; set set_scope to the level one REFpb set covers (e.g. \"Sid\" or \"PseudoChannel\")");
+  }
+  if (set_level < m_level_scope || set_level > m_level_bank) {
+    throw std::runtime_error("HBMPerBankRefresh: set_scope '" + info.level_names[set_level] +
+                             "' must lie between the refresh scope '" + info.level_names[m_level_scope] + "' and Bank");
+  }
+  m_boundary_block_size = 1;
+  for (int level = set_level + 1; level <= m_level_bank; level++) {
+    m_boundary_block_size *= info.organization.level_sizes[level];
+  }
   m_nrefipb = info.get_timing_value("nREFIpb");
   m_nrfc_pb = info.get_timing_value("nRFCpb");
   m_next_refresh_clk = m_nrefipb;
@@ -216,9 +227,11 @@ class HBMPerBankRefresh final : public IRefreshManager, public Implementation {
 
  private:
   HBMPerBankRefreshCore m_core;
+  std::string m_set_scope;
 
   void init() override {
-    m_core.init(cast_parent<ControllerBase>());
+    RAMULATOR_PARSE_PARAM(m_set_scope, std::string, "set_scope").default_val("");
+    m_core.init(cast_parent<ControllerBase>(), m_set_scope);
   }
 
   void tick() override {
@@ -231,9 +244,11 @@ class HBM34PerBankRefresh final : public IRefreshManager, public Implementation 
 
  private:
   HBMPerBankRefreshCore m_core;
+  std::string m_set_scope;
 
   void init() override {
-    m_core.init(cast_parent<ControllerBase>());
+    RAMULATOR_PARSE_PARAM(m_set_scope, std::string, "set_scope").default_val("");
+    m_core.init(cast_parent<ControllerBase>(), m_set_scope);
   }
 
   void tick() override {

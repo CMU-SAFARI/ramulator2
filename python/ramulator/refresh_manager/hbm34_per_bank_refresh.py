@@ -7,7 +7,9 @@
 # Regenerate:   python -m ramulator codegen
 ###############################################################################
 from ramulator.components import Component
+from ramulator.param import Param
 
 
 class HBM34PerBankRefresh(Component):
     impl = "HBM34PerBankRefresh"
+    set_scope = Param(str, default='')

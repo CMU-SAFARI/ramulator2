@@ -51,12 +51,13 @@ std::string all_bank_refresh_scope_for(const DRAMSpec& spec) {
       return std::string(scope);
     }
   }
-  throw std::runtime_error("AllBank refresh: no default scope for DRAM standard '" + spec.standard_name + "'");
+  throw std::runtime_error("AllBank refresh: no default scope for DRAM standard '" + spec.standard_name +
+                           "'; set scope to the level one REFab refreshes (e.g. \"Rank\" or \"PseudoChannel\")");
 }
 
 }  // namespace
 
-// All-bank refresh — issues one REFab per standard-defined scope node every nREFI cycles.
+// All-bank refresh — issues one REFab per scope node (the standard's default or `scope`) every nREFI cycles.
 class AllBankRefresh : public IRefreshManager, public Implementation {
   RAMULATOR_REGISTER_IMPLEMENTATION(IRefreshManager, AllBankRefresh, "AllBank")
 
@@ -98,9 +99,13 @@ void AllBankRefresh::init() {
   m_ctrl = cast_parent<ControllerBase>();
   RAMULATOR_PARSE_PARAM(m_scatter_interval, int, "scatter_interval").default_val(0);
   RAMULATOR_PARSE_PARAM(m_debug, bool, "debug").default_val(false);
+  // Level one REFab refreshes; empty means the standard's default from all_bank_refresh_scopes.
+  RAMULATOR_PARSE_PARAM(m_scope, std::string, "scope").default_val("");
   const auto& info = *m_ctrl->m_device.m_spec;
 
-  m_scope = all_bank_refresh_scope_for(info);
+  if (m_scope.empty()) {
+    m_scope = all_bank_refresh_scope_for(info);
+  }
   m_cmd_refab = info.get_command_id("REFab");
   m_ref_level = info.get_level_id(m_scope);
   m_nrefi = info.get_timing_value("nREFI");

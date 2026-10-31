@@ -140,6 +140,34 @@ def test_gddr7_per_bank_set_pause_starts_when_the_boundary_refresh_issues():
     assert refs[16].clk - refs[15].clk >= dut.timing("nRFCpb")
 
 
+def _fast_per_bank_dut():
+    # Short refresh interval and a long set pause, so both are easy to tell apart.
+    dram = _dram(nREFIpb=4, nRFCpb=40, nRREFD=2, nRRD=1, nRAS=2, nRP=3, nRC=4)
+    return _make_gddr7(dram, refresh_manager=ramulator.refresh_manager.PerBank())
+
+
+def test_gddr7_rfmpb_waits_out_the_set_pause_after_the_boundary_refpb():
+    # JESD239D §6.13 (PDF p.220): no RFMpb in the tRFCpb pause between two sets of 16 REFpb.
+    dut = _fast_per_bank_dut()
+    boundary = _collect_issued(dut, command="REFpb", count=16, max_ticks=128)[-1]
+    dut.priority_send("RFMpb", _addr(dut, bank=0))
+
+    rfm = _collect_issued(dut, command="RFMpb", count=1, max_ticks=128)[0]
+
+    assert rfm.clk - boundary.clk >= dut.timing("nRFCpb")
+
+
+def test_gddr7_rfmpb_inside_a_refpb_set_waits_only_nrrefd():
+    # JESD239D Table 93 Note 1 (PDF p.219), Fig. 109: RFMpb may issue between the REFpb of a set.
+    dut = _fast_per_bank_dut()
+    first = _collect_issued(dut, command="REFpb", count=1, max_ticks=16)[0]
+    dut.priority_send("RFMpb", _addr(dut, bank=5))
+
+    rfm = _collect_issued(dut, command="RFMpb", count=1, max_ticks=64)[0]
+
+    assert dut.timing("nRREFD") <= rfm.clk - first.clk < dut.timing("nRFCpb")
+
+
 def test_gddr7_controller_does_not_emit_rfm_or_rck_commands_automatically():
     dut = _make_gddr7()
     dut.send_request("Read", _addr(dut, bank=0, row=0))

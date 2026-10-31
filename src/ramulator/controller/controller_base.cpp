@@ -296,6 +296,9 @@ ControllerBase::Candidate ControllerBase::pick_priority_if(RequestFilterRef filt
   if (would_close_active(*it)) {
     return c;
   }
+  if (m_refresh->blocks(it->command, it->addr_vec)) {
+    return c;
+  }
   if (filter && !filter(*it)) {
     return c;
   }

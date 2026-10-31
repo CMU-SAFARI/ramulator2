@@ -264,8 +264,9 @@ def test_gddr7_refresh_and_rfm_require_closed_banks():
         ("REFpb", "RFMab", False, "nRFCpb"),
         ("RFMpb", "REFab", False, "nRFMpb"),
         ("RFMpb", "RFMab", False, "nRFMpb"),
-        # JESD239D §6.13 (PDF p.220): the set-pause rule REFpb -> RFMpb nRFCpb applies after every REFpb.
-        ("REFpb", "RFMpb", False, "nRFCpb"),
+        # JESD239D Table 93 Note 1: tRREFD inside a set. The tRFCpb pause after the set-completing
+        # REFpb (§6.13) is held by the per-bank refresh manager; see the controller tests.
+        ("REFpb", "RFMpb", False, "nRREFD"),
         ("RFMpb", "REFpb", False, "nRREFD"),
         ("REFpb", "REFpb", True, "nRFCpb"),
         ("RFMpb", "REFpb", True, "nRFMpb"),

@@ -155,6 +155,48 @@ def test_hbm34_per_bank_refresh_observes_sid_boundaries_without_cadence_drift():
         )
 
 
+def test_hbm34_per_bank_refresh_set_scope_can_span_all_sids():
+    refresh = ramulator.refresh_manager.HBM34PerBankRefresh(set_scope="PseudoChannel")
+    dut = _make_hbm34(_hbm3(), refresh_manager=refresh)
+    banks_per_sid = dut.org["bankgroup"] * dut.org["bank"]
+    banks_per_pc = dut.org["sid"] * banks_per_sid
+    refs = _collect_issued(
+        dut,
+        command="REFpb",
+        count=2 * (banks_per_pc + 1),
+        max_ticks=(banks_per_pc + 3) * dut.timings["nREFIpb"] + 2 * dut.timings["nRFCpb"] + 64,
+    )
+    pc_idx = _level_index(dut, "PseudoChannel")
+
+    for pc in range(dut.org["pseudochannel"]):
+        pc_refs = [item for item in refs if item.addr_vec[pc_idx] == pc]
+        assert pc_refs[banks_per_sid].clk - pc_refs[banks_per_sid - 1].clk < dut.timings["nRFCpb"]
+        assert pc_refs[banks_per_pc].clk - pc_refs[banks_per_pc - 1].clk >= dut.timings["nRFCpb"]
+
+
+def test_hbm_per_bank_refresh_runs_a_non_hbm_standard_given_a_set_scope():
+    dram = ramulator.dram.GDDR6(
+        org_preset="GDDR6_8Gb_x16", timing_preset="GDDR6_14000_1250mV_double"
+    )
+    with pytest.raises(RuntimeError, match="set_scope"):
+        cs.ControllerUnderTest.make_generic_ddr(
+            dram, refresh_manager=ramulator.refresh_manager.HBMPerBankRefresh()
+        )
+
+    dut = cs.ControllerUnderTest.make_generic_ddr(
+        dram, refresh_manager=ramulator.refresh_manager.HBMPerBankRefresh(set_scope="Channel")
+    )
+    banks = dut.org["bankgroup"] * dut.org["bank"]
+    refs = _collect_issued(
+        dut,
+        command="REFpb",
+        count=banks + 1,
+        max_ticks=(banks + 2) * dut.timings["nREFIpb"] + dut.timings["nRFCpb"] + 64,
+    )
+
+    assert refs[banks].clk - refs[banks - 1].clk >= dut.timings["nRFCpb"]
+
+
 def test_hbm2_per_bank_refresh_pairs_pseudochannels():
     dut = _make_hbm2()
     refs = _collect_issued(dut, command="REFpb", count=4, max_ticks=2 * dut.timings["nREFIpb"] + 16)

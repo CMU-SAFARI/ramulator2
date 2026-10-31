@@ -11,6 +11,12 @@ class IRefreshManager {
  public:
   // Called every controller clock cycle to check if a refresh is due.
   virtual void tick() = 0;
+
+  // Whether the refresh schedule forbids `command` to `addr_vec` this cycle although the timing
+  // graph allows it, e.g. RFMpb in the pause between two REFpb sets (JESD239D §6.13).
+  virtual bool blocks(int command, const AddrVec_t& addr_vec) const {
+    return false;
+  }
 };
 
 }  // namespace Ramulator
