@@ -101,4 +101,5 @@ def test_hbm34_same_pc_refpb_waits_for_nrrefd_but_cross_pc_does_not(dram_factory
     cross_pc_history = cross_pc.run_until_idle(max_ticks=16)
 
     assert [item.command for item in cross_pc_history] == ["REFpb", "REFpb"]
-    assert cross_pc_history[1].clk - cross_pc_history[0].clk == 2
+    # REFpb is a rising-edge row command, so the other pseudo-channel's REFpb takes the next clock.
+    assert cross_pc_history[1].clk - cross_pc_history[0].clk == cross_pc.tick_multiplier

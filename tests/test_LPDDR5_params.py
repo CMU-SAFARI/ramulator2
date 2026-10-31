@@ -32,13 +32,15 @@ def test_lpddr5_8gb_6400_timing_parameters():
     }
     assert OLD_BURST_TIMING not in timing_params
 
+    density = ramulator.dram.LPDDR5.org_presets["LPDDR5_8Gb_x16"]["die_density"]
+    tCK_ps = timing_by_name["tCK_ps"]
     expected = {
         "nBL_min": 2,
         "nBL_max": 4,
-        "nRFC": 168,       # JESD209-5C Table 240: tRFCab = 210 ns / 1.25 ns.
-        "nRFCpb": 96,      # 120 ns / 1.25 ns
-        "nPBR2PBR": 72,    # 90 ns / 1.25 ns
-        "nPBR2ACT": 6,     # 7.5 ns / 1.25 ns
+        "nRFC": expected_nRFC(density, tCK_ps),
+        "nRFCpb": expected_nRFCpb(density, tCK_ps),
+        "nPBR2PBR": expected_nPBR2PBR(density, tCK_ps),
+        "nPBR2ACT": expected_nPBR2ACT(tCK_ps),
     }
 
     for name, value in expected.items():

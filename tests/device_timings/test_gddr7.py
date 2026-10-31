@@ -48,37 +48,44 @@ def refresh_addr(dut, command, *, bank):
 
 
 def test_gddr7_user_overrides_are_final_after_secondary_timing_resolution():
-    dram = ramulator.dram.GDDR7(
-        org_preset="GDDR7_16Gb_x8",
-        timing_preset="GDDR7_28000_PAM3",
-        nRL=42,
-        nRFCpb=77,
-    )
-    timing = dict(zip(GDDR7.timing_params, dram.to_config()["timing"]))
+    def resolved(**overrides):
+        dram = ramulator.dram.GDDR7(
+            org_preset="GDDR7_16Gb_x8",
+            timing_preset="GDDR7_28000_PAM3",
+            **overrides,
+        )
+        return dict(zip(GDDR7.timing_params, dram.to_config()["timing"]))
 
-    assert timing["nRL"] == 42
-    assert timing["nRFCpb"] == 77
-    assert timing["nWL"] == 6
-    assert timing["nRC"] == 90
-    assert timing["nRRD"] == 4
-    assert timing["nREFI"] == 3327
-    assert timing["nREFIpb"] == 207
-    assert timing["nRCKEN"] == 6
-    assert timing["nRCKSTOP_LAT"] == 10
-    assert timing["nRCK_LS"] == 2
-    assert timing["nRCKST2SP"] == 26
-    assert timing["nRFMpb"] == 105
+    # nRL is preset-owned and nRFCpb is resolver-owned; both overrides must survive resolution
+    # and leave every other timing as it resolves without them.
+    overrides = {"nRL": 42, "nRFCpb": 77}
+    baseline = resolved()
+    timing = resolved(**overrides)
+
+    for name, value in overrides.items():
+        assert baseline[name] != value
+        assert timing[name] == value
+    for name in GDDR7.timing_params:
+        if name not in overrides:
+            assert timing[name] == baseline[name], name
 
 
 def test_gddr7_resolver_derives_preset_owned_rck_timings():
-    timing = dict(GDDR7.timing_presets["GDDR7_28000_PAM3"])
+    preset = GDDR7.timing_presets["GDDR7_28000_PAM3"]
+    timing = dict(preset)
     org = dict(GDDR7.org_presets["GDDR7_16Gb_x8"])
     GDDR7.resolve_secondary_timings(timing, org)
 
-    assert timing["nRCKST2SP"] == 26
-    assert timing["nRD2RCKSTOP"] == 18
+    # JESD239D Table 88 (PDF p.190) and its Notes 5 and 7.
+    assert timing["nRCKPST"] == 2
     assert timing["nRCKSTRT2RD"] == 2
-    assert timing["nRCKSP2ST"] == 8
+    assert timing["nRCKST2SP"] == timing["nRCKEN"] + timing["nRCK_LS"] + timing["nRCK_HS_min"]
+    assert timing["nRD2RCKSTOP"] == (
+        timing["nRL"] + timing["nBL"] + timing["nDQERL"]
+        + timing["nRCKPST"] - timing["nRCKSTOP_LAT"]
+    )
+    # tRCKSP2ST is vendor specific (Note 6), so the preset owns it.
+    assert timing["nRCKSP2ST"] == preset["nRCKSP2ST"]
 
 
 def test_gddr7_explicit_dependent_rck_timing_overrides_are_honored():

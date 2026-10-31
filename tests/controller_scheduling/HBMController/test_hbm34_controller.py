@@ -125,10 +125,12 @@ def test_hbm34_cross_pc_row_pre_pair_issues_on_adjacent_edges():
     assert second.clk - first.clk == 1
 
 
+# "Options for issuing PREab and PREpb commands" on the falling edge: JESD238 Table 32 (PDF p.51)
+# and JESD270-4A Table 35 (PDF p.58).
 @pytest.mark.parametrize("dram_factory", [_hbm3, _hbm4])
 @pytest.mark.parametrize("falling_command", ["PREpb", "PREab"])
 @pytest.mark.parametrize("rising_command", ["ACT", "PREpb", "PREab", "REFpb", "REFab", "RFMpb", "RFMab"])
-def test_hbm34_table35_cross_pc_pre_options_issue(dram_factory, rising_command, falling_command):
+def test_hbm34_pre_options_cross_pc_issue(dram_factory, rising_command, falling_command):
     dut = _make_hbm34(dram_factory())
     rising = _addr(dut, pc=0, sid=0, bankgroup=0, bank=0, row=0)
     falling = _addr(dut, pc=1, sid=0, bankgroup=0, bank=0, row=0)
@@ -142,7 +144,7 @@ def test_hbm34_table35_cross_pc_pre_options_issue(dram_factory, rising_command, 
 @pytest.mark.parametrize("dram_factory", [_hbm3, _hbm4])
 @pytest.mark.parametrize("falling_command", ["PREpb", "PREab"])
 @pytest.mark.parametrize("rising_command", ["PREab", "REFab", "RFMab"])
-def test_hbm34_table35_same_pc_all_bank_rows_reject_pre(dram_factory, rising_command, falling_command):
+def test_hbm34_pre_options_same_pc_all_bank_rows_reject_pre(dram_factory, rising_command, falling_command):
     dut = _make_hbm34(dram_factory())
     rising = _addr(dut, pc=0, sid=0, bankgroup=0, bank=0, row=0)
     falling = _addr(dut, pc=0, sid=0, bankgroup=0, bank=1, row=0)
@@ -154,7 +156,7 @@ def test_hbm34_table35_same_pc_all_bank_rows_reject_pre(dram_factory, rising_com
 
 @pytest.mark.parametrize("dram_factory", [_hbm3, _hbm4])
 @pytest.mark.parametrize("rising_command", ["ACT", "PREpb", "REFpb", "RFMpb"])
-def test_hbm34_table35_same_pc_bank_rows_reject_preab(dram_factory, rising_command):
+def test_hbm34_pre_options_same_pc_bank_rows_reject_preab(dram_factory, rising_command):
     dut = _make_hbm34(dram_factory())
     rising = _addr(dut, pc=0, sid=0, bankgroup=0, bank=0, row=0)
     falling = _addr(dut, pc=0, sid=0, bankgroup=0, bank=1, row=0)
@@ -166,7 +168,7 @@ def test_hbm34_table35_same_pc_bank_rows_reject_preab(dram_factory, rising_comma
 
 @pytest.mark.parametrize("dram_factory", [_hbm3, _hbm4])
 @pytest.mark.parametrize("rising_command", ["ACT", "PREpb", "REFpb", "RFMpb"])
-def test_hbm34_table35_same_pc_bank_rows_reject_same_bank_prepb(dram_factory, rising_command):
+def test_hbm34_pre_options_same_pc_bank_rows_reject_same_bank_prepb(dram_factory, rising_command):
     dut = _make_hbm34(dram_factory())
     addr = _addr(dut, pc=0, sid=0, bankgroup=0, bank=0, row=0)
 
@@ -177,7 +179,7 @@ def test_hbm34_table35_same_pc_bank_rows_reject_same_bank_prepb(dram_factory, ri
 
 @pytest.mark.parametrize("dram_factory", [_hbm3, _hbm4])
 @pytest.mark.parametrize("rising_command", ["ACT", "REFpb", "RFMpb"])
-def test_hbm34_table35_same_pc_bank_rows_allow_diff_bank_prepb_when_timing_allows(dram_factory, rising_command):
+def test_hbm34_pre_options_same_pc_bank_rows_allow_diff_bank_prepb_when_timing_allows(dram_factory, rising_command):
     dut = _make_hbm34(dram_factory())
     rising = _addr(dut, pc=0, sid=0, bankgroup=0, bank=0, row=0)
     falling = _addr(dut, pc=0, sid=0, bankgroup=0, bank=1, row=0)
@@ -264,7 +266,7 @@ def test_hbm3_rfmab_spans_and_resets_every_sid_in_the_selected_pseudochannel():
 @pytest.mark.parametrize("dram_factory", [_hbm3, _hbm4])
 @pytest.mark.parametrize("falling_command", ["PREpb", "PREab"])
 @pytest.mark.parametrize("rising_command", ["PREab", "REFab", "RFMab"])
-def test_hbm34_table35_same_pc_all_bank_rows_reject_pre_same_bank(dram_factory, rising_command, falling_command):
+def test_hbm34_pre_options_same_pc_all_bank_rows_reject_pre_same_bank(dram_factory, rising_command, falling_command):
     dut = _make_hbm34(dram_factory())
     addr = _addr(dut, pc=0, sid=0, bankgroup=0, bank=0, row=0)
 

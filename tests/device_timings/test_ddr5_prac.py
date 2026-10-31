@@ -16,25 +16,36 @@ def _resolve(**kwargs):
     return dram.resolve()[1]
 
 
-def test_prac_resolves_the_jedec_prac_core_timings():
-    # JESD79-5C Tables 343, 344, 346, 347 and the MR6 PRAC settings, at tCK = 312 ps.
-    timings = _resolve(prac="on")
+def _nck(ns, tCK_ps):
+    # JESD79-5C §13.2: nCK = truncate(t * 0.997 / tCK + 1), in integer picoseconds.
+    return ((ns * 1000 * 997) // tCK_ps + 1000) // 1000
 
-    assert timings["nRAS"] == 52      # 16 ns
-    assert timings["nRP"] == 116      # 36 ns
-    assert timings["nRC"] == 168      # max(52 ns, nRAS + nRP)
-    assert timings["nRTP"] == 16      # 5 ns, MR6 PRAC setting
-    assert timings["nWR"] == 32       # 10 ns, MR6 PRAC setting
-    assert timings["nRPab"] == 128    # tRP + 4 ns for a PREab closing 9-32 rows
-    assert timings["nRFM"] == 1119    # 5 * tRRFab = 350 ns
-    assert timings["nRFMsb"] == 959   # 5 * tRRFsb = 300 ns
+
+def _mr6_setting(nck, settings):
+    # The smallest MR6 setting that covers the minimum.
+    return next(setting for setting in settings if setting >= nck)
+
+
+def test_prac_resolves_the_jedec_prac_core_timings():
+    # JESD79-5C Tables 343, 344, 346, 347 and the MR6 PRAC tRTP and tWR settings.
+    timings = _resolve(prac="on")
+    tCK_ps = timings["tCK_ps"]
+
+    assert timings["nRAS"] == _nck(16, tCK_ps)
+    assert timings["nRP"] == _nck(36, tCK_ps)
+    assert timings["nRC"] == max(_nck(52, tCK_ps), timings["nRAS"] + timings["nRP"])
+    assert timings["nRTP"] == _mr6_setting(_nck(5, tCK_ps), range(8, 23))
+    assert timings["nWR"] == _mr6_setting(_nck(10, tCK_ps), range(16, 45, 2))
+    assert timings["nRPab"] == _nck(36 + 4, tCK_ps)  # tRP + 4 ns for a PREab closing 9-32 rows
+    assert timings["nRFM"] == _nck(5 * 70, tCK_ps)   # 5 * tRRFab
+    assert timings["nRFMsb"] == _nck(5 * 60, tCK_ps)  # 5 * tRRFsb
     assert timings["nRFC"] == _resolve()["nRFC"]  # §16.4.1: tRFC is unchanged
 
 
 def test_prac_off_keeps_the_speed_bin_timings():
     timings = _resolve()
 
-    assert timings["nRP"] == 46
+    assert timings["nRP"] == ramulator.dram.DDR5.timing_presets["DDR5_6400AN"]["nRP"]
     assert timings["nRPab"] == timings["nRP"]
     assert timings["nRFM"] == timings["nRFC"]
 
@@ -44,7 +55,7 @@ def test_prac_on_an_8gb_device_warns_but_resolves():
     with pytest.warns(JEDECWarning, match="16Gb"):
         timings = _resolve(org_preset="DDR5_8Gb_x8", prac="on")
 
-    assert timings["nRP"] == 116
+    assert timings["nRP"] == _nck(36, timings["tCK_ps"])
 
 
 def test_prac_rejects_unknown_values():

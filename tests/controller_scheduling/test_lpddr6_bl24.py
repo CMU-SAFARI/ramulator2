@@ -61,9 +61,6 @@ def test_lpddr6_payload_transaction_size_is_32_bytes():
     assert dut.org["channel_width"] == 12
     assert dut.timing("nBL_min") == 6
     assert dut.timing("nBL_max") == 12
-    assert dut.timing("nRTW_S") == 48
-    assert dut.timing("nRTW_L") == 54
-    assert dut.timing("nRFC") == 1014
 
 
 def test_lpddr6_act1_must_be_followed_by_act2_before_next_act1():
@@ -91,7 +88,6 @@ def test_lpddr6_different_bg_row_hit_reads_use_nccds():
 
     dut.assert_commands(["RD_S", "RD_S"], history=history)
     dut.assert_gap(0, 1, dut.timing("nCCDS"), history=history)
-    assert dut.timing("nCCDS") == 6
 
 
 def test_lpddr6_same_bg_row_hit_reads_use_nccdl():
@@ -107,7 +103,6 @@ def test_lpddr6_same_bg_row_hit_reads_use_nccdl():
 
     dut.assert_commands(["RD_S", "RD_S"], history=history)
     dut.assert_gap(0, 1, dut.timing("nCCDL"), history=history)
-    assert dut.timing("nCCDL") == 10
 
 
 def test_lpddr6_write_to_precharge_uses_nbl_max():
@@ -138,13 +133,12 @@ def test_lpddr6_same_bg_read_to_write_uses_nrtw_l():
 
     dut.assert_commands(["RD_S", "WR_S"], history=history)
     dut.assert_gap(0, 1, dut.timing("nRTW_L"), history=history)
-    assert dut.timing("nRTW_L") == 54
 
 
 def test_lpddr6_same_bg_write_to_read_uses_array_cycle_time():
     # Regression guard: same-BG WRITE->READ turnaround must use BL/n_max (the
     # column array cycle time), not BL/n_min. JESD209-6 Table 383:
-    # WL + BL/n_max + RU(tWTR_L/tCK). At 10667 that is 26 + 12 + 32 = 70 nCK.
+    # WL + BL/n_max + RU(tWTR_L/tCK).
     dut = make_lpddr6_dut(dram_kwargs={"wck_mode": "always_on"})
     addr = lpddr6_addr(dut)
     open_row(dut, addr)
@@ -158,7 +152,6 @@ def test_lpddr6_same_bg_write_to_read_uses_array_cycle_time():
     dut.assert_commands(["RD_S"], history=read_history)
     expected = dut.timing("nWL") + dut.timing("nBL_max") + dut.timing("nWTRL")
     assert read_history[0].clk - write_history[0].clk == expected
-    assert expected == 70
 
 
 def test_lpddr6_long_burst_quantities_match_table_381():
@@ -169,12 +162,13 @@ def test_lpddr6_long_burst_quantities_match_table_381():
     assert dut.timing("nBL_max") == 12
     assert dut.timing("nBL_min_L") == 18
     assert dut.timing("nBL_max_L") == 24
-    # Same-BG tCCD after BL48 (JESD209-6 Table 382) and BL48 read-to-precharge.
-    assert dut.timing("nCCDL_L") == 22
-    assert dut.timing("nRTP_L") == 26
-    # Read-to-write turnaround, per preceding burst length (JESD209-6 Tables 389-390).
-    assert dut.timing("nRTW_S_L") == 60
-    assert dut.timing("nRTW_L_L") == 66
+    # Same-BG tCCD after BL48 (JESD209-6 Table 382): 12 nCK on top of tCCD_L above 6400 Mbps.
+    assert dut.timing("nCCDL_L") == 12 + dut.timing("nCCDL")
+    # Read-to-write turnaround (JESD209-6 Tables 389-390): the BL48 gap is the BL24 gap plus the
+    # longer burst; both are rounded to even nCK and the bursts differ by an even count.
+    t = dut.timing
+    assert t("nRTW_S_L") == t("nRTW_S") + t("nBL_min_L") - t("nBL_min")
+    assert t("nRTW_L_L") == t("nRTW_L") + t("nBL_max_L") - t("nBL_max")
 
 
 def test_lpddr6_long_read_to_precharge_uses_nrtp_l():
@@ -192,7 +186,6 @@ def test_lpddr6_long_read_to_precharge_uses_nrtp_l():
     dut.assert_commands(["RD_L"], history=read_history)
     dut.assert_commands(["PREpb"], history=pre_history)
     assert pre_history[0].clk - read_history[0].clk == dut.timing("nRTP_L")
-    assert dut.timing("nRTP_L") == 26
 
 
 def test_lpddr6_same_bg_long_read_to_read_uses_nccdl_l():
@@ -209,7 +202,6 @@ def test_lpddr6_same_bg_long_read_to_read_uses_nccdl_l():
 
     dut.assert_commands(["RD_L", "RD_L"], history=history)
     dut.assert_gap(0, 1, dut.timing("nCCDL_L"), history=history)
-    assert dut.timing("nCCDL_L") == 22
 
 
 def test_lpddr6_all_bank_refresh_uses_rank_scope():

@@ -77,8 +77,9 @@ def test_hbm34_per_bank_refresh_pairs_pcs_before_advancing_flat_bank(dram_factor
     assert [item.addr_vec[pc_idx] for item in refs] == [0, 1, 0, 1]
     assert [item.addr_vec[sid_idx] for item in refs] == [0, 0, 0, 0]
     assert [_flat_bank(dut, item) for item in refs] == [0, 0, 1, 1]
-    assert refs[1].clk - refs[0].clk == 2
-    assert refs[3].clk - refs[2].clk == 2
+    # REFpb is a rising-edge row command, so the other pseudo-channel's REFpb takes the next clock.
+    assert refs[1].clk - refs[0].clk == dut.tick_multiplier
+    assert refs[3].clk - refs[2].clk == dut.tick_multiplier
 
 
 @pytest.mark.parametrize("dram_factory", [_hbm3, _hbm4_single_sid])
