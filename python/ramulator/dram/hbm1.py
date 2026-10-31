@@ -62,12 +62,10 @@ class HBM1(DRAMStandard):
         TimingConstraint(level="Channel", preceding=["RD", "RDA"], following=["WR", "WRA"], latency="nRTW"),
         # Channel — write-to-read turnaround
         TimingConstraint(level="Channel", preceding=["WR", "WRA"], following=["RD", "RDA"], latency="nCWL + nBL + nWTRS"),
-        # Channel — REFab requires CNOP on the column bus
-        TimingConstraint(level="Channel", preceding=["RD", "WR", "RDA", "WRA"], following=["REFab"], latency="1"),
-        TimingConstraint(level="Channel", preceding=["REFab"], following=["RD", "WR", "RDA", "WRA"], latency="1"),
         # Channel — CAS to PREab
-        TimingConstraint(level="Channel", preceding=["RD"], following=["PREab"], latency="nRTPL"),
-        TimingConstraint(level="Channel", preceding=["WR"], following=["PREab"], latency="nCWL + nBL + nWR"),
+        # JESD235D Table 33 (PDF p.46): READ (w/AP) → PREALL tRTP; WRITE (w/AP) → PREALL WL + BL/2 + RU(tWR/tCK)
+        TimingConstraint(level="Channel", preceding=["RD", "RDA"], following=["PREab"], latency="nRTPL"),
+        TimingConstraint(level="Channel", preceding=["WR", "WRA"], following=["PREab"], latency="nCWL + nBL + nWR"),
         # Channel — RAS timing
         TimingConstraint(level="Channel", preceding=["ACT"], following=["ACT"], latency="nRRDS"),
         TimingConstraint(level="Channel", preceding=["ACT", "REFpb"], following=["ACT", "REFpb"], latency="nFAW", window=4, shared_window=True),
@@ -103,11 +101,15 @@ class HBM1(DRAMStandard):
         TimingConstraint(level="Bank", preceding=["PREpb"], following=["ACT"], latency="nRP"),
         TimingConstraint(level="Bank", preceding=["RD"], following=["PREpb"], latency="nRTPL"),
         TimingConstraint(level="Bank", preceding=["WR"], following=["PREpb"], latency="nCWL + nBL + nWR"),
+        # JESD235D Table 33 (PDF p.46): WRITE → READ w/AP same bank = WL + BL/2 + MAX[RU(tWR/tCK) − tRTP, tWTR]
+        TimingConstraint(level="Bank", preceding=["WR"], following=["RDA"], latency="nCWL + nBL + max(nWR - nRTPL, nWTRL)"),
         TimingConstraint(level="Bank", preceding=["RDA"], following=["ACT", "REFpb"], latency="nRTPL + nRP"),
         TimingConstraint(level="Bank", preceding=["WRA"], following=["ACT", "REFpb"], latency="nCWL + nBL + nWR + nRP"),
 
         # Bank — per-bank refresh (REFSB)
-        TimingConstraint(level="Bank", preceding=["REFpb"], following=["ACT"], latency="nRFCpb"),
+        # JESD235D §6.3.2.6 (PDF p.50) and Table 35 Note 3 (PDF p.51): a bank is refreshed again only in
+        # the next set, which starts at least tRFCSB after the current set. HBMPerBankRefresh keeps the set order.
+        TimingConstraint(level="Bank", preceding=["REFpb"], following=["ACT", "REFpb"], latency="nRFCpb"),
         TimingConstraint(level="Bank", preceding=["ACT"], following=["REFpb"], latency="nRC"),
         TimingConstraint(level="Bank", preceding=["PREpb"], following=["REFpb"], latency="nRP"),
     ]
@@ -141,8 +143,15 @@ class HBM1(DRAMStandard):
         tdqsq_max_ps = {1_000: 170, 2_000: 85}.get(timing_dict["rate"])
         if tdqsq_max_ps is None:
             return -1
+        tdqsck_max_ps = {
+            2_000: 3_500,
+            # === Ramulator Guesstimate ===
+            # Table 67 (PDF p.116) leaves tDQSCK blank at 1.0 Gb/s; 2.0 Gb/s value used
+            1_000: 3_500,
+            # =============================
+        }[timing_dict["rate"]]
         base_cycles = timing_dict["nCL"] + timing_dict["nBL"] - timing_dict["nCWL"]
-        analog_numerator = 3 * tCK_ps + 10 * (3_500 + tdqsq_max_ps)
+        analog_numerator = 3 * tCK_ps + 10 * (tdqsck_max_ps + tdqsq_max_ps)
         return base_cycles + math.ceil(analog_numerator / (10 * tCK_ps))
 
     # === Ramulator Guesstimate ===
@@ -170,21 +179,17 @@ class HBM1(DRAMStandard):
     @staticmethod
     def _resolve_nRFCpb(die_density, tCK_ps):
         # JESD235D Table 68, Note 34: tRFCSB is selected by die density.
-        if die_density is not None:
-            tRFCpb_ns = {
-                1024: 160,
-                2048: 160,
-                4096: 160,
-                8192: 160,
-                12288: 200,
-                16384: 200,
-            }.get(die_density)
-            if tRFCpb_ns is None:
-                return -1
-            return math.ceil(tRFCpb_ns * 1000 / tCK_ps)
-
-        # These presets do not identify the die-density selector.
-        return math.ceil(160_000 / tCK_ps)  # Ramulator guesstimate
+        tRFCpb_ns = {
+            1024: 160,
+            2048: 160,
+            4096: 160,
+            8192: 160,
+            12288: 200,
+            16384: 200,
+        }.get(die_density)
+        if tRFCpb_ns is None:
+            return -1
+        return math.ceil(tRFCpb_ns * 1000 / tCK_ps)
 
     @staticmethod
     def _resolve_nRREFD(tCK_ps):
@@ -203,10 +208,11 @@ class HBM1(DRAMStandard):
 
 
 # ---- HBM1 presets ----
+# die_density and stack_height: two channels per die, 4-High stack (Table 4 Note 7, PDF p.15, leaves this to the vendor)
 HBM1.org_presets = {
-    "HBM1_1Gb":  {"channel_density": 1024, "die_density": None, "stack_height": None, "dq": 128, "channel_width": 128, "bankgroup": 4, "bank": 2, "row": 1<<13, "column": (1<<6) << 1},    # HBM CA already takes BL into account
-    "HBM1_2Gb":  {"channel_density": 2048, "die_density": None, "stack_height": None, "dq": 128, "channel_width": 128, "bankgroup": 4, "bank": 2, "row": 1<<14, "column": (1<<6) << 1},    # HBM CA already takes BL into account
-    "HBM1_4Gb":  {"channel_density": 4096, "die_density": None, "stack_height": None, "dq": 128, "channel_width": 128, "bankgroup": 4, "bank": 4, "row": 1<<14, "column": (1<<6) << 1},    # HBM CA already takes BL into account
+    "HBM1_1Gb":  {"channel_density": 1024, "die_density": 2048, "stack_height": 4, "dq": 128, "channel_width": 128, "bankgroup": 4, "bank": 2, "row": 1<<13, "column": (1<<6) << 1},    # HBM CA already takes BL into account
+    "HBM1_2Gb":  {"channel_density": 2048, "die_density": 4096, "stack_height": 4, "dq": 128, "channel_width": 128, "bankgroup": 4, "bank": 2, "row": 1<<14, "column": (1<<6) << 1},    # HBM CA already takes BL into account
+    "HBM1_4Gb":  {"channel_density": 4096, "die_density": 8192, "stack_height": 4, "dq": 128, "channel_width": 128, "bankgroup": 4, "bank": 4, "row": 1<<14, "column": (1<<6) << 1},    # HBM CA already takes BL into account
 }
 
 # Organization-dependent and derived timings are resolved below.
