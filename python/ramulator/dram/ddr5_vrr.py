@@ -13,7 +13,8 @@ class DDR5_VRR(DDR5):
     timing_constraints = DDR5.timing_constraints + [
         TimingConstraint(level="Bank", preceding=["VRR"], following=["ACT", "VRR"], latency="nVRR"),
         TimingConstraint(level="Bank", preceding=["ACT"], following=["VRR"], latency="nRC"),
-        TimingConstraint(level="Rank", preceding=["PREpb", "PREab", "PREsb"], following=["VRR"], latency="nRP"),
+        TimingConstraint(level="Rank", preceding=["PREpb", "PREsb"], following=["VRR"], latency="nRP"),
+        TimingConstraint(level="Rank", preceding=["PREab"], following=["VRR"], latency="nRPab"),
         # VRR is ordered against the refresh/RFM family in both directions.
         TimingConstraint(level="Rank", preceding=["REFab"], following=["VRR"], latency="nRFC"),
         TimingConstraint(level="Rank", preceding=["RFMab"], following=["VRR"], latency="nRFM"),

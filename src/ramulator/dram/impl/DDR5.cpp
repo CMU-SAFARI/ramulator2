@@ -68,6 +68,7 @@ class DDR5 : public DRAMSpec {
       nRFM,
       nRFMsb,
       nREFSBRD,
+      nRPab,
       COUNT
     };
   };
@@ -88,11 +89,11 @@ class DDR5 : public DRAMSpec {
     set_names(commands, command_names,
               {"ACT", "PREpb", "PREab", "RD", "WR", "RDA", "WRA", "REFab", "PREsb", "REFsb", "RFMab", "RFMsb"});
     set_names(states, state_names, {"Opened", "Closed", "N_A"});
-    set_names(
-        timings, timing_names,
-        {"rate",  "nBL",   "nCL",      "nRCD",     "nRP",    "nRAS",     "nRC",    "nWR",  "nRTP",   "nCWL",    "nPPD",
-         "nCCDS", "nCCDL", "nCCDS_WR", "nCCDL_WR", "nCCDM",  "nCCDM_WR", "nWTRM",  "nRTW", "nRRDS",  "nRRDL",   "nWTRS",
-         "nWTRL", "nFAW",  "nRFC",     "nREFI",    "nRFCsb", "nCS",      "tCK_ps", "nRFM", "nRFMsb", "nREFSBRD"});
+    set_names(timings, timing_names,
+              {"rate", "nBL",    "nCL",   "nRCD",   "nRP",      "nRAS",     "nRC",   "nWR",      "nRTP",
+               "nCWL", "nPPD",   "nCCDS", "nCCDL",  "nCCDS_WR", "nCCDL_WR", "nCCDM", "nCCDM_WR", "nWTRM",
+               "nRTW", "nRRDS",  "nRRDL", "nWTRS",  "nWTRL",    "nFAW",     "nRFC",  "nREFI",    "nRFCsb",
+               "nCS",  "tCK_ps", "nRFM",  "nRFMsb", "nREFSBRD", "nRPab"});
 
     // Static spec data
     internal_prefetch_size = 16;

@@ -1,4 +1,10 @@
-from ramulator.dram.spec import DRAMStandard, TimingConstraint
+import warnings
+
+from ramulator.dram.spec import DRAMStandard, JEDECWarning, TimingConstraint
+
+# Values of the "prac" organization field (Per Row Activation Counting, JESD79-5C §16,
+# MR70:OP[1]); see DDR5._resolve_prac.
+PRAC_MODES = ("off", "on")
 
 
 class DDR5(DRAMStandard):
@@ -7,6 +13,8 @@ class DDR5(DRAMStandard):
     # JESD79-5C Fig. 35: RL is measured from the 2nd cycle of the 2-cycle RD;
     # commands are timestamped at their 1st cycle.
     read_latency = "nCL + nBL + 1"
+    # PRAC is fixed at initialization (JESD79-5C §16.1); the PRAC controller warns without "on".
+    config_modes = ["prac"]
 
     # ---- Hierarchy (level name → init state) ----
     levels = {
@@ -48,6 +56,7 @@ class DDR5(DRAMStandard):
         "nFAW", "nRFC", "nREFI", "nRFCsb",
         "nCS", "tCK_ps",
         "nRFM", "nRFMsb", "nREFSBRD",
+        "nRPab",
     ]
 
     # ---- External request types ----
@@ -81,14 +90,15 @@ class DDR5(DRAMStandard):
         TimingConstraint(level="Rank", preceding=["ACT"], following=["ACT"], latency="nRRDS"),
         TimingConstraint(level="Rank", preceding=["ACT", "REFsb", "RFMsb"], following=["ACT", "REFsb", "RFMsb"], latency="nFAW", window=4, shared_window=True),
         TimingConstraint(level="Rank", preceding=["ACT"], following=["PREab"], latency="nRAS"),
-        TimingConstraint(level="Rank", preceding=["PREab"], following=["ACT"], latency="nRP"),
+        TimingConstraint(level="Rank", preceding=["PREab"], following=["ACT"], latency="nRPab"),
         # Rank — precharge-to-precharge delay (DDR5-specific nPPD)
         TimingConstraint(level="Rank", preceding=["PREpb", "PREab"], following=["PREpb", "PREab"], latency="nPPD"),
         TimingConstraint(level="Rank", preceding=["PREpb", "PREab"], following=["PREsb"], latency="nPPD"),
         TimingConstraint(level="Rank", preceding=["PREsb"], following=["PREpb", "PREab", "PREsb"], latency="nPPD"),
         # Rank — RAS to REF
         TimingConstraint(level="Rank", preceding=["ACT"], following=["REFab"], latency="nRC"),
-        TimingConstraint(level="Rank", preceding=["PREpb", "PREab", "PREsb"], following=["REFab"], latency="nRP"),
+        TimingConstraint(level="Rank", preceding=["PREpb", "PREsb"], following=["REFab"], latency="nRP"),
+        TimingConstraint(level="Rank", preceding=["PREab"], following=["REFab"], latency="nRPab"),
         TimingConstraint(level="Rank", preceding=["RDA"], following=["REFab"], latency="nRP + nRTP"),
         TimingConstraint(level="Rank", preceding=["WRA"], following=["REFab"], latency="nCWL + nBL + nWR + nRP"),
         # JESD79-5C Table 68: tRFC1 between REFab commands; §4.13: only DES/NOP until tRFC.
@@ -96,7 +106,8 @@ class DDR5(DRAMStandard):
 
         # Rank — RFMab timing
         TimingConstraint(level="Rank", preceding=["ACT"], following=["RFMab"], latency="nRC"),
-        TimingConstraint(level="Rank", preceding=["PREpb", "PREab", "PREsb"], following=["RFMab"], latency="nRP"),
+        TimingConstraint(level="Rank", preceding=["PREpb", "PREsb"], following=["RFMab"], latency="nRP"),
+        TimingConstraint(level="Rank", preceding=["PREab"], following=["RFMab"], latency="nRPab"),
         TimingConstraint(level="Rank", preceding=["RDA"], following=["RFMab"], latency="nRP + nRTP"),
         TimingConstraint(level="Rank", preceding=["WRA"], following=["RFMab"], latency="nCWL + nBL + nWR + nRP"),
         TimingConstraint(level="Rank", preceding=["REFab"], following=["PREsb", "REFsb", "RFMab", "RFMsb"], latency="nRFC"),
@@ -141,7 +152,8 @@ class DDR5(DRAMStandard):
         # Bank — REFsb targets one bank address across every bank group.
         TimingConstraint(level="Bank", preceding=["ACT"], following=["REFsb"], latency="nRC"),
         TimingConstraint(level="Bank", preceding=["ACT"], following=["REFsb"], latency="nRRDL", sibling=True),
-        TimingConstraint(level="Bank", preceding=["PREpb", "PREab", "PREsb"], following=["REFsb"], latency="nRP"),
+        TimingConstraint(level="Bank", preceding=["PREpb", "PREsb"], following=["REFsb"], latency="nRP"),
+        TimingConstraint(level="Bank", preceding=["PREab"], following=["REFsb"], latency="nRPab"),
         TimingConstraint(level="Bank", preceding=["RDA"], following=["REFsb"], latency="nRP + nRTP"),
         TimingConstraint(level="Bank", preceding=["WRA"], following=["REFsb"], latency="nCWL + nBL + nWR + nRP"),
         TimingConstraint(level="Bank", preceding=["REFsb"], following=["ACT", "PREpb", "PREab", "PREsb"], latency="nRFCsb"),
@@ -150,12 +162,28 @@ class DDR5(DRAMStandard):
         # Bank — RFMsb targets one bank address across every bank group.
         TimingConstraint(level="Bank", preceding=["ACT"], following=["RFMsb"], latency="nRC"),
         TimingConstraint(level="Bank", preceding=["ACT"], following=["RFMsb"], latency="nRRDL", sibling=True),
-        TimingConstraint(level="Bank", preceding=["PREpb", "PREab", "PREsb"], following=["RFMsb"], latency="nRP"),
+        TimingConstraint(level="Bank", preceding=["PREpb", "PREsb"], following=["RFMsb"], latency="nRP"),
+        TimingConstraint(level="Bank", preceding=["PREab"], following=["RFMsb"], latency="nRPab"),
         TimingConstraint(level="Bank", preceding=["RDA"], following=["RFMsb"], latency="nRP + nRTP"),
         TimingConstraint(level="Bank", preceding=["WRA"], following=["RFMsb"], latency="nCWL + nBL + nWR + nRP"),
         TimingConstraint(level="Bank", preceding=["RFMsb"], following=["ACT", "PREpb", "PREab", "PREsb"], latency="nRFMsb"),
         TimingConstraint(level="Bank", preceding=["RFMsb"], following=["ACT"], latency="nREFSBRD", sibling=True),
     ]
+
+    @classmethod
+    def validate_organization(cls, org_dict):
+        super().validate_organization(org_dict)
+        prac = org_dict["prac"]
+        if prac not in PRAC_MODES:
+            raise ValueError(f"{cls.name}: prac must be one of {PRAC_MODES}, got {prac!r}")
+        # JESD79-5C §16.1: PRAC is optional on 16Gb and higher density devices only.
+        if prac == "on" and org_dict["density"] < 16384:
+            warnings.warn(
+                f"{cls.name}: prac='on' on a {org_dict['density']} Mb device; JESD79-5C §16.1 "
+                f"defines PRAC for 16Gb and larger devices only",
+                JEDECWarning,
+                stacklevel=2,
+            )
 
     # ---- Secondary timing resolution ----
     @classmethod
@@ -182,6 +210,7 @@ class DDR5(DRAMStandard):
         timing_dict["nREFSBRD"] = cls._resolve_nREFSBRD(
             org_dict["density"], timing_dict["tCK_ps"]
         )
+        cls._resolve_prac(timing_dict, org_dict["prac"])
 
         rate = timing_dict["rate"]
         tCK_ps = timing_dict["tCK_ps"]
@@ -288,6 +317,32 @@ class DDR5(DRAMStandard):
         """Apply the JESD79-5C Section 13.2 minimum-timing conversion."""
         return ((timing_ps * 997) // tCK_ps + 1000) // 1000
 
+    # JESD79-5C §16.3 Table 343: with PRAC on, the activation counter update sets
+    # tRAS 16, tRP 36, tRC 52, tRTP 5 and tWR 10 ns; nRTP and nWR take the PRAC
+    # settings of MR6. The speed-bin tables carry no PRAC column, so nRP is rounded
+    # from 36 ns. Table 344: a PREab closing 9 to 32 rows needs tRP,min + 4 ns; the
+    # timing graph does not count open rows, so every PREab uses it. Tables 346/347:
+    # tRFMab = 5 * tRRFab (70 ns), tRFMsb = 5 * tRRFsb (60 ns). tRFC is unchanged (§16.4.1).
+    @classmethod
+    def _resolve_prac(cls, timing_dict, prac):
+        if prac == "off":
+            timing_dict["nRPab"] = timing_dict["nRP"]
+            return
+        tCK_ps = timing_dict["tCK_ps"]
+        timing_dict["nRAS"] = cls._min_cycles(16_000, tCK_ps)
+        timing_dict["nRP"] = cls._min_cycles(36_000, tCK_ps)
+        timing_dict["nRC"] = max(cls._min_cycles(52_000, tCK_ps), timing_dict["nRAS"] + timing_dict["nRP"])
+        timing_dict["nRTP"] = cls._mr6_setting(cls._min_cycles(5_000, tCK_ps), range(8, 23))
+        timing_dict["nWR"] = cls._mr6_setting(cls._min_cycles(10_000, tCK_ps), range(16, 45, 2))
+        timing_dict["nRPab"] = cls._min_cycles(36_000 + 4_000, tCK_ps)
+        timing_dict["nRFM"] = cls._min_cycles(5 * 70_000, tCK_ps)
+        timing_dict["nRFMsb"] = cls._min_cycles(5 * 60_000, tCK_ps)
+
+    @staticmethod
+    def _mr6_setting(nCK, settings):
+        # MR6 Notes 1/2: the smallest setting covering the minimum; -1 if none does.
+        return next((setting for setting in settings if setting >= nCK), -1)
+
     # JESD79-5C Tables 330-334: M timings.
     @classmethod
     def _resolve_nCCDM(cls, rate, tCK_ps, nCCDL):
@@ -383,15 +438,15 @@ class DDR5(DRAMStandard):
 # ---- DDR5 JEDEC preset data ----
 
 DDR5.org_presets = {
-    "DDR5_8Gb_x4":   {"density": 8192,  "dq": 4,  "channel_width": 32, "rank": 1, "bankgroup": 8, "bank": 2, "row": 1<<16, "column": 1<<11},
-    "DDR5_8Gb_x8":   {"density": 8192,  "dq": 8,  "channel_width": 32, "rank": 1, "bankgroup": 8, "bank": 2, "row": 1<<16, "column": 1<<10},
-    "DDR5_8Gb_x16":  {"density": 8192,  "dq": 16, "channel_width": 32, "rank": 1, "bankgroup": 4, "bank": 2, "row": 1<<16, "column": 1<<10},
-    "DDR5_16Gb_x4":  {"density": 16384, "dq": 4,  "channel_width": 32, "rank": 1, "bankgroup": 8, "bank": 4, "row": 1<<16, "column": 1<<11},
-    "DDR5_16Gb_x8":  {"density": 16384, "dq": 8,  "channel_width": 32, "rank": 1, "bankgroup": 8, "bank": 4, "row": 1<<16, "column": 1<<10},
-    "DDR5_16Gb_x16": {"density": 16384, "dq": 16, "channel_width": 32, "rank": 1, "bankgroup": 4, "bank": 4, "row": 1<<16, "column": 1<<10},
-    "DDR5_32Gb_x4":  {"density": 32768, "dq": 4,  "channel_width": 32, "rank": 1, "bankgroup": 8, "bank": 4, "row": 1<<17, "column": 1<<11},
-    "DDR5_32Gb_x8":  {"density": 32768, "dq": 8,  "channel_width": 32, "rank": 1, "bankgroup": 8, "bank": 4, "row": 1<<17, "column": 1<<10},
-    "DDR5_32Gb_x16": {"density": 32768, "dq": 16, "channel_width": 32, "rank": 1, "bankgroup": 4, "bank": 4, "row": 1<<17, "column": 1<<10},
+    "DDR5_8Gb_x4":   {"density": 8192,  "dq": 4,  "channel_width": 32, "rank": 1, "bankgroup": 8, "bank": 2, "row": 1<<16, "column": 1<<11, "prac": "off"},
+    "DDR5_8Gb_x8":   {"density": 8192,  "dq": 8,  "channel_width": 32, "rank": 1, "bankgroup": 8, "bank": 2, "row": 1<<16, "column": 1<<10, "prac": "off"},
+    "DDR5_8Gb_x16":  {"density": 8192,  "dq": 16, "channel_width": 32, "rank": 1, "bankgroup": 4, "bank": 2, "row": 1<<16, "column": 1<<10, "prac": "off"},
+    "DDR5_16Gb_x4":  {"density": 16384, "dq": 4,  "channel_width": 32, "rank": 1, "bankgroup": 8, "bank": 4, "row": 1<<16, "column": 1<<11, "prac": "off"},
+    "DDR5_16Gb_x8":  {"density": 16384, "dq": 8,  "channel_width": 32, "rank": 1, "bankgroup": 8, "bank": 4, "row": 1<<16, "column": 1<<10, "prac": "off"},
+    "DDR5_16Gb_x16": {"density": 16384, "dq": 16, "channel_width": 32, "rank": 1, "bankgroup": 4, "bank": 4, "row": 1<<16, "column": 1<<10, "prac": "off"},
+    "DDR5_32Gb_x4":  {"density": 32768, "dq": 4,  "channel_width": 32, "rank": 1, "bankgroup": 8, "bank": 4, "row": 1<<17, "column": 1<<11, "prac": "off"},
+    "DDR5_32Gb_x8":  {"density": 32768, "dq": 8,  "channel_width": 32, "rank": 1, "bankgroup": 8, "bank": 4, "row": 1<<17, "column": 1<<10, "prac": "off"},
+    "DDR5_32Gb_x16": {"density": 32768, "dq": 16, "channel_width": 32, "rank": 1, "bankgroup": 4, "bank": 4, "row": 1<<17, "column": 1<<10, "prac": "off"},
 }
 
 # Primary timing presets; organization- and rate-dependent timings are

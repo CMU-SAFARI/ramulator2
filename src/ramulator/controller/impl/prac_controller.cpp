@@ -38,6 +38,13 @@ class PRACController : public ControllerBase {
           "PRACController requires a DRAM standard with RFMab command "
           "(e.g., DDR5)!");
     }
+    // JESD79-5C §16.3: PRAC changes the core timings, which the DRAM resolves only with prac="on".
+    auto prac = spec->modes.find("prac");
+    if (prac == spec->modes.end() || prac->second != "on") {
+      m_logger.warn(
+          "PRACController: the DRAM does not enable PRAC, so it runs with non-PRAC core timings "
+          "(JESD79-5C §16.3); use e.g. ramulator.dram.DDR5(..., prac=\"on\") for PRAC timings");
+    }
 
     m_cmd_act = spec->get_command_id("ACT");
     m_cmd_rfmab = spec->get_command_id("RFMab");
@@ -62,17 +69,18 @@ class PRACController : public ControllerBase {
     m_bank_counters.resize(num_banks);
     m_critical_rows.resize(num_banks);
 
-    int nRP = spec->get_timing_value("nRP");
+    // Recovery starts with a PREab, whose precharge time with PRAC is nRPab (JESD79-5C Table 344).
+    int nRPab = spec->get_timing_value("nRPab");
     int nRAS = spec->get_timing_value("nRAS");
     int nRTP = spec->get_timing_value("nRTP");
     int nCWL = spec->get_timing_value("nCWL");
     int nBL = spec->get_timing_value("nBL");
     int nWR = spec->get_timing_value("nWR");
     int write_to_pre_timing = nCWL + nBL + nWR;
-    int write_cycles = nRAS + write_to_pre_timing + nRP;
+    int write_cycles = nRAS + write_to_pre_timing + nRPab;
     m_cmd_to_min_cycles[m_cmd_act] = write_cycles;
-    m_cmd_to_min_cycles[spec->get_command_id("RD")] = nRTP + nRP;
-    m_cmd_to_min_cycles[spec->get_command_id("WR")] = write_to_pre_timing + nRP;
+    m_cmd_to_min_cycles[spec->get_command_id("RD")] = nRTP + nRPab;
+    m_cmd_to_min_cycles[spec->get_command_id("WR")] = write_to_pre_timing + nRPab;
     m_cmd_to_min_cycles[m_cmd_rfmab] = spec->get_timing_value("nRFM");
     if (m_cmd_rfmsb >= 0) {
       m_cmd_to_min_cycles[m_cmd_rfmsb] = spec->get_timing_value("nRFMsb");
@@ -84,7 +92,7 @@ class PRACController : public ControllerBase {
       m_cmd_to_min_cycles[spec->get_command_id("REFab")] = spec->get_timing_value("nRFC");
     }
 
-    m_nRP = nRP;
+    m_nRPab = nRPab;
     m_prac_buffer.max_size = std::numeric_limits<int>::max();
 
     m_stats.add("prac_num_recovery", s_num_recovery);
@@ -131,7 +139,7 @@ class PRACController : public ControllerBase {
   ReqBuffer m_prac_buffer;
   std::unordered_map<int, int> m_cmd_to_min_cycles;
   bool m_recovery_setup = false;
-  int m_nRP = -1;
+  int m_nRPab = -1;
 
   // Stats
   size_t s_num_recovery = 0;
@@ -325,7 +333,7 @@ void PRACController::tick() {
 
   if (m_abo_recovery_start != std::numeric_limits<Clk_t>::max() &&
       !m_recovery_setup &&
-      m_clk + (Clk_t)(m_nRP + 5) >= m_abo_recovery_start) {
+      m_clk + (Clk_t)(m_nRPab + 5) >= m_abo_recovery_start) {
     inject_recovery_commands();
     m_recovery_setup = true;
   }

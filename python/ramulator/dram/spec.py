@@ -29,6 +29,15 @@ from ramulator.components import Component
 from ramulator.param import Param
 
 
+class JEDECWarning(UserWarning):
+    """A configuration that resolves but falls outside the JEDEC standard.
+
+    Ramulator lets users go beyond JEDEC on purpose, so such configurations warn
+    instead of failing. Silence them with
+    warnings.filterwarnings("ignore", category=JEDECWarning).
+    """
+
+
 class TimingConstraint:
     """A timing constraint between commands at a specific hierarchy level.
 

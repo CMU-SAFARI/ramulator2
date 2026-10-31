@@ -69,6 +69,7 @@ class DDR5_VRR : public DRAMSpec {
       nRFM,
       nRFMsb,
       nREFSBRD,
+      nRPab,
       nVRR,
       COUNT
     };
@@ -95,7 +96,7 @@ class DDR5_VRR : public DRAMSpec {
               {"rate", "nBL",    "nCL",   "nRCD",   "nRP",      "nRAS",     "nRC",   "nWR",      "nRTP",
                "nCWL", "nPPD",   "nCCDS", "nCCDL",  "nCCDS_WR", "nCCDL_WR", "nCCDM", "nCCDM_WR", "nWTRM",
                "nRTW", "nRRDS",  "nRRDL", "nWTRS",  "nWTRL",    "nFAW",     "nRFC",  "nREFI",    "nRFCsb",
-               "nCS",  "tCK_ps", "nRFM",  "nRFMsb", "nREFSBRD", "nVRR"});
+               "nCS",  "tCK_ps", "nRFM",  "nRFMsb", "nREFSBRD", "nRPab",    "nVRR"});
 
     // Static spec data
     internal_prefetch_size = 16;
