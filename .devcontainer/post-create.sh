@@ -18,3 +18,7 @@ fi
 python -m pip install --upgrade pip
 python -m pip install -r requirements-dev.txt
 python -m pip install -e .
+
+# Build the simulator core and the trace visualizer, so notebooks and examples run right away
+./build.sh
+(cd visualizer && npm ci --no-audit --no-fund && npm run build)
