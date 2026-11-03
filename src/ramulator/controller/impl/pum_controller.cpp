@@ -138,10 +138,12 @@ bool PUMController::send(Request& req) {
   req.final_command = spec.supported_requests[req.type_id];
 
   req.arrive = m_clk;
+  req.id = m_next_req_id;
   if (!m_pum_buffer.enqueue(req)) {
     req.arrive = -1;
     return false;
   }
+  m_next_req_id++;
 
   s_pum_reqs[req.type_id - m_first_pum_type_id]++;
   s_pum_total_reqs++;

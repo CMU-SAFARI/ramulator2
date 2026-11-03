@@ -19,6 +19,8 @@ python -m pip install --upgrade pip
 python -m pip install -r requirements-dev.txt
 python -m pip install -e .
 
-# Build the simulator core and the trace visualizer, so notebooks and examples run right away
+# Build the simulator core and the trace visualizer, so notebooks and examples run right away.
+# The visualizer's example traces are recorded with the simulator, before the visualizer build.
 ./build.sh
+python visualizer/scripts/gen_example_traces.py
 (cd visualizer && npm ci --no-audit --no-fund && npm run build)

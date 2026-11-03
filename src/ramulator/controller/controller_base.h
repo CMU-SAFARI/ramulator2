@@ -69,6 +69,8 @@ class ControllerBase : public IController, public Implementation {
   ReqBuffer m_write_buffer;
   // Efficiently tracks addresses of buffered write requests for write-forwarding
   std::unordered_set<Addr_t> m_buffered_write_addrs;
+  // Request::id of the next accepted request
+  int64_t m_next_req_id = 0;
 
   // Buffer config
   int m_read_buffer_size;

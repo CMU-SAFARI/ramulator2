@@ -35,8 +35,18 @@ export default defineNuxtConfig({
     storageKey: 'color-mode-ramviz',
   },
   css: ['~/assets/css/main.css'],
-  // The trace pages hold client-side data and WebGL only; render them in the browser.
   routeRules: {
+    // No framing by other sites, no content sniffing, no referrers; other sites cannot load its files.
+    '/**': {
+      headers: {
+        'Content-Security-Policy': "frame-ancestors 'none'",
+        'X-Frame-Options': 'DENY',
+        'X-Content-Type-Options': 'nosniff',
+        'Referrer-Policy': 'no-referrer',
+        'Cross-Origin-Resource-Policy': 'same-origin',
+      },
+    },
+    // The trace pages hold client-side data and WebGL only; render them in the browser.
     '/trace': { ssr: false },
     '/trace/**': { ssr: false },
   },

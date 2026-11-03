@@ -1,37 +1,28 @@
 /**
- * Browser-side WebSocket client for receiving live-streamed trace data.
+ * Browser side of live streaming.
  *
- * Stream sessions are rendered incrementally:
- * - `init` creates an empty trace and makes it available to the viewer
- * - `events` are appended to growing typed arrays (O(new_events), not O(total))
- * - `done` performs a final refresh and leaves the trace visible
- *
- * Performance design
- * ------------------
- * Instead of keeping a `StreamEvent[]` JS object array and rebuilding all N
- * typed arrays on every batch, we maintain pre-allocated typed arrays that
- * grow with amortized doubling. Appending a batch is O(batch_size). Building
- * the ParsedTrace is O(1): we just hand out subarray views into the backing
- * buffers — no copy, no BigInt re-conversion.
+ * The server lists the live sessions (one per simulation run and channel) over a WebSocket.
+ * Opening one subscribes to it: the server sends its init, the events it kept so far, then new
+ * events and state changes. Event batches go to the trace engine's worker as they arrive, still as
+ * text, so the page never parses them.
  */
-import type {
-  TraceHeader,
-  TraceSpec,
-  TraceArrays,
-  ParsedTrace,
-  CommandMeta,
-} from '~/composables/useTrace';
+import type { TraceHeader, TraceSpec, CommandMeta } from '~/composables/useTrace';
+import type { TraceEngine } from '~/engine/client';
 import { useSessionStore } from '~/stores/session';
 
-export type StreamStatus = 'idle' | 'connecting' | 'streaming' | 'finalizing' | 'done';
+/** idle: no session open; gone: the server no longer has the session. */
+export type StreamStatus = 'idle' | 'connecting' | 'live' | 'done' | 'stopped' | 'lost' | 'gone';
 
-interface StreamEvent {
-  clk: number;
-  arrive: number;
-  cmdId: number;
-  typeId: number;
-  sourceId: number;
-  addr: number[];
+export interface LiveSessionInfo {
+  id: string;
+  run: string;
+  channel: number;
+  startedAt: number;
+  dramType: string;
+  state: 'live' | 'done' | 'stopped' | 'lost';
+  events: number;
+  /** Commands the server no longer keeps for viewers that open the session now. */
+  dropped: number;
 }
 
 interface StreamHeader {
@@ -57,94 +48,38 @@ interface StreamSpec {
   timingValues: number[];
 }
 
-// ── Incremental typed-array state ────────────────────────────────────────────
+// ── WebSocket state ───────────────────────────────────────────────────────────
 
+let _ws: WebSocket | null = null;
+/** The session this page shows, or null. */
+let _subscribed: string | null = null;
+let _engine: TraceEngine | null = null;
 let _count = 0;
-let _capacity = 0;
-let _levelCount = 0;
-let _clkBuf = new BigInt64Array(0);
-let _arriveBuf = new BigInt64Array(0);
-let _cmdIdBuf = new Uint8Array(0);
-let _typeIdBuf = new Int8Array(0);
-let _sourceIdBuf = new Int16Array(0);
-let _addrBufs: Int32Array[] = [];
+let _opened: { resolve: () => void; reject: (e: Error) => void } | null = null;
+const RECONNECT_MS = 2000;
+const EVENTS_PREFIX = '{"type":"events","session":';
 
-/** Cached TraceSpec (does not change during a session). */
-let _cachedSpec: TraceSpec | null = null;
+export function useStreamSession() {
+  const status = useState<StreamStatus>('stream-status', () => 'idle');
+  const eventCount = useState<number>('stream-event-count', () => 0);
+  const connected = useState<boolean>('stream-connected', () => false);
+  const sessions = useState<LiveSessionInfo[]>('stream-sessions', () => []);
+  const sessionId = useState<string | null>('stream-session-id', () => null);
+  /** Events the server did not keep for this late subscriber (its replay budget was exceeded). */
+  const dropped = useState<number>('stream-dropped', () => 0);
+  /** Why the live view stopped growing (the browser ran out of room for it), or null. */
+  const full = useState<string | null>('stream-full', () => null);
+  const isLive = computed(() => status.value === 'live');
+  const session = computed(() => sessions.value.find(s => s.id === sessionId.value) ?? null);
 
-function _growBuffers(minCapacity: number) {
-  if (minCapacity <= _capacity) return;
-  let cap = Math.max(256, _capacity);
-  while (cap < minCapacity) cap = cap * 2;
-
-  const newClk = new BigInt64Array(cap);
-  const newArrive = new BigInt64Array(cap);
-  const newCmdId = new Uint8Array(cap);
-  const newTypeId = new Int8Array(cap);
-  const newSourceId = new Int16Array(cap);
-
-  if (_count > 0) {
-    newClk.set(_clkBuf.subarray(0, _count));
-    newArrive.set(_arriveBuf.subarray(0, _count));
-    newCmdId.set(_cmdIdBuf.subarray(0, _count));
-    newTypeId.set(_typeIdBuf.subarray(0, _count));
-    newSourceId.set(_sourceIdBuf.subarray(0, _count));
-    for (let k = 0; k < _levelCount; k++) {
-      const newAddr = new Int32Array(cap);
-      newAddr.set(_addrBufs[k]!.subarray(0, _count));
-      _addrBufs[k] = newAddr;
-    }
-  } else {
-    _addrBufs = Array.from({ length: _levelCount }, () => new Int32Array(cap));
+  function send(message: object) {
+    if (_ws?.readyState === WebSocket.OPEN) _ws.send(JSON.stringify(message));
   }
 
-  _clkBuf = newClk;
-  _arriveBuf = newArrive;
-  _cmdIdBuf = newCmdId;
-  _typeIdBuf = newTypeId;
-  _sourceIdBuf = newSourceId;
-  _capacity = cap;
-}
-
-function _resetBuffers(levelCount: number) {
-  _count = 0;
-  _capacity = 0;
-  _levelCount = levelCount;
-  _clkBuf = new BigInt64Array(0);
-  _arriveBuf = new BigInt64Array(0);
-  _cmdIdBuf = new Uint8Array(0);
-  _typeIdBuf = new Int8Array(0);
-  _sourceIdBuf = new Int16Array(0);
-  _addrBufs = Array.from({ length: levelCount }, () => new Int32Array(0));
-  _cachedSpec = null;
-}
-
-function _appendEvents(events: StreamEvent[]) {
-  const M = events.length;
-  if (M === 0) return;
-  _growBuffers(_count + M);
-  for (let i = 0; i < M; i++) {
-    const e = events[i]!;
-    const j = _count + i;
-    _clkBuf[j] = BigInt(e.clk);
-    _arriveBuf[j] = BigInt(e.arrive);
-    _cmdIdBuf[j] = e.cmdId;
-    _typeIdBuf[j] = e.typeId;
-    _sourceIdBuf[j] = e.sourceId;
-    for (let k = 0; k < _levelCount; k++) {
-      _addrBufs[k]![j] = e.addr[k] ?? 0;
-    }
-  }
-  _count += M;
-}
-
-/**
- * Build a ParsedTrace using subarray views into the backing buffers.
- * O(1) — no copies, no allocations proportional to N.
- */
-function _buildTrace(header: StreamHeader, spec: StreamSpec, copyArrays = false): ParsedTrace {
-  if (!_cachedSpec) {
-    _cachedSpec = {
+  function startSession(header: StreamHeader, spec: StreamSpec) {
+    const sessionStore = useSessionStore();
+    const traceHeader: TraceHeader = { ...header, numEntries: 0, dataOffset: 0 };
+    const traceSpec: TraceSpec = {
       levelNames: spec.levelNames,
       levelSizes: new Uint32Array(spec.levelSizes),
       commandNames: spec.commandNames,
@@ -153,162 +88,131 @@ function _buildTrace(header: StreamHeader, spec: StreamSpec, copyArrays = false)
       timingNames: spec.timingNames,
       timingValues: new Int32Array(spec.timingValues),
     };
+    sessionStore.traceName = 'Live session';
+    // The server sends the session's state after the commands it kept; a finished session should
+    // not look live while those load.
+    const listed = sessions.value.find(s => s.id === _subscribed)?.state;
+    const engine = sessionStore.loadTrace({ source: { kind: 'live' }, header: traceHeader, spec: traceSpec });
+    _engine = engine;
+    _count = 0;
+    eventCount.value = 0;
+    dropped.value = 0;
+    full.value = null;
+    status.value = listed ?? 'live';
+    // Live data goes to the browser's file storage; without it, or once it is full, the view stops.
+    engine.onChange(() => {
+      const f = engine.liveFull;
+      if (!f || full.value || _engine !== engine) return;
+      const at = `view full at ${f.entries.toLocaleString('en-US')} commands`;
+      full.value = f.reason === 'memory' ? `${at}: this browser cannot keep live data on disk` : `${at}: the browser's storage is full`;
+    });
+    _opened?.resolve();
+    _opened = null;
   }
 
-  const N = _count;
-  const L = header.levelCount;
-  const clk = _clkBuf.subarray(0, N) as BigInt64Array;
-  const arrive = _arriveBuf.subarray(0, N) as BigInt64Array;
-  const cmdId = _cmdIdBuf.subarray(0, N);
-  const typeId = _typeIdBuf.subarray(0, N);
-  const sourceId = _sourceIdBuf.subarray(0, N);
-  const addr = Array.from(
-    { length: L },
-    (_, k) => (_addrBufs[k] ?? new Int32Array(0)).subarray(0, N) as Int32Array,
-  );
-  const arrays: TraceArrays = {
-    clk: copyArrays ? new BigInt64Array(clk) : clk,
-    arrive: copyArrays ? new BigInt64Array(arrive) : arrive,
-    cmdId: copyArrays ? new Uint8Array(cmdId) : cmdId,
-    typeId: copyArrays ? new Int8Array(typeId) : typeId,
-    sourceId: copyArrays ? new Int16Array(sourceId) : sourceId,
-    addr: copyArrays ? addr.map(a => new Int32Array(a)) : addr,
-  };
+  /** A batch of events, forwarded without parsing: {"type":"events","session":…,"columns":{"n":…,…}} */
+  function onEvents(text: string) {
+    const at = text.indexOf(',"columns":');
+    if (at < 0 || !_engine || _engine.liveFull) return;
+    let id: unknown;
+    try {
+      id = JSON.parse(text.slice(EVENTS_PREFIX.length, at));
+    } catch {
+      return;
+    }
+    if (id !== _subscribed) return;
+    const columns = text.slice(at + ',"columns":'.length, -1);
+    const n = Number(/^\{"n":(\d+)/.exec(columns)?.[1] ?? 0);
+    _engine.appendLive(columns);
+    _count += n;
+    eventCount.value = _count;
+  }
 
-  const traceHeader: TraceHeader = { ...header, numEntries: N, dataOffset: 0 };
-  return { buffer: new ArrayBuffer(0), header: traceHeader, spec: _cachedSpec, arrays };
-}
-
-// ── WebSocket state ───────────────────────────────────────────────────────────
-
-let _ws: WebSocket | null = null;
-let _header: StreamHeader | null = null;
-let _spec: StreamSpec | null = null;
-let _closed = false;
-let _refreshTimer: ReturnType<typeof setTimeout> | null = null;
-let _hasLoadedThisSession = false;
-const REFRESH_DEBOUNCE_MS = 100;
-
-export function useStreamSession() {
-  const status = useState<StreamStatus>('stream-status', () => 'idle');
-  const eventCount = useState<number>('stream-event-count', () => 0);
-  const connected = useState<boolean>('stream-connected', () => false);
-  const isLive = computed(() => status.value === 'streaming');
+  function onMessage(data: any) {
+    switch (data?.type) {
+      case 'sessions':
+        if (Array.isArray(data.sessions)) sessions.value = data.sessions;
+        break;
+      case 'init':
+        if (data.session === _subscribed) startSession(data.header, data.spec);
+        break;
+      case 'replay':
+        if (data.session === _subscribed) dropped.value = Number(data.dropped) || 0;
+        break;
+      case 'state':
+        if (data.session !== _subscribed) break;
+        status.value = data.state;
+        if (data.state === 'gone') {
+          _opened?.reject(new Error('This live session has ended and is no longer kept by the visualizer.'));
+          _opened = null;
+        } else if (data.state === 'done' || data.state === 'stopped') {
+          _engine?.endLive();
+        }
+        break;
+    }
+  }
 
   function connect() {
     if (!import.meta.client) return;
     if (_ws && _ws.readyState <= WebSocket.OPEN) return;
-    _closed = false;
-
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const url = `${protocol}//${window.location.host}/api/live-trace`;
+    const ws = new WebSocket(`${protocol}//${window.location.host}/api/live-trace`);
+    _ws = ws;
 
-    if (status.value !== 'done') status.value = 'connecting';
-    _ws = new WebSocket(url);
-
-    _ws.onopen = () => {
+    ws.onopen = () => {
+      if (_ws !== ws) return;
       connected.value = true;
-      if (status.value === 'connecting') status.value = 'idle';
+      if (_subscribed) send({ type: 'subscribe', session: _subscribed });
     };
-
-    _ws.onclose = () => {
-      connected.value = false;
+    ws.onclose = () => {
+      if (_ws !== ws) return;
       _ws = null;
-      if (!_closed) {
-        setTimeout(() => { if (!_ws && !_closed) connect(); }, 3000);
-      }
+      connected.value = false;
+      setTimeout(() => { if (!_ws) connect(); }, RECONNECT_MS);
     };
-
-    _ws.onmessage = (event) => {
-      let data: any;
-      try {
-        data = JSON.parse(event.data);
-      } catch {
+    ws.onmessage = (event) => {
+      if (_ws !== ws || typeof event.data !== 'string') return;
+      if (event.data.startsWith(EVENTS_PREFIX)) {
+        onEvents(event.data);
         return;
       }
-
-      switch (data.type) {
-        case 'init':
-          _closed = false;
-          _header = data.header;
-          _spec = data.spec;
-          _resetBuffers(data.header.levelCount ?? 0);
-          _hasLoadedThisSession = false;
-          eventCount.value = 0;
-          status.value = 'streaming';
-          _refreshTrace(true);
-          break;
-
-        case 'events':
-          if (status.value !== 'streaming' || !Array.isArray(data.events)) break;
-          _appendEvents(data.events);
-          eventCount.value = _count;
-          _refreshTrace(false);
-          break;
-
-        case 'done':
-          if (!_header || !_spec) break;
-          status.value = 'finalizing';
-          _refreshTrace(true, true);
-          _resetBuffers(0);
-          status.value = 'done';
-          _closed = false;
-          closeSocket(false);
-          break;
+      try {
+        onMessage(JSON.parse(event.data));
+      } catch {
+        // Ignore malformed messages.
       }
     };
   }
 
-  function closeSocket(sendInterrupt: boolean) {
-    if (!_ws) return;
-    const ws = _ws;
-    _ws = null;
-    if (sendInterrupt && ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({ type: 'interrupt' }));
-    }
-    ws.close();
-    connected.value = false;
+  /** Shows a live session; resolves once its trace is loaded into the session store. */
+  function open(id: string): Promise<void> {
+    leave();
+    _subscribed = id;
+    sessionId.value = id;
+    status.value = 'connecting';
+    connect();
+    send({ type: 'subscribe', session: id });
+    return new Promise((resolve, reject) => { _opened = { resolve, reject }; });
   }
 
-  function _refreshTrace(force: boolean, copyArrays = false) {
-    if (!_header || !_spec) return;
-    const run = () => {
-      _refreshTimer = null;
-      const sessionStore = useSessionStore();
-      if (!_hasLoadedThisSession) sessionStore.traceName = 'Live session';
-      sessionStore.loadTrace(
-        _buildTrace(_header!, _spec!, copyArrays),
-        { streamingRefresh: _hasLoadedThisSession },
-      );
-      _hasLoadedThisSession = true;
-    };
-    if (force) {
-      if (_refreshTimer) {
-        clearTimeout(_refreshTimer);
-        _refreshTimer = null;
-      }
-      run();
-      return;
-    }
-    if (_refreshTimer) return;
-    _refreshTimer = setTimeout(run, REFRESH_DEBOUNCE_MS);
-  }
-
-  function disconnect() {
-    _closed = true;
-    if (_refreshTimer) {
-      clearTimeout(_refreshTimer);
-      _refreshTimer = null;
-    }
-    closeSocket(status.value === 'streaming' || status.value === 'connecting');
-    connected.value = false;
+  /** Stops showing the live session (another trace is opened); its stream continues for others. */
+  function leave() {
+    if (_subscribed) send({ type: 'unsubscribe' });
+    _subscribed = null;
+    _engine = null;
+    sessionId.value = null;
+    _opened?.reject(new Error('Opened another trace.'));
+    _opened = null;
     status.value = 'idle';
     eventCount.value = 0;
-    _resetBuffers(0);
-    _header = null;
-    _spec = null;
-    _hasLoadedThisSession = false;
+    dropped.value = 0;
+    full.value = null;
   }
 
-  return { status, eventCount, connected, isLive, connect, disconnect };
+  /** Stops streaming the shown session's run; the simulation itself continues. */
+  function stop() {
+    if (_subscribed) send({ type: 'stop', session: _subscribed });
+  }
+
+  return { status, eventCount, connected, sessions, sessionId, session, dropped, full, isLive, connect, open, leave, stop };
 }

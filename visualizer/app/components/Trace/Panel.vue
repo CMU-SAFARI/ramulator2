@@ -29,6 +29,8 @@
       <div class="rv-canvas-wrap">
         <canvas ref="canvas" class="block h-full w-full" :class="clickable ? 'cursor-pointer' : 'cursor-crosshair'" />
         <canvas ref="labelCanvas" class="pointer-events-none absolute inset-0 h-full w-full" aria-hidden="true" />
+        <p v-if="unsupported" class="rv-panel-msg">{{ unsupported }}</p>
+        <TraceUnread :start="tl.viewState.start" :end="tl.viewState.start + tl.viewState.duration" label />
       </div>
     </div>
   </section>
@@ -36,6 +38,7 @@
 
 <script setup lang="ts">
 import { VIEW_LABELS, type ViewMode } from '~/stores/ui';
+import { bankUnsupportedReason } from '~/utils/bankState';
 
 const props = defineProps<{ view: ViewMode }>();
 
@@ -46,6 +49,10 @@ const drag = useDockDrag();
 const canvas = ref<HTMLCanvasElement | null>(null);
 const labelCanvas = ref<HTMLCanvasElement | null>(null);
 const { clickable } = useRenderer(canvas, labelCanvas, props.view);
+
+const tl = useTimeline();
+const sessionStore = useSessionStore();
+const unsupported = computed(() => (props.view === 'bank' && sessionStore.spec ? bankUnsupportedReason(sessionStore.spec) : null));
 
 /** The inspector follows the panel the pointer rests on; passing over a panel doesn't switch it. */
 const HOVER_INTENT_MS = 150;
@@ -165,5 +172,18 @@ function onHeadPointerDown(e: PointerEvent) {
   flex: 1;
   min-width: 0;
   overflow: hidden;
+}
+
+.rv-panel-msg {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--rv-muted);
+  background: var(--rv-bg);
 }
 </style>

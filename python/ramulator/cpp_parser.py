@@ -11,6 +11,7 @@ CPP_TYPE_MAP = {
     "int": (int, None),
     "unsigned int": (int, "unsigned int"),
     "float": (float, None),
+    "double": (float, "double"),
     "bool": (bool, None),
     "std::string": (str, None),
     "std::vector<std::string>": (list, None),
@@ -41,7 +42,7 @@ _RE_PARSE_PARAM = re.compile(
     r'"(\w+)"\s*\)'  # param name string
     r"\s*\.\s*"  # dot
     r"(required|default_val)\s*"  # method
-    r"\(([^)]*)\)"  # method arg (empty for required())
+    r"\((.*?)\)\s*;"  # method arg up to the closing ");" (may contain parentheses)
 )
 
 # Matches both 2-arg and 3-arg forms:
@@ -285,7 +286,10 @@ def _parse_default(val_str, cpp_type):
     # Bool literal
     if val_str in ("true", "false"):
         return val_str == "true"
-    # String literal
+    # String literal, optionally wrapped as std::string("...")
+    m = re.fullmatch(r'std::string\s*\((.*)\)', val_str)
+    if m:
+        val_str = m.group(1).strip()
     if val_str.startswith('"') and val_str.endswith('"'):
         return val_str[1:-1]
     # std::vector<...>{...} brace-init literal — recognise the empty form

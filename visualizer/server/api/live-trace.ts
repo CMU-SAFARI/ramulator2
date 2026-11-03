@@ -1,66 +1,48 @@
 /**
- * WebSocket endpoint for live trace streaming (browser subscription).
+ * WebSocket endpoint for browsers.  The server sends the session list (`sessions`) on connect and
+ * whenever it changes.  A browser sends:
  *
- * Browsers connect here to receive real-time trace events.  Producers
- * can also send messages over this WS (init / events / done), which
- * are relayed to all other peers.  For C++ producers that prefer HTTP,
- * see the companion POST endpoint at /api/live-trace-push.
+ *   { type: 'subscribe', session }   receive that session's init, kept events, then new events
+ *   { type: 'unsubscribe' }
+ *   { type: 'stop', session }        stop streaming that session's run (the simulation continues)
+ *
+ * Trace data only comes from the simulator, through /api/live-trace-push.
  */
+import type { HubPeer } from '../utils/liveTraceHub';
 
 export default defineWebSocketHandler({
+  upgrade(request) {
+    const denied = accessDenied(request.headers);
+    if (denied) return new Response(denied.reason, { status: denied.status });
+  },
+
   open(peer) {
-    liveTraceAddPeer(peer);
-    const session = liveTraceGetSession();
-    if (session) {
-      peer.send(JSON.stringify({ type: 'init', header: session.header, spec: session.spec }));
-      if (session.done) {
-        peer.send(JSON.stringify({ type: 'done' }));
-      }
-    }
+    liveHubAddPeer(peer as unknown as HubPeer);
   },
 
   message(peer, msg) {
     let data: any;
     try {
-      data = JSON.parse(typeof msg === 'string' ? msg : msg.text());
+      data = JSON.parse(msg.text());
     } catch {
       return;
     }
-
-    switch (data.type) {
-      case 'init':
-        liveTraceSetSession(data.header, data.spec);
-        liveTraceBroadcast(
-          JSON.stringify({ type: 'init', header: data.header, spec: data.spec }),
-          peer,
-        );
+    const hubPeer = peer as unknown as HubPeer;
+    switch (data?.type) {
+      case 'subscribe':
+        if (typeof data.session === 'string') liveSessionSubscribe(hubPeer, data.session);
         break;
-
-      case 'events': {
-        const session = liveTraceGetSession();
-        if (session && !session.done && Array.isArray(data.events)) {
-          liveTraceBroadcast(
-            JSON.stringify({ type: 'events', events: data.events }),
-            peer,
-          );
-        }
+      case 'unsubscribe':
+        liveSessionUnsubscribe(hubPeer);
         break;
-      }
-
-      case 'done':
-        liveTraceMarkDone();
-        liveTraceBroadcast(JSON.stringify({ type: 'done' }), peer);
-        break;
-
-      case 'interrupt':
-        liveTraceMarkInterrupted();
-        liveTraceBroadcast(JSON.stringify({ type: 'interrupt' }), peer);
+      case 'stop':
+        if (typeof data.session === 'string') liveSessionStop(data.session);
         break;
     }
   },
 
   close(peer) {
-    liveTraceRemovePeer(peer);
+    liveHubRemovePeer(peer as unknown as HubPeer);
   },
 
   error(_peer, error) {

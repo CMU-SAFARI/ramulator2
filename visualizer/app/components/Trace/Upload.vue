@@ -21,7 +21,6 @@
 </template>
 
 <script setup lang="ts">
-const { parseTraceAsync } = useTrace();
 const sessionStore = useSessionStore();
 
 const loading = ref(false);
@@ -44,14 +43,18 @@ const loadTrace = async () => {
   loading.value = true;
   await flushPaint();
   try {
-    const buffer = await selectedFile.value.arrayBuffer();
-    const trace = await parseTraceAsync(buffer);
-
-    // Clear any live/done stream state before replacing it with a static trace.
-    const stream = useStreamSession();
-    if (stream.connected.value || stream.status.value !== 'idle') {
-      stream.disconnect();
+    const trace = await openPending({ kind: 'blob', blob: selectedFile.value });
+    if (trace.header.incomplete) {
+      toast.add({
+        color: 'warning',
+        icon: 'mdi-alert',
+        title: 'Partial recording',
+        description: `The simulation stopped before the recording finished. Showing the first ${trace.header.numEntries.toLocaleString()} commands.`,
+      });
     }
+
+    // Stop showing a live session; its stream continues for other viewers.
+    useStreamSession().leave();
 
     sessionStore.setPendingTrace(trace, selectedFile.value.name);
     await flushPaint();

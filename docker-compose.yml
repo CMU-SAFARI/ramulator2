@@ -16,8 +16,12 @@ services:
       CXX: g++
       VIRTUAL_ENV: /home/vscode/ramulator2-venv
       PATH: /home/vscode/ramulator2-venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+      RAMULATOR_VISUALIZER_TOKEN: "${RAMULATOR_VISUALIZER_TOKEN:-}"
+      # The visualizer's access token, for LiveTraceStreamer(host="visualizer").
+      RAMULATOR_VISUALIZER_TOKEN_FILE: /run/ramviz/token
     volumes:
       - .:/workspace:cached
+      - visualizer_token:/run/ramviz:ro
     working_dir: /workspace
     user: vscode
     command: bash -c "rm -f /tmp/ramulator2-ready && bash .devcontainer/post-create.sh && touch /tmp/ramulator2-ready && sleep infinity"
@@ -34,27 +38,53 @@ services:
       context: ./visualizer
       dockerfile: Dockerfile
     init: true
+    # Reachable from this machine only, unless RAMULATOR_VISUALIZER_BIND=0.0.0.0. Either way, open the
+    # link with the access token that `docker compose logs visualizer` shows.
     ports:
-      - "${RAMULATOR_VISUALIZER_PORT:-3000}:3000"
+      - "${RAMULATOR_VISUALIZER_BIND:-127.0.0.1}:${RAMULATOR_VISUALIZER_PORT:-3000}:3000"
+    volumes:
+      - .:/workspace:ro
+      - visualizer_token:/run/ramviz
     environment:
       PORT: "3000"
       NITRO_PORT: "3000"
       HOST: "0.0.0.0"
+      RAMULATOR_VISUALIZER_TOKEN: "${RAMULATOR_VISUALIZER_TOKEN:-}"
+      # Made on first start and kept in the volume; the ramulator2 container reads it.
+      RAMULATOR_VISUALIZER_TOKEN_FILE: /run/ramviz/token
+      # For the link in the log: the port on this machine.
+      RAMULATOR_VISUALIZER_PUBLISHED_PORT: "${RAMULATOR_VISUALIZER_PORT:-3000}"
+      # Where the port is published: with the token turned off, the server only serves a local address.
+      RAMULATOR_VISUALIZER_BIND: "${RAMULATOR_VISUALIZER_BIND:-127.0.0.1}"
+      RAMULATOR_VISUALIZER_ALLOWED_HOSTS: visualizer
+      RAMULATOR_VISUALIZER_TRACES: /workspace
 
   visualizer-dev:
     profiles: [visualizer-dev]
     image: node:22
     init: true
     working_dir: /app
+    # Generated files go to volumes, so nothing root-owned lands in ./visualizer; npm ci leaves the lockfile as is.
     volumes:
       - ./visualizer:/app:cached
       - visualizer_node_modules:/app/node_modules
+      - visualizer_nuxt:/app/.nuxt
+      - .:/workspace:ro
+      - visualizer_token:/run/ramviz
     ports:
-      - "${RAMULATOR_VISUALIZER_PORT:-3000}:3000"
+      - "${RAMULATOR_VISUALIZER_BIND:-127.0.0.1}:${RAMULATOR_VISUALIZER_PORT:-3000}:3000"
     environment:
       RAMULATOR_VISUALIZER_PORT: "3000"
       HOST: "0.0.0.0"
-    command: sh -c "npm install && npx nuxt dev --host 0.0.0.0"
+      RAMULATOR_VISUALIZER_TOKEN: "${RAMULATOR_VISUALIZER_TOKEN:-}"
+      RAMULATOR_VISUALIZER_TOKEN_FILE: /run/ramviz/token
+      RAMULATOR_VISUALIZER_PUBLISHED_PORT: "${RAMULATOR_VISUALIZER_PORT:-3000}"
+      RAMULATOR_VISUALIZER_BIND: "${RAMULATOR_VISUALIZER_BIND:-127.0.0.1}"
+      RAMULATOR_VISUALIZER_ALLOWED_HOSTS: visualizer
+      RAMULATOR_VISUALIZER_TRACES: /workspace
+    command: sh -c "npm ci && npx nuxt dev --host 0.0.0.0"
 
 volumes:
   visualizer_node_modules:
+  visualizer_nuxt:
+  visualizer_token:

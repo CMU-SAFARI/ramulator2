@@ -1,16 +1,19 @@
 <template>
-  <div
-    ref="root"
-    class="w-full select-none shrink-0"
-    style="height: 56px; background: var(--rv-bg); border-top: 1px solid var(--rv-rule)"
-  >
-    <canvas ref="canvas" class="block w-full h-full" />
+  <div class="rv-timeline">
+    <!-- Same width as the panels' lane labels, so the axis lines up with their plots. -->
+    <div class="rv-timeline-gutter" />
+    <div ref="root" class="rv-timeline-track">
+      <canvas ref="canvas" class="block w-full h-full" />
+      <TraceUnread :start="viewState.minTime" :end="viewState.maxTime" :style="{ top: `${TICK_H}px` }" />
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import type { ViewState } from '~/composables/useTimeline';
+import { density as traceDensity } from '~/engine/stats';
 import { PAPER } from '~/utils/theme';
+import { axisTicks } from '~/utils/timeTicks';
 
 const C = PAPER.overview;
 
@@ -22,6 +25,7 @@ const emit = defineEmits<{ seek: [start: number, duration: number] }>();
 
 const sessionStore = useSessionStore();
 const uiStore = useUIStore();
+const tl = useTimeline();
 
 const root = ref<HTMLDivElement | null>(null);
 const canvas = ref<HTMLCanvasElement | null>(null);
@@ -34,7 +38,7 @@ const EDGE_GRAB = 10;
 const DENSITY_BINS = 800;
 const MIN_VP_PX = 24;
 
-let density = new Float32Array(0);
+let density: Float32Array = new Float32Array(0);
 let densityMax = 0;
 
 const timelineNsPerCycle = computed(() => {
@@ -42,57 +46,16 @@ const timelineNsPerCycle = computed(() => {
   return tCKPs == null ? null : tCKPs / 1000;
 });
 
+/** Commands per strip bin over the whole trace, from the tile summaries. */
 function computeDensity() {
-  const header = sessionStore.header;
-  const arrays = sessionStore.arrays;
-  if (!arrays || !header || header.numEntries === 0) return;
-
-  const N = header.numEntries;
-  const clk = arrays.clk;
-  const minT = Number(clk[0]!);
-  const maxT = Number(clk[N - 1]!);
-  const span = maxT - minT;
-  if (span <= 0) return;
-
-  density = new Float32Array(DENSITY_BINS);
-  const binW = span / DENSITY_BINS;
-
-  for (let i = 0; i < N; i++) {
-    const bin = Math.min(DENSITY_BINS - 1, Math.floor((Number(clk[i]!) - minT) / binW));
-    density[bin]!++;
-  }
-
+  density = new Float32Array(0);
   densityMax = 0;
-  for (let i = 0; i < DENSITY_BINS; i++)
-    if (density[i]! > densityMax) densityMax = density[i]!;
-}
-
-// ── Tick helpers ────────────────────────────────────────────────
-
-function formatTickValue(value: number, step: number): string {
-  const abs = Math.abs(value);
-  if (abs >= 1e9 && step >= 1e8) return (value / 1e9).toFixed(1) + 'G';
-  if (abs >= 1e6 && step >= 1e5) return (value / 1e6).toFixed(1) + 'M';
-  if (abs >= 1e3 && step >= 1e2) return (value / 1e3).toFixed(1) + 'k';
-  const decimals = step >= 1 ? 0 : Math.ceil(-Math.log10(step));
-  return value.toFixed(decimals);
-}
-
-function formatTick(value: number, step: number, nsPerCycle: number | null): string {
-  if (!uiStore.displayTimelineInNs || nsPerCycle == null)
-    return formatTickValue(value, step);
-
-  return `${formatTickValue(value * nsPerCycle, step * nsPerCycle)} ns`;
-}
-
-function niceStep(duration: number, width: number): number {
-  const target = duration * (90 / width);
-  const pow = Math.floor(Math.log10(target));
-  const base = Math.pow(10, pow);
-  for (const m of [1, 2, 5, 10]) {
-    if (base * m >= target) return base * m;
-  }
-  return base * 10;
+  const e = tl.engine.value;
+  if (!e || e.tiles.length === 0) return;
+  const { minTime, maxTime } = props.viewState;
+  if (!(maxTime > minTime)) return;
+  density = traceDensity(e.tiles, minTime, maxTime, DENSITY_BINS);
+  for (let i = 0; i < DENSITY_BINS; i++) if (density[i]! > densityMax) densityMax = density[i]!;
 }
 
 // ── Drawing ─────────────────────────────────────────────────────
@@ -120,26 +83,22 @@ function draw() {
 
   const { start, duration, minTime, maxTime } = props.viewState;
   const totalSpan = maxTime - minTime;
-  const nsPerCycle = timelineNsPerCycle.value;
 
   // ── Tick ruler (top TICK_H px) ────────────────────────────────
 
-  const step = niceStep(duration, w);
-  const minorStep = step / 5;
-  const startTick = Math.floor(start / minorStep) * minorStep;
-  const endTick = start + duration;
-  const eps = minorStep / 1000;
+  const ticks = axisTicks(start, duration, w, uiStore.displayTimelineInNs ? timelineNsPerCycle.value : null, minTime, maxTime);
+  const xOf = (t: number) => Math.round(((t - start) / duration) * w) + 0.5;
 
   ctx.beginPath();
   ctx.strokeStyle = C.tick;
   ctx.lineWidth = 1;
-
-  for (let t = startTick; t <= endTick + eps; t += minorStep) {
-    if (t < minTime || t > maxTime) continue;
-    const x = Math.round(((t - start) / duration) * w) + 0.5;
-    const isMajor = Math.abs(t / step - Math.round(t / step)) < 1e-9;
-    ctx.moveTo(x, 0);
-    ctx.lineTo(x, isMajor ? 8 : 4);
+  for (const t of ticks.minor) {
+    ctx.moveTo(xOf(t), 0);
+    ctx.lineTo(xOf(t), 4);
+  }
+  for (const t of ticks.major) {
+    ctx.moveTo(xOf(t), 0);
+    ctx.lineTo(xOf(t), 8);
   }
   ctx.stroke();
 
@@ -148,12 +107,12 @@ function draw() {
   ctx.fillStyle = C.label;
   ctx.font = '10px "IBM Plex Mono", monospace';
 
-  const majorStart = Math.ceil(start / step) * step;
-  for (let t = majorStart; t <= endTick + eps; t += step) {
-    if (t < minTime || t > maxTime) continue;
+  ticks.major.forEach((t, i) => {
     const x = ((t - start) / duration) * w;
-    ctx.fillText(formatTick(t, step, nsPerCycle), x + 3, 9);
-  }
+    const label = ticks.labels[i]!;
+    // A label that would be cut off at the right edge is left out.
+    if (x + 3 + ctx!.measureText(label).width <= w) ctx!.fillText(label, x + 3, 9);
+  });
 
   // ── Density chart + viewport selector (below tick ruler) ──────
 
@@ -416,6 +375,12 @@ function onPointerUp() {
 
 watchEffect(draw);
 
+// Tiles arrive while a trace loads or streams, and a new trace replaces them: keep the strip current.
+watch(() => [tl.dataVersion.value, tl.engine.value], () => {
+  computeDensity();
+  draw();
+});
+
 let resizeObs: ResizeObserver | undefined;
 
 onMounted(() => {
@@ -434,3 +399,28 @@ onUnmounted(() => {
   resizeObs?.disconnect();
 });
 </script>
+
+<style scoped>
+.rv-timeline {
+  display: flex;
+  flex-shrink: 0;
+  width: 100%;
+  height: 56px;
+  user-select: none;
+  background: var(--rv-bg);
+  border-top: 1px solid var(--rv-rule);
+}
+
+.rv-timeline-gutter {
+  flex: none;
+  width: var(--rv-tree-w);
+  background: var(--rv-side);
+  border-right: 1px solid var(--rv-rule);
+}
+
+.rv-timeline-track {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+</style>

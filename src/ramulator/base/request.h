@@ -33,6 +33,7 @@ struct Request {
 
   Clk_t arrive = -1;  // Clock cycle when the request arrives at the memory controller
   Clk_t depart = -1;  // Clock cycle when the request departs the memory controller
+  int64_t id = -1;    // Sequence number from the controller that accepted the request
 
   std::function<void(Request&)> callback;
 

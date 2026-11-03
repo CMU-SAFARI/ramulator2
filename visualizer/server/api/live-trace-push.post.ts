@@ -1,48 +1,70 @@
 /**
- * HTTP POST endpoint for live trace streaming (producer ingestion).
+ * HTTP endpoint for the simulator (LiveTraceStreamer):
  *
- * C++ or any HTTP client POSTs JSON messages here:
- *   { type: "init",   header: {...}, spec: {...} }
- *   { type: "events", events: [...] }
- *   { type: "done" }
+ *   POST /api/live-trace-push?type=init&session=<run>:<channel>    { run, channel, startedAt, header, spec }
+ *   POST /api/live-trace-push?type=events&session=…&count=<n>      { columns … }  (forwarded as is)
+ *   POST /api/live-trace-push?type=status&session=…                (heartbeat)
+ *   POST /api/live-trace-push?type=done&session=…
  *
- * Each message is forwarded to all connected WebSocket peers (browsers).
+ * Events and status answer { ok, interrupted } so the simulator learns when a viewer stopped the
+ * stream, or { ok: false, unknown: true } when the server does not know the session (it restarted)
+ * and the simulator should send init again.  Bodies must be JSON and at most 32 MB.
  */
+const MAX_BODY_BYTES = 32 * 2 ** 20;
+
+function badInit(body: any): string | null {
+  const h = body?.header;
+  const s = body?.spec;
+  if (typeof body?.run !== 'string' || !Number.isInteger(body?.channel) || typeof body?.startedAt !== 'number') {
+    return 'init needs run, channel and startedAt';
+  }
+  if (!h || !s) return 'init needs header and spec';
+  for (const k of ['levelCount', 'commandCount', 'timingCount', 'channelId', 'readLatency']) {
+    if (!Number.isInteger(h[k])) return `header.${k} must be an integer`;
+  }
+  const lists: [string, number][] = [
+    ['levelNames', h.levelCount], ['levelSizes', h.levelCount], ['commandNames', h.commandCount],
+    ['commandMeta', h.commandCount], ['timingNames', h.timingCount], ['timingValues', h.timingCount],
+  ];
+  for (const [k, n] of lists) {
+    if (!Array.isArray(s[k]) || s[k].length !== n) return `spec.${k} must have ${n} entries`;
+  }
+  return null;
+}
 
 export default defineEventHandler(async (event) => {
-  const body = await readBody(event);
-  if (!body || typeof body.type !== 'string') {
-    throw createError({ statusCode: 400, statusMessage: 'Missing "type" field' });
+  if (!(getHeader(event, 'content-type') ?? '').startsWith('application/json')) {
+    throw createError({ statusCode: 415, statusMessage: 'Send JSON (Content-Type: application/json)' });
   }
+  const length = Number(getHeader(event, 'content-length'));
+  if (!Number.isFinite(length)) throw createError({ statusCode: 411, statusMessage: 'Content-Length is required' });
+  if (length > MAX_BODY_BYTES) throw createError({ statusCode: 413, statusMessage: 'Body is larger than 32 MB' });
 
-  switch (body.type) {
-    case 'init':
-      liveTraceSetSession(body.header, body.spec);
-      liveTraceBroadcast(JSON.stringify({ type: 'init', header: body.header, spec: body.spec }));
-      break;
+  const { type, session, count } = getQuery(event);
+  if (typeof session !== 'string' || !session) throw createError({ statusCode: 400, statusMessage: 'Missing session' });
 
-    case 'events':
-      if (Array.isArray(body.events)) {
-        const session = liveTraceGetSession();
-        if (session && !session.done) {
-          liveTraceBroadcast(JSON.stringify({ type: 'events', events: body.events }));
-        }
-      }
-      break;
-
-    case 'done':
-      liveTraceMarkDone();
-      liveTraceBroadcast(JSON.stringify({ type: 'done' }));
-      break;
-
+  switch (type) {
+    case 'init': {
+      const body = await readBody(event);
+      const problem = badInit(body);
+      if (problem) throw createError({ statusCode: 400, statusMessage: problem });
+      if (session !== `${body.run}:${body.channel}`) throw createError({ statusCode: 400, statusMessage: 'session must be <run>:<channel>' });
+      liveSessionStart({ id: session, run: body.run, channel: body.channel, startedAt: body.startedAt, header: body.header, spec: body.spec });
+      return { ok: true };
+    }
+    case 'events': {
+      const n = Number(count);
+      if (!Number.isInteger(n) || n < 0) throw createError({ statusCode: 400, statusMessage: 'count must be a non-negative integer' });
+      const columns = (await readRawBody(event, 'utf8')) ?? '';
+      if (!columns.startsWith('{')) throw createError({ statusCode: 400, statusMessage: 'events must be a JSON object of columns' });
+      return liveSessionEvents(session, columns, n);
+    }
     case 'status':
-      // Endpoint for producer to check if the session was interrupted
-      const session = liveTraceGetSession();
-      return { ok: true, interrupted: session?.interrupted ?? false };
-
+      return liveSessionStatus(session);
+    case 'done':
+      liveSessionDone(session);
+      return { ok: true };
     default:
-      throw createError({ statusCode: 400, statusMessage: `Unknown type: ${body.type}` });
+      throw createError({ statusCode: 400, statusMessage: `Unknown type: ${String(type)}` });
   }
-
-  return { ok: true };
 });

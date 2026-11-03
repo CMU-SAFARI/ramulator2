@@ -17,6 +17,8 @@
   --rv-track: #eef0f2;
   --rv-accent: #1f5fb4;
   --rv-hover: #eef3fb;
+  /* Lane-label column of every panel; the time axis below the panels is inset by the same width. */
+  --rv-tree-w: 240px;
 }
 
 body {

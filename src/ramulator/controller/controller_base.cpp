@@ -145,6 +145,7 @@ bool ControllerBase::send(Request& req) {
       // The request will depart at the next cycle
       req.arrive = m_clk;
       req.depart = m_clk + 1;
+      req.id = m_next_req_id++;
       m_pending.push_back(req);
       s_num_read_reqs++;
       s_num_read_reqs_forwarded++;
@@ -155,6 +156,7 @@ bool ControllerBase::send(Request& req) {
   // Enqueue to corresponding buffer based on request type
   bool is_success = false;
   req.arrive = m_clk;
+  req.id = m_next_req_id;
   if (req.type_id == Request::Type::Read) {
     is_success = m_read_buffer.enqueue(req);
   } else if (req.type_id == Request::Type::Write) {
@@ -178,6 +180,7 @@ bool ControllerBase::send(Request& req) {
     req.arrive = -1;
     return false;
   }
+  m_next_req_id++;
 
   if (req.type_id == Request::Type::Read) {
     s_num_read_reqs++;
@@ -196,7 +199,11 @@ bool ControllerBase::priority_send(Request& req) {
         m_device.m_spec->command_count));
   }
 
+  req.id = m_next_req_id;
   bool is_success = m_priority_buffer.enqueue(req);
+  if (is_success) {
+    m_next_req_id++;
+  }
   if (is_success && req.type_id == -1) {
     s_num_maintenance_reqs++;
   }

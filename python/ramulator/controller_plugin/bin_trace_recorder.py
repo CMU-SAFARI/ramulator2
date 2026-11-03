@@ -13,4 +13,4 @@ from ramulator.param import Param
 class BinTraceRecorder(Component):
     impl = "BinTraceRecorder"
     path = Param(str, required=True)
-    dram_type = Param(str, default='std::string(""')
+    dram_type = Param(str, default='')

@@ -12,7 +12,8 @@ from ramulator.param import Param
 
 class LiveTraceStreamer(Component):
     impl = "LiveTraceStreamer"
+    host = Param(str, default='localhost')
     port = Param(int, default=3000)
     tick_interval = Param(int, default=10000)
-    update_interval_s = Param(int, default=0.5)
-    dram_type = Param(str, default='std::string(""')
+    update_interval_s = Param(float, default=0.5, cpp_type="double")
+    dram_type = Param(str, default='')

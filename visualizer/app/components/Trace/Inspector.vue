@@ -1,6 +1,6 @@
 <template>
   <aside class="rv-inspector" aria-label="Inspector">
-    <section class="rv-section">
+    <section class="rv-section" data-tour="selection">
       <h2 class="rv-h">Selection <span class="rv-h-scope">{{ VIEW_LABELS[mode] }}</span></h2>
 
       <template v-if="mode === 'bank' && selBank">
@@ -43,7 +43,7 @@
             <dt>Queued</dt>
             <dd class="rv-mono">{{ fmtSpan(selHit.queueDelay ?? 0) }}</dd>
             <dt>In service</dt>
-            <dd class="rv-mono">{{ fmtSpan(selHit.duration) }}</dd>
+            <dd class="rv-mono">{{ fmtSpan(selHit.duration) }}{{ selHit.inFlight ? ', unfinished at trace end' : '' }}</dd>
           </template>
           <template v-else>
             <dt>Issued</dt>
@@ -54,6 +54,10 @@
               <dt>Data at</dt>
               <dd class="rv-mono">{{ fmtClk(selHit.busClk) }}</dd>
             </template>
+          </template>
+          <template v-if="(selHit.reqId ?? -1) >= 0">
+            <dt>Request id</dt>
+            <dd class="rv-mono">{{ selHit.reqId }}</dd>
           </template>
           <template v-if="selHit.sourceId >= 0">
             <dt>Source</dt>
@@ -91,7 +95,7 @@
       </p>
     </section>
 
-    <section class="rv-section">
+    <section class="rv-section" data-tour="window">
       <h2 class="rv-h">{{ windowTitle }}</h2>
       <p class="rv-window rv-mono">{{ windowText }}</p>
       <div v-for="row in statRows" :key="row.label" class="rv-stat">
@@ -104,8 +108,10 @@
           <div :style="{ width: `${Math.max(0, Math.min(100, row.bar))}%` }" />
         </div>
       </div>
-      <p v-if="statRows.length === 0" class="rv-empty">No data in this window.</p>
-      <p v-if="!tl.rangeSelection.value" class="rv-hint">Shift+drag to select a range, Ctrl+drag to zoom to it.</p>
+      <p v-if="windowUnread" class="rv-empty">Not read yet. The figures appear when the read gets here.</p>
+      <p v-else-if="statRows.length === 0" class="rv-empty">No data in this window.</p>
+      <p v-if="!tl.rangeSelection.value" class="rv-hint">Shift+drag to select a range, Ctrl/⌘+drag to zoom to it.</p>
+      <p class="rv-hint">Keys: W/S zoom, A/D pan, Home/End to the start or end, G to go to a clock.</p>
     </section>
 
     <section class="rv-section">
@@ -124,7 +130,7 @@
         <ul v-if="bankRules?.notes.length" class="rv-notes">
           <li v-for="n in bankRules.notes" :key="n">{{ n }}</li>
         </ul>
-        <p class="rv-caveat">
+        <p v-if="bankRules" class="rv-caveat">
           Reconstructed from the command stream and the trace's timing table
           ({{ bankRules?.familyLabel }}), not simulator state. Not modelled: tRAS-delayed auto-precharge,
           tRRD, write-to-read turnaround.
@@ -144,6 +150,7 @@
           <span class="rv-mono">{{ row.name }}</span>
         </div>
         <button type="button" class="rv-link rv-link-sm" @click="sessionStore.resetColorPalette()">Reset colours</button>
+        <p class="rv-caveat">DATA BUS shows each burst when its data is on the bus: read latency after a read, write latency after a write. Bank State uses the same times.</p>
       </template>
 
       <template v-else-if="mode === 'request'">
@@ -158,7 +165,7 @@
           </UPopover>
           <span>{{ row.label }}</span>
         </div>
-        <p class="rv-caveat">The lighter part of a bar is time spent queued.</p>
+        <p class="rv-caveat">The lighter part of a bar is time spent queued. Hatched bars were still in flight when the trace ended.</p>
       </template>
 
       <template v-else>
@@ -175,7 +182,7 @@
 // (the last panel the pointer entered or the user showed).
 import type { BankHover, HitResult, ThroughputHover } from '~/composables/useTimeline';
 import type { RequestTypeStoredColors } from '~/utils/commandColorStorage';
-import { BANK_COLORS, BANK_MARKER, BANK_MARKER_COLORS, bankResolveRules, type BankTimingRef } from '~/utils/bankState';
+import { BANK_COLORS, BANK_MARKER, BANK_MARKER_COLORS, bankResolveRules, bankUnsupportedReason, type BankTimingRef } from '~/utils/bankState';
 import { VIEW_LABELS } from '~/stores/ui';
 import { PAPER } from '~/utils/theme';
 
@@ -197,7 +204,7 @@ watch(tl.throughputHover, (h) => { if (h) selTp.value = h; });
 watch(tl.selection, (s) => {
   if (!s) return;
   selCmd.value = tl.hitForCommand(s.focus) ?? selCmd.value;
-  if (s.req >= 0) selReq.value = tl.hitForRequest(s.req) ?? selReq.value;
+  if (s.reqK >= 0) selReq.value = tl.hitForRequest(s.reqK, s.reqJ) ?? selReq.value;
 });
 watch(() => sessionStore.sessionGeneration, () => {
   selBank.value = null;
@@ -255,15 +262,24 @@ const windowText = computed(() => `${fmtRange(win.value.t0, win.value.t1)} · ${
 
 interface StatRow { label: string; value: string; sw?: string; bar?: number | null }
 
+/** The window lies wholly past what the trace has been read up to, so there is nothing to count. */
+const windowUnread = computed(() => {
+  const l = tl.load.value;
+  return !!l && !l.done && !l.error && win.value.t0 >= l.frontier;
+});
+
 const statRows = computed<StatRow[]>(() => {
+  if (windowUnread.value) return [];
   const ranged = !!tl.rangeSelection.value;
   if (mode.value === 'bank') {
     const s = tl.bankStats.value;
     if (!s) return [];
     const rows: StatRow[] = [];
-    if (s.busPct !== null) rows.push({ label: 'Data bus utilized', value: `${s.busPct.toFixed(1)}%`, sw: BANK_COLORS.busLane, bar: s.busPct });
-    if (s.fawPct !== null) rows.push({ label: 'ACT blocked by tFAW', value: `${s.fawPct.toFixed(1)}%`, sw: BANK_COLORS.fawLane, bar: s.fawPct });
-    const share = (label: string, v: number, sw: string) => rows.push({ label, value: `${v.toFixed(1)}%`, sw, bar: v });
+    // Shares are estimated while a tile at the window's edge is still loading.
+    const pct = (v: number) => `${s.exact ? '' : '≈ '}${v.toFixed(1)}%`;
+    if (s.busPct !== null) rows.push({ label: 'Data bus utilized', value: pct(s.busPct), sw: BANK_COLORS.busLane, bar: s.busPct });
+    if (s.fawPct !== null) rows.push({ label: 'ACT blocked by tFAW', value: pct(s.fawPct), sw: BANK_COLORS.fawLane, bar: s.fawPct });
+    const share = (label: string, v: number, sw: string) => rows.push({ label, value: pct(v), sw, bar: v });
     share('Open, not blocked', s.shares.starved, BANK_COLORS.open);
     share('Open, data bus busy', s.shares.bus, BANK_COLORS.bus);
     if (s.hasBg) share('Open, bank group blocked', s.shares.bg, BANK_COLORS.bg);
@@ -278,26 +294,27 @@ const statRows = computed<StatRow[]>(() => {
   if (mode.value === 'throughput') {
     const t = ranged ? tl.throughputRangeStats.value : tl.viewThroughputStats.value;
     if (!t) return [];
+    const approx = t.exact ? '' : '≈ ';
     return [
-      { label: 'Mean data-bus utilization', value: `${(t.dataMeanUtil * 100).toFixed(1)}%`, sw: PAPER.tp.data, bar: t.dataMeanUtil * 100 },
-      { label: 'Mean command-bus utilization', value: `${(t.cmdMeanUtil * 100).toFixed(1)}%`, sw: PAPER.tp.cmd, bar: t.cmdMeanUtil * 100 },
-      { label: 'Bins', value: String(t.binCount), bar: null },
+      { label: 'Mean data-bus utilization', value: `${approx}${(t.dataMeanUtil * 100).toFixed(1)}%`, sw: PAPER.tp.data, bar: t.dataMeanUtil * 100 },
+      { label: 'Mean command-bus utilization', value: `${approx}${(t.cmdMeanUtil * 100).toFixed(1)}%`, sw: PAPER.tp.cmd, bar: t.cmdMeanUtil * 100 },
     ];
   }
   const c = ranged ? tl.rangeStats.value : tl.viewStats.value;
   if (!c) return [];
+  const n = (v: number) => `${c.exact ? '' : '≈ '}${v.toLocaleString('en-US')}`;
   return [
-    { label: 'Commands', value: c.totalCommands.toLocaleString('en-US'), bar: null },
-    { label: 'Reads', value: c.readCommands.toLocaleString('en-US'), bar: null },
-    { label: 'Writes', value: c.writeCommands.toLocaleString('en-US'), bar: null },
-    { label: 'Other commands', value: c.otherCommands.toLocaleString('en-US'), bar: null },
-    { label: 'Command-bus rate', value: `${c.cmdBusThroughput.toFixed(3)} cmd/clk`, bar: null },
+    { label: 'Commands', value: n(c.totalCommands), bar: null },
+    { label: 'Reads', value: n(c.readCommands), bar: null },
+    { label: 'Writes', value: n(c.writeCommands), bar: null },
+    { label: 'Other commands', value: n(c.otherCommands), bar: null },
+    { label: 'Command-bus rate', value: `${c.exact ? '' : '≈ '}${c.cmdBusThroughput.toFixed(3)} cmd/clk`, bar: null },
   ];
 });
 
 // ── Legends ──────────────────────────────────────────────────────
 
-const bankRules = computed(() => (sessionStore.spec
+const bankRules = computed(() => (sessionStore.spec && !bankUnsupportedReason(sessionStore.spec)
   ? bankResolveRules(sessionStore.spec, sessionStore.header?.dramType ?? '')
   : null));
 
@@ -314,7 +331,7 @@ const bankLegend = computed<LegendRow[]>(() => {
   if (!r) return [];
   const t = r.timings;
   const rows: LegendRow[] = [
-    { label: 'DATA BUS: burst on the bus', color: BANK_COLORS.busLane, detail: `column command ${fmtTiming(t.bl)}` },
+    { label: 'DATA BUS: burst on the bus, read / write latency after its column command', color: BANK_COLORS.busLane, detail: `burst ${fmtTiming(t.bl)}` },
   ];
   if (t.faw) rows.push({ label: 'ACT / tFAW: no ACT allowed', color: BANK_COLORS.fawLane, detail: `window ${fmtTiming(t.faw)}` });
   rows.push(

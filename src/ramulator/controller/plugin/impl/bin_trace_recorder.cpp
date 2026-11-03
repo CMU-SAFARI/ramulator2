@@ -1,9 +1,11 @@
 /*
- * RAM2BIN v1.1 — Ramulator2 Binary Command Trace
+ * RAM2BIN v1.2 — Ramulator2 Binary Command Trace
  * ==============================================
  *
- * A self-describing, Structure-of-Arrays binary trace format for DRAM
- * command events. Designed for mmap + zero-copy WebGL upload.
+ * A self-describing binary trace format for DRAM command events.  The data
+ * is written in chunks, each a Structure-of-Arrays block, so the recorder
+ * holds at most one chunk in memory and a run that stops early still leaves
+ * every complete chunk readable.
  *
  * FILE LAYOUT
  * ===========
@@ -15,27 +17,12 @@
  * +-----------------------------+
  * | padding         (0-7 bytes) |  <- align data_offset to 8 bytes
  * +=============================+
- * | clk[]        N x int64      |
+ * | Chunk 0                     |  <- starts at data_offset
  * +-----------------------------+
- * | arrive[]     N x int64      |
- * +-----------------------------+
- * | cmd_id[]     N x uint8      |
- * +-----------------------------+
- * | type_id[]    N x int8       |
- * +-----------------------------+
- * | source_id[]  N x int16      |
- * +-----------------------------+
- * | addr[0][]    N x int32      |  <- first level  (e.g. Channel)
- * +-----------------------------+
- * | addr[1][]    N x int32      |  <- second level (e.g. Rank)
+ * | Chunk 1                     |
  * +-----------------------------+
  * | ...                         |
  * +-----------------------------+
- * | addr[L-1][]  N x int32      |  <- last level   (e.g. Column)
- * +-----------------------------+
- *
- * N = num_entries, L = level_count.
- * Total data size = N * (8 + 8 + 1 + 1 + 2 + 4*L) = N * (20 + 4*L).
  *
  * HEADER (64 bytes)
  * =================
@@ -45,7 +32,7 @@
  * +------------------+--------+--------+-----------------------------------------------+
  * | magic            |  0     |  8B    | "RAM2BIN\0" (null-terminated, zero-padded)    |
  * | version          |  8     |  2B    | [major, minor] file format version            |
- * | flags            | 10     |  2B    | Bit flags (reserved, must be 0)               |
+ * | flags            | 10     |  2B    | bit 0: complete (set when recording ends)     |
  * | level_count      | 12     |  2B    | uint16  Number of hierarchy levels            |
  * | command_count    | 14     |  2B    | uint16  Number of command types               |
  * | timing_count     | 16     |  2B    | uint16  Number of timing parameters           |
@@ -54,17 +41,20 @@
  * | dq               | 22     |  2B    | uint16  DQ width of the device (e.g. 8)       |
  * | channel_id       | 24     |  4B    | uint32  Channel index this file records       |
  * | read_latency     | 28     |  4B    | int32   Precomputed read latency (cycles)     |
- * | num_entries      | 32     |  8B    | uint64  Number of trace entries (= N)         |
- * | data_offset      | 40     |  8B    | uint64  Byte offset where SoA arrays begin    |
+ * | num_entries      | 32     |  8B    | uint64  Total entries, set when complete      |
+ * | data_offset      | 40     |  8B    | uint64  Byte offset of the first chunk        |
  * | dram_type        | 48     | 16B    | char[16] DRAM standard (e.g. "DDR4\0...\0")   |
  * +------------------+--------+--------+-----------------------------------------------+
+ *
+ * A file without the complete flag comes from a run that stopped before
+ * finalize(); its num_entries is 0 and readers count the complete chunks.
  *
  * SPEC SECTION (variable length, starts at offset 64)
  * ===================================================
  *
  * Written sequentially in this order:
  *
- * 1. Level names       
+ * 1. Level names
  * level_count x null-terminated ASCII strings
  * e.g. "Channel\0" "Rank\0" "BankGroup\0" ...
  *
@@ -105,36 +95,32 @@
  * 8. Padding
  * 0-7 zero bytes to align data_offset to 8 bytes.
  *
- * DATA ARRAYS (SoA, starts at data_offset)
- * ========================================
- *
- * Arrays are written contiguously in this fixed order.
- * The reader computes each array's byte offset from data_offset, N, and L:
+ * CHUNK (n entries, 1 <= n <= 65536)
+ * ==================================
  *
  * +---------------+-----------+---------------------------------------------------+
- * | Array         | Elem size | Byte range [start, end)                           |
+ * | Field         | Elem size | Byte range [start, end) from the chunk start      |
  * +---------------+-----------+---------------------------------------------------+
- * | clk[]         |  8B int64 | [D,             D + 8N)                           |
- * | arrive[]      |  8B int64 | [D + 8N,        D + 16N)                          |
- * | cmd_id[]      |  1B uint8 | [D + 16N,       D + 17N)                          |
- * | type_id[]     |  1B int8  | [D + 17N,       D + 18N)                          |
- * | source_id[]   |  2B int16 | [D + 18N,       D + 20N)                          |
- * | addr[0][]     |  4B int32 | [D + 20N,       D + 24N)                          |
- * | addr[1][]     |  4B int32 | [D + 24N,       D + 28N)                          |
- * | ...           |           |                                                   |
- * | addr[k][]     |  4B int32 | [D + (20+4k)N,  D + (24+4k)N)                     |
- * | ...           |           |                                                   |
- * | addr[L-1][]   |  4B int32 | [D + (20+4(L-1))N,  D + (20+4L)N)                 |
+ * | n             |  4B uint32| [0,             4)                                |
+ * | reserved      |  4B       | [4,             8)    zero                        |
+ * | clk[]         |  8B int64 | [8,             8 + 8n)                           |
+ * | arrive[]      |  8B int64 | [8 + 8n,        8 + 16n)                          |
+ * | req_id[]      |  8B int64 | [8 + 16n,       8 + 24n)                          |
+ * | cmd_id[]      |  1B uint8 | [8 + 24n,       8 + 25n)                          |
+ * | type_id[]     |  1B int8  | [8 + 25n,       8 + 26n)                          |
+ * | source_id[]   |  2B int16 | [8 + 26n,       8 + 28n)                          |
+ * | addr[k][]     |  4B int32 | [8 + (28+4k)n,  8 + (32+4k)n)    k = 0 .. L-1     |
+ * | padding       |           | 0-7 zero bytes; the next chunk is 8-byte aligned  |
  * +---------------+-----------+---------------------------------------------------+
  *
- * D = data_offset, N = num_entries, L = level_count
+ * L = level_count.  A chunk takes 8 + n * (28 + 4L) bytes before padding.
  *
  * FIELD DESCRIPTIONS:
  * clk[i]       — Clock cycle when command i was issued.
  * arrive[i]    — Clock cycle when the owning request arrived at the
  *                controller. -1 for maintenance commands (refresh, etc.)
- *                Also serves as a request grouping key: all commands
- *                issued for the same external request share an arrive value.
+ * req_id[i]    — Request::id of the owning request: all commands issued for
+ *                the same request share it.  Unique within the file.
  * cmd_id[i]    — Command index into the command name table (spec section).
  * type_id[i]   — Request type: 0 = Read, 1 = Write, -1 = internal.
  * source_id[i] — Source / core ID. -1 if not applicable.
@@ -144,9 +130,10 @@
  * =====
  * - All integers are little-endian.
  * - All strings are ASCII, null-terminated.
- * - Reserved / flag fields must be zero for v1.
  * - One file per channel; path is suffixed with ".ch0", ".ch1", etc.
- * - Total file size = data_offset + N * (20 + 4*L).
+ * - Versions 1.0 and 1.1 store a single block of arrays at data_offset
+ *   (clk, arrive, cmd_id, type_id, source_id, addr; no chunk header and no
+ *   req_id) with num_entries entries.  Version 1.0 has no command cycles.
  */
 
 #include <cstdint>
@@ -164,10 +151,11 @@
 
 namespace Ramulator {
 
-/// Records every DRAM command to a binary SoA trace file (RAM2BIN v1).
+/// Records every DRAM command to a binary SoA trace file (RAM2BIN v1.2).
 ///
-/// Buffers per-field arrays during simulation and flushes them in
-/// Structure-of-Arrays order at finalize().  One file per channel.
+/// Buffers up to one chunk of per-field arrays and appends each full chunk to
+/// the file.  finalize() writes the last chunk and marks the file complete.
+/// One file per channel.
 ///
 /// Config (Python):
 ///   ramulator.ControllerPlugin.BinTraceRecorder(path="trace.bin")
@@ -185,39 +173,63 @@ class BinTraceRecorder : public IControllerPlugin, public Implementation {
     const auto& spec = *m_ctrl->m_device.m_spec;
     m_level_count = spec.level_count;
     m_addr_bufs.resize(m_level_count);
+    if (m_dram_type.empty()) m_dram_type = spec.standard_name;
 
-    std::string filepath = fmt::format("{}.ch{}.ram2bin", m_path, m_ctrl->m_channel_id);
-    m_file.open(filepath, std::ios::binary);
+    m_filepath = fmt::format("{}.ch{}.ram2bin", m_path, m_ctrl->m_channel_id);
+    m_file.open(m_filepath, std::ios::binary);
     if (!m_file.is_open()) {
-      throw std::runtime_error(fmt::format("BinTraceRecorder: failed to open {}", filepath));
+      throw std::runtime_error(fmt::format("BinTraceRecorder: failed to open {}", m_filepath));
     }
 
     write_header(spec);
     write_spec_section(spec);
     pad_to_8();
-    m_data_offset = static_cast<uint64_t>(m_file.tellp());
+    const auto data_offset = static_cast<uint64_t>(m_file.tellp());
+    m_file.seekp(40);
+    write_val(data_offset);
+    m_file.seekp(static_cast<std::streamoff>(data_offset));
+    m_file.flush();
+    check_io();
+
+    m_clk_buf.reserve(kChunkEntries);
+    m_arrive_buf.reserve(kChunkEntries);
+    m_id_buf.reserve(kChunkEntries);
+    m_cmd_buf.reserve(kChunkEntries);
+    m_type_buf.reserve(kChunkEntries);
+    m_source_buf.reserve(kChunkEntries);
+    for (auto& buf : m_addr_bufs) buf.reserve(kChunkEntries);
   }
 
   void on_issue(const Request& req) override {
     m_clk_buf.push_back(m_ctrl->m_clk);
     m_arrive_buf.push_back(req.arrive);
+    m_id_buf.push_back(req.id);
     m_cmd_buf.push_back(static_cast<uint8_t>(req.command));
     m_type_buf.push_back(static_cast<int8_t>(req.type_id));
     m_source_buf.push_back(static_cast<int16_t>(req.source_id));
     for (int k = 0; k < m_level_count; k++) {
       m_addr_bufs[k].push_back(static_cast<int32_t>(req.addr_vec[k]));
     }
+    if (m_clk_buf.size() == kChunkEntries) write_chunk();
   }
 
   void finalize() override {
     if (!m_file.is_open()) return;
 
-    flush_arrays();
-    patch_header();
+    write_chunk();
+    m_file.seekp(10);
+    write_val(kFlagComplete);
+    m_file.seekp(32);
+    write_val(m_num_entries);
+    check_io();
     m_file.close();
+    if (m_file.fail()) {
+      throw std::runtime_error(fmt::format("BinTraceRecorder: failed to write {}", m_filepath));
+    }
 
     m_clk_buf = {};
     m_arrive_buf = {};
+    m_id_buf = {};
     m_cmd_buf = {};
     m_type_buf = {};
     m_source_buf = {};
@@ -225,15 +237,20 @@ class BinTraceRecorder : public IControllerPlugin, public Implementation {
   }
 
  private:
+  static constexpr size_t kChunkEntries = 65536;
+  static constexpr uint16_t kFlagComplete = 1;
+
   ControllerBase* m_ctrl = nullptr;
   std::string m_path;
   std::string m_dram_type;
+  std::string m_filepath;
   int m_level_count = 0;
   std::ofstream m_file;
-  uint64_t m_data_offset = 0;
+  uint64_t m_num_entries = 0;
 
   std::vector<int64_t>  m_clk_buf;
   std::vector<int64_t>  m_arrive_buf;
+  std::vector<int64_t>  m_id_buf;
   std::vector<uint8_t>  m_cmd_buf;
   std::vector<int8_t>   m_type_buf;
   std::vector<int16_t>  m_source_buf;
@@ -265,7 +282,7 @@ class BinTraceRecorder : public IControllerPlugin, public Implementation {
     Header h{};
     std::memcpy(h.magic, "RAM2BIN", 8);
     h.version[0]    = 1;
-    h.version[1]    = 1;
+    h.version[1]    = 2;
     h.level_count   = static_cast<uint16_t>(spec.level_count);
     h.command_count = static_cast<uint16_t>(spec.command_count);
     h.timing_count  = static_cast<uint16_t>(spec.timing_count);
@@ -279,13 +296,6 @@ class BinTraceRecorder : public IControllerPlugin, public Implementation {
                 std::min(m_dram_type.size(), sizeof(h.dram_type) - 1));
 
     m_file.write(reinterpret_cast<const char*>(&h), sizeof(h));
-  }
-
-  void patch_header() {
-    uint64_t num_entries = m_clk_buf.size();
-    m_file.seekp(32);
-    m_file.write(reinterpret_cast<const char*>(&num_entries), sizeof(num_entries));
-    m_file.write(reinterpret_cast<const char*>(&m_data_offset), sizeof(m_data_offset));
   }
 
   // ── Spec section ──────────────────────────────────────────────────
@@ -321,19 +331,44 @@ class BinTraceRecorder : public IControllerPlugin, public Implementation {
       write_val(static_cast<int32_t>(val));
   }
 
-  // ── Data arrays ───────────────────────────────────────────────────
+  // ── Data chunks ───────────────────────────────────────────────────
 
-  void flush_arrays() {
+  void write_chunk() {
+    const size_t n = m_clk_buf.size();
+    if (n == 0) return;
+
+    write_val(static_cast<uint32_t>(n));
+    write_val(static_cast<uint32_t>(0));
     write_array(m_clk_buf);
     write_array(m_arrive_buf);
+    write_array(m_id_buf);
     write_array(m_cmd_buf);
     write_array(m_type_buf);
     write_array(m_source_buf);
     for (auto& buf : m_addr_bufs)
       write_array(buf);
+    pad_to_8();
+    m_file.flush();
+    check_io();
+    m_num_entries += n;
+
+    m_clk_buf.clear();
+    m_arrive_buf.clear();
+    m_id_buf.clear();
+    m_cmd_buf.clear();
+    m_type_buf.clear();
+    m_source_buf.clear();
+    for (auto& buf : m_addr_bufs)
+      buf.clear();
   }
 
   // ── I/O helpers ───────────────────────────────────────────────────
+
+  void check_io() {
+    if (!m_file) {
+      throw std::runtime_error(fmt::format("BinTraceRecorder: failed to write {}", m_filepath));
+    }
+  }
 
   void write_cstr(const std::string& s) {
     m_file.write(s.c_str(), static_cast<std::streamsize>(s.size() + 1));

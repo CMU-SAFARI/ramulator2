@@ -1580,7 +1580,7 @@ That path starts from the public API, then drops into the execution path, then f
 
 ## 10. Trace Visualizer
 
-Ramulator 2.1 includes a browser-based trace visualizer (RamViz) with four views of a trace: command timelines, request swimlanes, throughput charts, and reconstructed per-bank states. Views stack as panels on one shared time axis; drag a header tab into the panel area to stack it, or a panel's title bar onto the tabs to park it. It supports two modes:
+Ramulator 2.1 includes a browser-based trace visualizer (RamViz) with four views of a trace: command timelines, request swimlanes, throughput charts, and reconstructed per-bank states. Views stack as panels on one shared time axis; drag a header tab into the panel area to stack it, or a panel's title bar onto the tabs to park it. Clicking a command or request links it across the panels, down to its bank's state. Besides the mouse, W/S zoom, A/D pan, Home/End jump to the start or end, and G goes to a clock (or a time in ns). The **Tutorial** button walks through the page; on the start page, it opens an example trace first. It supports two modes:
 
 - **Offline** — Record a `.ram2bin` trace file, then open it in the browser.
 - **Live** — Stream events from a running simulation to the browser in real time.
@@ -1593,7 +1593,7 @@ The visualizer is optional — `docker compose up` still only starts the Ramulat
 docker compose --profile visualizer up --build
 ```
 
-This builds a self-contained production image and serves the visualizer at `http://localhost:3000`.
+This builds a self-contained production image and serves the visualizer at `http://localhost:3000`, reachable from this machine only. Every request needs an access token, made on first start and kept in a Docker volume: `docker compose logs visualizer` shows the link that carries it. Its start page lists the `.ram2bin` files in the repository, including the example traces the `ramulator2` container records when it starts, and a simulation in the `ramulator2` container streams to it with `LiveTraceStreamer(host="visualizer")`, finding the token on its own.
 
 For development with hot-reload:
 
@@ -1607,13 +1607,20 @@ Override the port with `RAMULATOR_VISUALIZER_PORT`:
 RAMULATOR_VISUALIZER_PORT=4000 docker compose --profile visualizer up --build
 ```
 
-### 10.2 Without Docker
-
-**Requirements:** Node.js 20+ (with npm).
-
-The visualizer must be built once before first use:
+To reach it from other machines, publish it on all interfaces and open the same link with this machine's name, `http://<host>:3000/?token=<token>`; the browser then keeps the token. Set `RAMULATOR_VISUALIZER_TOKEN` to choose the token yourself.
 
 ```bash
+RAMULATOR_VISUALIZER_BIND=0.0.0.0 docker compose --profile visualizer up --build
+```
+
+### 10.2 Without Docker
+
+**Requirements:** Node.js 20.19+ or 22.12+ (with npm).
+
+The visualizer must be built once before first use, after the simulator. The first line records the example traces its start page offers:
+
+```bash
+python visualizer/scripts/gen_example_traces.py
 cd visualizer
 npm install
 npm run build
@@ -1626,12 +1633,25 @@ Then start it with:
 python -m ramulator visualize
 ```
 
-This starts the production server and prints the URL (default `http://localhost:3000`). Options:
+This starts the production server and prints the link to open (default `http://127.0.0.1:3000/?token=…`). The access token in the link keeps other users of the machine out; the browser keeps it for 30 days after the first visit, and simulations on the same machine find it on their own. Options:
 
 ```bash
-python -m ramulator visualize --port 4000   # custom port
-python -m ramulator visualize --dev         # development server with hot-reload
+python -m ramulator visualize --port 4000       # custom port
+python -m ramulator visualize --traces runs/    # list the .ram2bin files in runs/ on the start page
+python -m ramulator visualize --dev             # development server with hot-reload
+python -m ramulator visualize --no-token        # no access token: every user of this machine can connect
 ```
+
+If the port is already taken, the command says so and exits. The server stops with the command, even if the command is killed.
+
+**On a remote server or workstation.** The visualizer accepts connections from its own machine only. To use it from your computer, either:
+
+- Forward the port. VS Code Remote-SSH and GitHub Codespaces do this for you; over plain SSH, run the `ssh -L 3000:localhost:3000 user@server` line the command prints, then open the link it prints.
+- Or listen on the network with `--host 0.0.0.0`. The link it prints then names the server, such as `http://server:3000/?token=…`. Anyone without the token is refused. The token travels unencrypted, so prefer port forwarding on networks you do not trust.
+
+**Sharing with a team.** Send teammates the link. The token gives full access, to every trace in `--traces`, to live sessions and to **Stop**, so share it like a password. Each start makes a new token, which ends earlier links; set `RAMULATOR_VISUALIZER_TOKEN` to keep one across restarts. Across networks you do not trust, have each teammate forward the port over SSH and open the same link.
+
+`--traces DIR` is handy here: traces recorded on the server open directly from the start page, without downloading them first.
 
 ### 10.3 Offline Mode
 
@@ -1643,7 +1663,18 @@ controller_plugins=[
 ]
 ```
 
-This produces one `.ram2bin` file per channel (e.g. `my_trace.ch0.ram2bin`). Open the visualizer in your browser and drag-and-drop the file onto the upload area.
+This produces one `.ram2bin` file per channel (e.g. `my_trace.ch0.ram2bin`). Open the visualizer in your browser and drag-and-drop the file onto the upload area, or start the visualizer with `--traces DIR` to open it from the start page.
+
+Traces of any length open in about a second: the visualizer reads the rest of the file in the background (the header shows its progress) and keeps detail only for the part on screen. The time axis spans the whole trace from the start; the part not read yet shows moving stripes, and its commands and figures appear when the read gets there. Zoomed far out, the panels show blocks that summarize each stretch of time. The inspector puts ≈ before a figure it estimates while the detail it needs is still loading.
+
+A trace is read in full only once. The visualizer saves what the read found, so later opens of the same trace are ready at once:
+
+- For traces listed with `--traces`, on the server, so the first read serves every viewer: in `~/.cache/ramulator/visualizer-index` (`RAMULATOR_VISUALIZER_INDEX_DIR` to change it), up to 2 GB, dropping the oldest first. About 45 MB for a trace of 100 million commands.
+- For uploaded files, in the browser's own storage, for the 8 most recent.
+
+A changed trace file, or other timings on the setup page, makes a new read.
+
+The recorder writes the trace in blocks of 65,536 commands as the simulation runs. If the simulation stops early, the file keeps every complete block, and the visualizer opens it as a partial recording.
 
 ### 10.4 Live Streaming
 
@@ -1658,10 +1689,13 @@ python my_config.py                    # terminal 2
 controller_plugins=[
     ramulator.controller_plugin.LiveTraceStreamer(
         port=3000,              # must match the visualizer port
+        host="localhost",       # where the visualizer runs
         tick_interval=10000,    # flush every N simulator ticks
         update_interval_s=0.5,  # or every N wall-clock seconds
     ),
 ]
 ```
 
-The browser connects via WebSocket and displays commands as they arrive.
+The start page lists one live session per channel of each simulation run; **Open** shows its commands as they arrive. Viewers that open a session later, or open it again after reloading the page, get the commands sent so far (up to 256 MB per visualizer; set `RAMULATOR_VISUALIZER_REPLAY_MB` to change it). **Stop** ends the stream for the run; the simulation keeps running. The browser keeps a session's commands in its own storage on disk, so a live view grows for as long as the run streams; a browser without that storage (some private windows) stops the view at 10 million commands. A simulation that stops sending for 15 seconds shows as having lost contact.
+
+The streamer finds the visualizer's access token on its own on the same machine and in the Docker setup; elsewhere, set `RAMULATOR_VISUALIZER_TOKEN`.

@@ -306,7 +306,7 @@ onUnmounted(() => {
 <style scoped>
 .rv-tree {
   flex: none;
-  width: 240px;
+  width: var(--rv-tree-w);
   display: flex;
   flex-direction: column;
   min-height: 0;

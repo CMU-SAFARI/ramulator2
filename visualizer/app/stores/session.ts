@@ -1,5 +1,8 @@
 import { defineStore } from 'pinia';
-import type { TraceHeader, TraceSpec, TraceArrays, ParsedTrace } from '~/composables/useTrace';
+import type { Raw } from 'vue';
+import type { TraceHeader, TraceSpec } from '~/composables/useTrace';
+import { TraceEngine } from '~/engine/client';
+import type { EngineSource } from '~/engine/protocol';
 import {
   readCommandColorOverrides,
   writeCommandColorOverride,
@@ -14,6 +17,13 @@ export interface CommandColors {
   [cmdId: number]: string;
 }
 
+/** A trace opened but not loaded yet: its header and spec (timings may still be edited). */
+export interface PendingTrace {
+  source: EngineSource;
+  header: TraceHeader;
+  spec: TraceSpec;
+}
+
 function defaultRequestTypeColors(): RequestTypeStoredColors {
   return {
     read: CMD_PALETTE.readAccess,
@@ -24,12 +34,11 @@ function defaultRequestTypeColors(): RequestTypeStoredColors {
 
 export const useSessionStore = defineStore('session', {
   state: () => ({
-    /** Raw ArrayBuffer — kept alive so typed array views remain valid. */
-    _buffer: null as ArrayBuffer | null,
     header: null as TraceHeader | null,
     spec: null as TraceSpec | null,
-    arrays: null as TraceArrays | null,
-    pendingTrace: null as ParsedTrace | null,
+    /** The loaded trace, held by the engine worker (not reactive). */
+    engine: null as Raw<TraceEngine> | null,
+    pendingTrace: null as PendingTrace | null,
     /** Display name of the loaded trace (file name, example title, or "Live session"). */
     traceName: '',
     commandColors: {} as CommandColors,
@@ -40,9 +49,7 @@ export const useSessionStore = defineStore('session', {
      * Length = total lanes for structural depth; drives sidebar row min-height in request view.
      */
     requestLaneStackDepth: [] as number[],
-    /** Bumps on each loadTrace so the renderer can reinitialize GPU buffers (live streaming). */
-    dataVersion: 0,
-    /** Increments only on full loads (not streamingRefresh) so the renderer resets viewport state. */
+    /** Increments on every load, so views reset their state. */
     sessionGeneration: 0,
   }),
 
@@ -79,24 +86,35 @@ export const useSessionStore = defineStore('session', {
   },
 
   actions: {
-    loadTrace(trace: ParsedTrace, options?: { streamingRefresh?: boolean }) {
-      this._buffer = trace.buffer;
+    /** Hand the trace to a new engine (the previous one is closed). */
+    loadTrace(trace: PendingTrace): TraceEngine {
+      this.engine?.dispose();
+      const engine = markRaw(new TraceEngine(trace.header, trace.spec, trace.source));
       this.header = trace.header;
       this.spec = trace.spec;
-      this.arrays = trace.arrays;
-      if (!options?.streamingRefresh) {
-        this.sessionGeneration++;
-        this.commandColors = {};
-        this.requestTypeColors = { ...defaultRequestTypeColors() };
-        this.requestLaneStackDepth = [];
-        this.applyPersistedCommandColors();
-        this.applyPersistedRequestTypeColors();
+      this.engine = engine;
+      this.sessionGeneration++;
+      this.commandColors = {};
+      this.requestTypeColors = { ...defaultRequestTypeColors() };
+      this.requestLaneStackDepth = [];
+      this.applyPersistedCommandColors();
+      this.applyPersistedRequestTypeColors();
+      const defaults: Record<number, string> = {};
+      for (let id = 0; id < trace.spec.commandNames.length; id++) {
+        if (this.commandColors[id] === undefined) defaults[id] = defaultCmdColor(trace.spec.commandNames[id]!, trace.spec.commandMeta[id]!);
       }
-      this.dataVersion++;
+      this.mergeDefaultCommandColors(defaults);
+      // Request rows per lane grow as requests are found.
+      engine.onChange(() => {
+        const rows = engine.maxRows;
+        const cur = this.requestLaneStackDepth;
+        if (cur.length !== rows.length || rows.some((v, i) => v !== cur[i])) this.requestLaneStackDepth = Array.from(rows);
+      });
+      return engine;
     },
 
-    setPendingTrace(trace: ParsedTrace, name = '') {
-      this.pendingTrace = trace;
+    setPendingTrace(trace: PendingTrace, name = '') {
+      this.pendingTrace = markRaw(trace);
       this.traceName = name;
     },
 
@@ -181,16 +199,15 @@ export const useSessionStore = defineStore('session', {
     },
 
     close() {
-      this._buffer = null;
+      this.engine?.dispose();
+      this.engine = null;
       this.header = null;
       this.spec = null;
-      this.arrays = null;
       this.pendingTrace = null;
       this.traceName = '';
       this.commandColors = {};
       this.requestTypeColors = { ...defaultRequestTypeColors() };
       this.requestLaneStackDepth = [];
-      this.dataVersion = 0;
       this.sessionGeneration = 0;
     },
   },

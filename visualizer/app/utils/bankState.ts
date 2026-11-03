@@ -1,14 +1,14 @@
 /**
  * Bank State view: per-bank state reconstructed from the issued-command stream.
  *
- * Covers every standard the visualizer can load, including write recovery (WRA), refresh/RFM,
- * wildcard (all-bank / same-bank) commands and per-standard timing names. The shading is a
- * reconstruction from the command stream plus the trace's timing table, not simulator state.
+ * Covers the JEDEC standards, including write recovery (WRA), refresh/RFM, wildcard (all-bank /
+ * same-bank) and paired commands and per-standard timing names. The shading is a reconstruction
+ * from the command stream plus the trace's timing table, not simulator state.
  *
- * Only type imports: this module runs in the app, in the streaming worker, and under plain Node
- * (scripts/verify-bank-state.ts).
+ * The reconstruction itself runs in the trace engine (app/engine/bank.ts). Only type imports:
+ * this module also runs in the engine's worker and under plain Node (scripts/verify-bank-state.ts).
  */
-import type { TraceArrays, TraceSpec } from '~/composables/useTrace';
+import type { TraceSpec } from '~/composables/useTrace';
 
 // ── Kinds, markers, colors ──────────────────────────────────────────
 
@@ -76,6 +76,16 @@ const KNOWN_FAMILIES: BankFamily[] = [
   'LPDDR5', 'LPDDR6', 'GDDR6', 'GDDR7', 'HBM1', 'HBM2', 'HBM3', 'HBM4', 'DDR3', 'DDR4', 'DDR5',
 ];
 
+/** Commands of processing-using-memory standards (DDR4_PUM), whose bank behaviour is not modelled. */
+const PUM_COMMANDS = new Set(['AAP', 'AP', 'GB_MOV', 'LC_MOV', 'PMAJ3', 'PNOT']);
+
+/** Why Bank State cannot show this trace, or null. It models the JEDEC standards only. */
+export function bankUnsupportedReason(spec: TraceSpec): string | null {
+  if (spec.levelNames.includes('Subarray') || spec.commandNames.some(n => PUM_COMMANDS.has(n)))
+    return 'Bank State supports the JEDEC standards only. This trace uses processing-using-memory commands.';
+  return null;
+}
+
 /** `dram_type` is often empty, so fall back to level / command / timing-name signatures. */
 export function bankDetectFamily(spec: TraceSpec, dramType = ''): BankFamily {
   const t = dramType.toUpperCase();
@@ -99,7 +109,7 @@ const FAW_COMMANDS: Record<BankFamily, string[]> = {
   DDR3: ['ACT'],
   DDR4: ['ACT'],
   DDR5: ['ACT', 'REFsb', 'RFMsb'],
-  LPDDR5: ['ACT1', 'REFpb'],
+  LPDDR5: ['ACT2', 'REFpb'],
   LPDDR6: ['ACT2'],
   GDDR6: ['ACT'],
   GDDR7: [],
@@ -152,8 +162,34 @@ export interface BankRules {
   };
   hasBgBlocking: boolean;
   hasFaw: boolean;
+  /** Per command id: the partner bank of a paired command (addr[level] ^ mask), or null. */
+  pairs: (BankPairRule | null)[];
   /** Human-readable notes on omitted or approximated states. */
   notes: string[];
+}
+
+export interface BankPairRule {
+  level: number;
+  mask: number;
+}
+
+/**
+ * Paired commands of each standard: LPDDR5 REFpb refreshes banks n and n+8 together in BG and
+ * 16B mode (JESD209-5C §7.5.1); the bank mode follows from the BankGroup / Bank sizes.
+ */
+function resolvePairs(spec: TraceSpec, family: BankFamily): (BankPairRule | null)[] {
+  const pairs: (BankPairRule | null)[] = spec.commandNames.map(() => null);
+  if (family !== 'LPDDR5') return pairs;
+  const bgLevel = spec.levelNames.indexOf('BankGroup');
+  const bankLevel = spec.levelNames.indexOf('Bank');
+  const bgs = bgLevel >= 0 ? spec.levelSizes[bgLevel]! : 1;
+  const banks = bankLevel >= 0 ? spec.levelSizes[bankLevel]! : 1;
+  const rule = bgs === 4 && banks === 4 ? { level: bgLevel, mask: 2 }
+    : bgs === 1 && banks === 16 ? { level: bankLevel, mask: 8 }
+      : null;
+  const ref = spec.commandNames.indexOf('REFpb');
+  if (rule && ref >= 0) pairs[ref] = rule;
+  return pairs;
 }
 
 function timingRef(spec: TraceSpec, names: string[]): BankTimingRef | null {
@@ -309,6 +345,7 @@ export function bankResolveRules(spec: TraceSpec, dramType = ''): BankRules {
     },
     hasBgBlocking: !!ccdl,
     hasFaw: !!faw && fawSet.size > 0,
+    pairs: resolvePairs(spec, family),
     notes,
   };
 }
@@ -428,12 +465,19 @@ export function bankLanePath(L: BankLayout, lane: number): string {
 
 /**
  * Returns (traceIndex) => target bank lanes. A -1 address level is a wildcard (same matching rule
- * as DRAMDevice::bank_matches), which covers all-bank and same-bank commands. The returned array
- * is reused for single-bank commands; copy it before the next call if it must be kept.
+ * as DRAMDevice::bank_matches), which covers all-bank and same-bank commands; `pairs` adds the
+ * partner bank of paired commands. The returned array is reused for single-bank and paired
+ * commands; copy it before the next call if it must be kept.
  */
-export function bankTargetResolver(L: BankLayout, addr: ArrayLike<Int32Array>): (i: number) => Int32Array {
+export function bankTargetResolver(
+  L: BankLayout,
+  addr: ArrayLike<Int32Array>,
+  cmdId?: Uint8Array,
+  pairs?: (BankPairRule | null)[],
+): (i: number) => Int32Array {
   const fanCache = new Map<number, Int32Array>();
   const single = new Int32Array(1);
+  const pair = new Int32Array(2);
   return (i: number): Int32Array => {
     let lane = 0;
     let wild = false;
@@ -443,6 +487,13 @@ export function bankTargetResolver(L: BankLayout, addr: ArrayLike<Int32Array>): 
       else lane += a * L.strides[k]!;
     }
     if (!wild) {
+      const p = cmdId && pairs ? pairs[cmdId[i]!] : null;
+      const a = p ? addr[p.level]![i]! : -1;
+      if (p && a >= 0 && p.level >= L.firstLevel && p.level <= L.bankLevel && (a ^ p.mask) < L.levelSizes[p.level]!) {
+        pair[0] = lane;
+        pair[1] = lane + ((a ^ p.mask) - a) * L.strides[p.level]!;
+        return pair;
+      }
       single[0] = lane;
       return single;
     }
@@ -471,508 +522,8 @@ export function bankTargetResolver(L: BankLayout, addr: ArrayLike<Int32Array>): 
   };
 }
 
-// ── State reconstruction ────────────────────────────────────────────
-
-export interface BankIntervalSet {
-  /** Per-domain ranges into start / end / cause; length = domains + 1. */
-  offsets: Uint32Array;
-  start: Float64Array;
-  end: Float64Array;
-  /** Trace index of the first command contributing to each merged interval. */
-  cause: Int32Array;
-}
-
-export interface BankStateData {
-  layout: BankLayout;
-  rules: BankRules;
-  numEntries: number;
-  firstClk: number;
-  endClk: number;
-  /**
-   * Per-bank spans tiling [min(0, firstClk), end]. Bank b owns indices [spanOffsets[b], spanOffsets[b+1]);
-   * the last one is a sentinel whose start is the end of the bank's final span.
-   */
-  spanOffsets: Uint32Array;
-  spanStart: Float64Array;
-  spanKind: Uint8Array;
-  /** Trace index of the command that started the span (-1 = initial idle). */
-  spanCause: Int32Array;
-  /** [clk, clk + nBL) of every column access, merged per data-bus domain. */
-  bus: BankIntervalSet;
-  /** [clk, clk + nCCD_L) of every column access, merged per bank-group domain. */
-  bg: BankIntervalSet | null;
-  /** Windows in which the trailing nFAW already holds four activations, per tFAW domain. */
-  faw: BankIntervalSet | null;
-  /** Whether any write-recovery / refresh span exists (titles list those categories only then). */
-  hasWrrecSpans: boolean;
-  hasRefSpans: boolean;
-}
-
-class IntervalBuilder {
-  s: number[][];
-  e: number[][];
-  c: number[][];
-  constructor(domains: number) {
-    this.s = Array.from({ length: domains }, () => []);
-    this.e = Array.from({ length: domains }, () => []);
-    this.c = Array.from({ length: domains }, () => []);
-  }
-
-  /** Online interval merge: starts arrive sorted; touching intervals coalesce. */
-  add(d: number, s: number, e: number, cause: number) {
-    if (e <= s) return;
-    const ss = this.s[d]!;
-    const ee = this.e[d]!;
-    const n = ss.length;
-    if (n > 0 && s <= ee[n - 1]!) {
-      if (e > ee[n - 1]!) ee[n - 1] = e;
-    } else {
-      ss.push(s);
-      ee.push(e);
-      this.c[d]!.push(cause);
-    }
-  }
-
-  pack(): BankIntervalSet {
-    const D = this.s.length;
-    const offsets = new Uint32Array(D + 1);
-    for (let d = 0; d < D; d++) offsets[d + 1] = offsets[d]! + this.s[d]!.length;
-    const total = offsets[D]!;
-    const start = new Float64Array(total);
-    const end = new Float64Array(total);
-    const cause = new Int32Array(total);
-    for (let d = 0; d < D; d++) {
-      const o = offsets[d]!;
-      start.set(this.s[d]!, o);
-      end.set(this.e[d]!, o);
-      cause.set(this.c[d]!, o);
-    }
-    return { offsets, start, end, cause };
-  }
-}
-
-/**
- * Reconstruct per-bank states.
- *
- * A command reaching a bank at clk c truncates whatever span is still pending at c and never
- * extends one. Precharges (PRE*) only affect banks that are activating or open;
- * a PREab reaching an already-closed bank is a no-op.
- */
-export function bankBuildState(
-  spec: TraceSpec,
-  arrays: TraceArrays,
-  numEntries: number,
-  dramType = '',
-): BankStateData {
-  const rules = bankResolveRules(spec, dramType);
-  const L = bankBuildLayout(spec, rules);
-  const NB = L.numBanks;
-  const n = Math.min(numEntries, arrays.clk.length);
-  const clk = arrays.clk;
-  const cmdId = arrays.cmdId;
-  const addr = Array.from(arrays.addr);
-  const firstClk = n > 0 ? Number(clk[0]) : 0;
-  const endClk = n > 0 ? Number(clk[n - 1]) : 0;
-
-  // Every bank starts closed & idle at cycle 0.
-  const origin = Math.min(0, firstClk);
-  const sStart: number[][] = Array.from({ length: NB }, () => [origin]);
-  const sKind: number[][] = Array.from({ length: NB }, () => [BANK_KIND.IDLE]);
-  const sCause: number[][] = Array.from({ length: NB }, () => [-1]);
-  // Pending future boundaries per bank, ascending in time.
-  const tT: number[][] = Array.from({ length: NB }, () => []);
-  const tK: number[][] = Array.from({ length: NB }, () => []);
-  const tC: number[][] = Array.from({ length: NB }, () => []);
-  const act1Pending = new Uint8Array(NB);
-
-  const push = (b: number, t: number, k: number, cause: number) => {
-    const st = sStart[b]!;
-    const last = st.length - 1;
-    if (t <= st[last]!) {
-      // Zero-length predecessor: replace it.
-      sKind[b]![last] = k;
-      sCause[b]![last] = cause;
-      return;
-    }
-    st.push(t);
-    sKind[b]!.push(k);
-    sCause[b]!.push(cause);
-  };
-
-  /** Commit pending boundaries at or before c. */
-  const advance = (b: number, c: number) => {
-    const tt = tT[b]!;
-    if (tt.length === 0) return;
-    let i = 0;
-    while (i < tt.length && tt[i]! <= c) {
-      push(b, tt[i]!, tK[b]![i]!, tC[b]![i]!);
-      i++;
-    }
-    if (i > 0) {
-      tt.splice(0, i);
-      tK[b]!.splice(0, i);
-      tC[b]!.splice(0, i);
-    }
-  };
-
-  const truncate = (b: number) => {
-    tT[b]!.length = 0;
-    tK[b]!.length = 0;
-    tC[b]!.length = 0;
-  };
-
-  const later = (b: number, t: number, k: number, cause: number) => {
-    tT[b]!.push(t);
-    tK[b]!.push(k);
-    tC[b]!.push(cause);
-  };
-
-  const currentKind = (b: number) => {
-    const ks = sKind[b]!;
-    return ks[ks.length - 1]!;
-  };
-
-  const targets = bankTargetResolver(L, addr);
-
-  const busB = new IntervalBuilder(bankDomCount(L, L.busLevel));
-  const bgB = L.bgLevel !== null ? new IntervalBuilder(bankDomCount(L, L.bgLevel)) : null;
-  const fawB = L.fawLevel !== null ? new IntervalBuilder(bankDomCount(L, L.fawLevel)) : null;
-  const fawHist: number[][] = fawB ? Array.from({ length: bankDomCount(L, L.fawLevel!) }, () => []) : [];
-  const nFAW = rules.timings.faw?.value ?? 0;
-
-  for (let i = 0; i < n; i++) {
-    const r = rules.cmd[cmdId[i]!];
-    if (!r) continue;
-    if (r.action === ACTION.NONE && r.bus === 0 && r.ccd === 0 && !r.faw) continue;
-    const c = Number(clk[i]);
-    const lanes = targets(i);
-    if (lanes.length === 0) continue;
-
-    for (let j = 0; j < lanes.length; j++) {
-      const b = lanes[j]!;
-      switch (r.action) {
-        case ACTION.ACT:
-          advance(b, c);
-          truncate(b);
-          push(b, c, BANK_KIND.ACT, i);
-          later(b, c + r.d1, BANK_KIND.OPEN, i);
-          act1Pending[b] = 0;
-          break;
-        case ACTION.ACT1:
-          advance(b, c);
-          truncate(b);
-          push(b, c, BANK_KIND.ACT, i);
-          act1Pending[b] = 1;
-          break;
-        case ACTION.ACT2:
-          advance(b, c);
-          if (act1Pending[b]) {
-            later(b, c + r.d1, BANK_KIND.OPEN, i);
-          } else {
-            truncate(b);
-            push(b, c, BANK_KIND.ACT, i);
-            later(b, c + r.d1, BANK_KIND.OPEN, i);
-          }
-          act1Pending[b] = 0;
-          break;
-        case ACTION.PRE: {
-          advance(b, c);
-          const k = currentKind(b);
-          const accessing = r.bus > 0 || r.marker === BANK_MARKER.RDA || r.marker === BANK_MARKER.WRA;
-          if (!accessing && k !== BANK_KIND.ACT && k !== BANK_KIND.OPEN) break;
-          truncate(b);
-          push(b, c, BANK_KIND.PRE, i);
-          later(b, c + r.d1, BANK_KIND.IDLE, i);
-          act1Pending[b] = 0;
-          break;
-        }
-        case ACTION.WRA:
-          advance(b, c);
-          truncate(b);
-          push(b, c, BANK_KIND.WRREC, i);
-          later(b, c + r.d1, BANK_KIND.PRE, i);
-          later(b, c + r.d1 + r.d2, BANK_KIND.IDLE, i);
-          act1Pending[b] = 0;
-          break;
-        case ACTION.REF:
-          advance(b, c);
-          truncate(b);
-          push(b, c, BANK_KIND.REF, i);
-          later(b, c + r.d1, BANK_KIND.IDLE, i);
-          act1Pending[b] = 0;
-          break;
-        default:
-          break;
-      }
-    }
-
-    const b0 = lanes[0]!;
-    if (r.bus > 0) busB.add(bankDomOf(L, b0, L.busLevel), c, c + r.bus, i);
-    if (bgB && r.ccd > 0) bgB.add(bankDomOf(L, b0, L.bgLevel!), c, c + r.ccd, i);
-    if (fawB && r.faw) {
-      const d = bankDomOf(L, b0, L.fawLevel!);
-      const h = fawHist[d]!;
-      if (h.length >= 3) fawB.add(d, c, h[h.length - 3]! + nFAW, i);
-      h.push(c);
-      if (h.length > 3) h.shift();
-    }
-  }
-
-  // Pack per-bank spans with a trailing sentinel.
-  let total = 0;
-  for (let b = 0; b < NB; b++) {
-    advance(b, Number.POSITIVE_INFINITY);
-    total += sStart[b]!.length + 1;
-  }
-  const spanOffsets = new Uint32Array(NB + 1);
-  const spanStart = new Float64Array(total);
-  const spanKind = new Uint8Array(total);
-  const spanCause = new Int32Array(total);
-  let o = 0;
-  for (let b = 0; b < NB; b++) {
-    spanOffsets[b] = o;
-    const st = sStart[b]!;
-    spanStart.set(st, o);
-    spanKind.set(sKind[b]!, o);
-    spanCause.set(sCause[b]!, o);
-    o += st.length;
-    spanStart[o] = Math.max(endClk, st[st.length - 1]!);
-    spanKind[o] = SENTINEL;
-    spanCause[o] = -1;
-    o++;
-  }
-  spanOffsets[NB] = o;
-  let hasWrrecSpans = false;
-  let hasRefSpans = false;
-  for (let k = 0; k < total; k++) {
-    if (spanKind[k] === BANK_KIND.WRREC) hasWrrecSpans = true;
-    else if (spanKind[k] === BANK_KIND.REF) hasRefSpans = true;
-  }
-
-  return {
-    layout: L,
-    rules,
-    numEntries: n,
-    firstClk,
-    endClk,
-    spanOffsets,
-    spanStart,
-    spanKind,
-    spanCause,
-    bus: busB.pack(),
-    bg: bgB ? bgB.pack() : null,
-    faw: fawB ? fawB.pack() : null,
-    hasWrrecSpans,
-    hasRefSpans,
-  };
-}
-
-/** Typed-array buffers of a BankStateData, for worker transfer lists. */
-export function bankTransferables(bs: BankStateData): ArrayBuffer[] {
-  const out: ArrayBuffer[] = [
-    bs.spanOffsets.buffer as ArrayBuffer,
-    bs.spanStart.buffer as ArrayBuffer,
-    bs.spanKind.buffer as ArrayBuffer,
-    bs.spanCause.buffer as ArrayBuffer,
-  ];
-  for (const s of [bs.bus, bs.bg, bs.faw]) {
-    if (!s) continue;
-    out.push(s.offsets.buffer as ArrayBuffer, s.start.buffer as ArrayBuffer, s.end.buffer as ArrayBuffer, s.cause.buffer as ArrayBuffer);
-  }
-  return out;
-}
-
-// ── Queries: interval arithmetic and window statistics ──────────────
-
-/** First index in [lo, hi) with arr[idx] > x. */
-function upperBound(arr: Float64Array, x: number, lo: number, hi: number): number {
-  while (lo < hi) {
-    const mid = (lo + hi) >>> 1;
-    if (arr[mid]! <= x) lo = mid + 1;
-    else hi = mid;
-  }
-  return lo;
-}
-
-/** Index of the merged interval of domain d that contains t, or -1. */
-export function bankIntervalAt(set: BankIntervalSet, d: number, t: number): number {
-  const lo = set.offsets[d]!;
-  const hi = set.offsets[d + 1]!;
-  const j = upperBound(set.end, t, lo, hi);
-  return j < hi && set.start[j]! <= t ? j : -1;
-}
-
-/** The interval of domain d containing t, or the gap around t (cause = -1). */
-export function bankIntervalOrGap(set: BankIntervalSet, d: number, t: number, lo: number, hi: number): {
-  inside: boolean;
-  start: number;
-  end: number;
-  cause: number;
-} {
-  const o0 = set.offsets[d]!;
-  const o1 = set.offsets[d + 1]!;
-  const j = upperBound(set.end, t, o0, o1);
-  if (j < o1 && set.start[j]! <= t) return { inside: true, start: set.start[j]!, end: set.end[j]!, cause: set.cause[j]! };
-  return { inside: false, start: j > o0 ? set.end[j - 1]! : lo, end: j < o1 ? set.start[j]! : hi, cause: -1 };
-}
-
 /** "PseudoChannel 0 · Sid 1" for domain coords (levels firstLevel..). */
 export function bankCoordsName(L: BankLayout, coords: number[], channelName = 'Channel'): string {
   if (coords.length === 0) return channelName;
   return coords.map((v, i) => `${L.levelNames[L.firstLevel + i]} ${v}`).join(' · ');
-}
-
-/** Length of [s, e) ∩ (union of domain d's intervals). */
-export function bankOverlap(set: BankIntervalSet, d: number, s: number, e: number): number {
-  if (e <= s) return 0;
-  const hi = set.offsets[d + 1]!;
-  let j = upperBound(set.end, s, set.offsets[d]!, hi);
-  let sum = 0;
-  for (; j < hi; j++) {
-    const a = set.start[j]!;
-    if (a >= e) break;
-    const b = set.end[j]!;
-    sum += Math.min(b, e) - Math.max(a, s);
-  }
-  return sum;
-}
-
-/** Index range [lo, hi) of domain d's intervals that intersect [t0, t1). */
-export function bankIntervalRange(set: BankIntervalSet, d: number, t0: number, t1: number): [number, number] {
-  const lo = upperBound(set.end, t0, set.offsets[d]!, set.offsets[d + 1]!);
-  // Merged intervals are disjoint, so starts are sorted within a domain too.
-  let a = lo;
-  let b = set.offsets[d + 1]!;
-  while (a < b) {
-    const mid = (a + b) >>> 1;
-    if (set.start[mid]! < t1) a = mid + 1;
-    else b = mid;
-  }
-  return [lo, a];
-}
-
-/** Span index range [lo, hi) of bank b intersecting [t0, t1) (excludes the sentinel). */
-export function bankSpanRange(bs: BankStateData, b: number, t0: number, t1: number): [number, number] {
-  const lo0 = bs.spanOffsets[b]!;
-  const hi0 = bs.spanOffsets[b + 1]! - 1;
-  const lo = Math.max(lo0, upperBound(bs.spanStart, t0, lo0 + 1, hi0 + 1) - 1);
-  let a = lo;
-  let z = hi0;
-  while (a < z) {
-    const mid = (a + z) >>> 1;
-    if (bs.spanStart[mid]! < t1) a = mid + 1;
-    else z = mid;
-  }
-  return [lo, Math.max(lo, a)];
-}
-
-export interface BankWindowStats {
-  t0: number;
-  t1: number;
-  banks: number;
-  /** Bank-ticks per category inside the window; open = starved + bus + bg. */
-  idle: number;
-  act: number;
-  pre: number;
-  wrrec: number;
-  ref: number;
-  open: number;
-  starved: number;
-  bus: number;
-  bg: number;
-}
-
-export function bankEmptyStats(t0: number, t1: number): BankWindowStats {
-  return { t0, t1, banks: 0, idle: 0, act: 0, pre: 0, wrrec: 0, ref: 0, open: 0, starved: 0, bus: 0, bg: 0 };
-}
-
-/**
- * Accumulate the bank-time breakdown of `lanes` over [t0, t1) into `acc`.
- */
-export function bankAccumulate(bs: BankStateData, lanes: Iterable<number>, t0: number, t1: number, acc: BankWindowStats) {
-  const L = bs.layout;
-  for (const b of lanes) {
-    acc.banks++;
-    const busD = bankDomOf(L, b, L.busLevel);
-    const bgD = bs.bg && L.bgLevel !== null ? bankDomOf(L, b, L.bgLevel) : -1;
-    const [lo, hi] = bankSpanRange(bs, b, t0, t1);
-    for (let k = lo; k < hi; k++) {
-      const s = Math.max(bs.spanStart[k]!, t0);
-      const e = Math.min(bs.spanStart[k + 1]!, t1);
-      if (e <= s) continue;
-      const len = e - s;
-      switch (bs.spanKind[k]) {
-        case BANK_KIND.ACT: acc.act += len; break;
-        case BANK_KIND.PRE: acc.pre += len; break;
-        case BANK_KIND.WRREC: acc.wrrec += len; break;
-        case BANK_KIND.REF: acc.ref += len; break;
-        case BANK_KIND.OPEN: {
-          acc.open += len;
-          const busy = bankOverlap(bs.bus, busD, s, e);
-          let bgOnly = 0;
-          if (bgD >= 0) {
-            const bg = bs.bg!;
-            const [j0, j1] = bankIntervalRange(bg, bgD, s, e);
-            for (let j = j0; j < j1; j++) {
-              const x = Math.max(bg.start[j]!, s);
-              const y = Math.min(bg.end[j]!, e);
-              if (y > x) bgOnly += (y - x) - bankOverlap(bs.bus, busD, x, y);
-            }
-          }
-          acc.bus += busy;
-          acc.bg += bgOnly;
-          acc.starved += len - busy - bgOnly;
-          break;
-        }
-        default: acc.idle += len; break;
-      }
-    }
-  }
-  return acc;
-}
-
-/** Fraction of [t0, t1) covered by domain d of an interval set (bus utilisation / tFAW-blocked). */
-export function bankCoverage(set: BankIntervalSet | null, d: number, t0: number, t1: number): number {
-  if (!set || t1 <= t0) return 0;
-  return bankOverlap(set, d, t0, t1) / (t1 - t0);
-}
-
-export interface BankSpanHit {
-  kind: number;
-  start: number;
-  end: number;
-  cause: number;
-  /** For open spans: why a READ cannot issue right now. */
-  sub?: 'bus' | 'bg' | 'starved';
-  subStart?: number;
-  subEnd?: number;
-  subCause?: number;
-}
-
-/** State of bank `lane` at time t (hover). */
-export function bankStateAt(bs: BankStateData, lane: number, t: number): BankSpanHit | null {
-  const lo0 = bs.spanOffsets[lane]!;
-  const hi0 = bs.spanOffsets[lane + 1]! - 1;
-  if (hi0 <= lo0) return null;
-  const k = upperBound(bs.spanStart, t, lo0 + 1, hi0 + 1) - 1;
-  if (k < lo0 || k >= hi0) return null;
-  const hit: BankSpanHit = { kind: bs.spanKind[k]!, start: bs.spanStart[k]!, end: bs.spanStart[k + 1]!, cause: bs.spanCause[k]! };
-  if (hit.kind !== BANK_KIND.OPEN || t >= hit.end) return hit;
-  const L = bs.layout;
-  hit.sub = 'starved';
-  const sets: ['bus' | 'bg', BankIntervalSet | null, number | null][] = [
-    ['bus', bs.bus, L.busLevel],
-    ['bg', bs.bg, L.bgLevel],
-  ];
-  for (const [sub, set, level] of sets) {
-    if (!set || level === null) continue;
-    const j = bankIntervalAt(set, bankDomOf(L, lane, level), t);
-    if (j < 0) continue;
-    hit.sub = sub;
-    hit.subStart = set.start[j]!;
-    hit.subEnd = set.end[j]!;
-    hit.subCause = set.cause[j]!;
-    break;
-  }
-  return hit;
 }

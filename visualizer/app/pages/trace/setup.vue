@@ -7,7 +7,7 @@
             Timing parameters
           </h1>
           <p class="mt-1 text-sm text-neutral-500">
-            {{ sessionStore.traceName || 'Trace' }} · values in controller clocks; edits apply to this session only
+            {{ sessionStore.traceName || 'Trace' }} · timings in controller clocks unless marked; edits apply to this session only
           </p>
         </div>
 
@@ -28,7 +28,7 @@
               readLatency
             </p>
             <p class="mt-0.5 text-xs text-neutral-500">
-              Original: {{ originalReadLatency.toLocaleString() }} cycles
+              Original: {{ originalReadLatency.toLocaleString() }} clk
             </p>
           </div>
           <UInput
@@ -55,7 +55,7 @@
               {{ row.name }}
             </p>
             <p class="mt-0.5 text-xs text-neutral-500">
-              Original: {{ originalTimingValues[idx]?.toLocaleString() ?? 0 }} cycles
+              Original: {{ originalTimingValues[idx]?.toLocaleString() ?? 0 }} {{ timingUnit(row.name) }}
             </p>
           </div>
           <UInput
@@ -67,7 +67,7 @@
             :ui="{ trailing: 'pointer-events-none' }"
           >
             <template #trailing>
-              <span class="text-[10px] text-neutral-500">clk</span>
+              <span class="text-[10px] text-neutral-500">{{ timingUnit(row.name) }}</span>
             </template>
           </UInput>
         </div>
@@ -118,6 +118,12 @@ const timingRows = reactive(
 
 const readLatency = ref(originalReadLatency);
 const loading = ref(false);
+
+/** Unit of a timing: Ramulator's nXxx timings count clocks; the others carry their unit. */
+function timingUnit(name: string): string {
+  if (name === 'rate') return 'MT/s';
+  return /_(ps|ns)$/.exec(name)?.[1] ?? 'clk';
+}
 
 function toInt(value: number): number {
   if (!Number.isFinite(value)) return 0;

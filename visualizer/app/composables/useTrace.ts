@@ -1,5 +1,9 @@
+// Reading a trace's header and spec. The commands themselves are read by the engine
+// (engine/source.ts), in pieces, so a trace never has to fit in memory.
+
 const MAGIC = "RAM2BIN\0";
-const HEADER_SIZE = 64;
+export const HEADER_SIZE = 64;
+export const FLAG_COMPLETE = 1;
 
 export interface TraceHeader {
   version: [number, number];
@@ -14,6 +18,8 @@ export interface TraceHeader {
   numEntries: number;
   dataOffset: number;
   dramType: string;
+  /** The recording stopped before it finished; the trace holds the commands written until then. */
+  incomplete?: boolean;
 }
 
 export interface CommandMeta {
@@ -35,22 +41,6 @@ export interface TraceSpec {
   timingValues: Int32Array;
 }
 
-export interface TraceArrays {
-  clk: BigInt64Array;
-  arrive: BigInt64Array;
-  cmdId: Uint8Array;
-  typeId: Int8Array;
-  sourceId: Int16Array;
-  addr: Int32Array[];
-}
-
-export interface ParsedTrace {
-  buffer: ArrayBuffer;
-  header: TraceHeader;
-  spec: TraceSpec;
-  arrays: TraceArrays;
-}
-
 function readNullTerminatedStrings(view: DataView, offset: number, count: number): { strings: string[]; bytesRead: number } {
   const strings: string[] = [];
   let pos = offset;
@@ -70,15 +60,21 @@ function readNullTerminatedString(view: DataView, offset: number, maxLen: number
   return new TextDecoder().decode(new Uint8Array(view.buffer, offset, end));
 }
 
-function parseHeader(view: DataView): TraceHeader {
+export function parseHeader(view: DataView): TraceHeader {
+  if (view.byteLength < HEADER_SIZE) throw new Error('The file is too short to be a RAM2BIN trace.');
   const magicBytes = new Uint8Array(view.buffer, 0, 8);
   const magic = new TextDecoder().decode(magicBytes.slice(0, 7));
   if (magic !== MAGIC.slice(0, 7)) {
     throw new Error(`Invalid magic: expected "RAM2BIN", got "${magic}"`);
   }
+  const major = view.getUint8(8);
+  const minor = view.getUint8(9);
+  if (major !== 1 || minor > 2) {
+    throw new Error(`This trace uses format ${major}.${minor}; this visualizer reads formats up to 1.2. Update the visualizer.`);
+  }
 
   return {
-    version: [view.getUint8(8), view.getUint8(9)],
+    version: [major, minor],
     levelCount: view.getUint16(12, true),
     commandCount: view.getUint16(14, true),
     timingCount: view.getUint16(16, true),
@@ -145,61 +141,11 @@ function parseSpec(buf: ArrayBuffer, header: TraceHeader): TraceSpec {
   return { levelNames, levelSizes, commandNames, commandMeta, commandCycles, timingNames, timingValues };
 }
 
-function parseArrays(buf: ArrayBuffer, header: TraceHeader): TraceArrays {
-  const D = header.dataOffset;
-  const N = header.numEntries;
-  const L = header.levelCount;
-
-  const clk      = new BigInt64Array(buf, D,            N);
-  const arrive    = new BigInt64Array(buf, D + 8 * N,    N);
-  const cmdId     = new Uint8Array(buf,   D + 16 * N,   N);
-  const typeId    = new Int8Array(buf,    D + 17 * N,   N);
-  const sourceId  = new Int16Array(buf,   D + 18 * N,   N);
-
-  const addr: Int32Array[] = [];
-  for (let k = 0; k < L; k++) {
-    addr.push(new Int32Array(buf, D + (20 + 4 * k) * N, N));
+export function readSpec(buf: ArrayBuffer, header: TraceHeader): TraceSpec {
+  try {
+    return parseSpec(buf, header);
+  } catch (e) {
+    if (e instanceof RangeError) throw new Error('The trace file is truncated: it ends inside its spec section.');
+    throw e;
   }
-
-  return { clk, arrive, cmdId, typeId, sourceId, addr };
-}
-
-export function parseTrace(buf: ArrayBuffer): ParsedTrace {
-  const view = new DataView(buf);
-  const header = parseHeader(view);
-  const spec = parseSpec(buf, header);
-  const arrays = parseArrays(buf, header);
-  return { buffer: buf, header, spec, arrays };
-}
-
-function yieldToMain(): Promise<void> {
-  return new Promise((resolve) => requestAnimationFrame(() => resolve()));
-}
-
-export interface ParseTraceAsyncOptions {
-  /** Called before each parse step (after the preceding yield) so the UI can show progress. */
-  onProgress?: (message: string) => void;
-}
-
-/** Same as {@link parseTrace}, but yields so the UI can paint between phases. */
-export async function parseTraceAsync(
-  buffer: ArrayBuffer,
-  options?: ParseTraceAsyncOptions,
-): Promise<ParsedTrace> {
-  const report = options?.onProgress;
-  report?.('Reading header…');
-  await yieldToMain();
-  const view = new DataView(buffer);
-  const header = parseHeader(view);
-  report?.('Reading spec (levels, commands, timings)…');
-  await yieldToMain();
-  const spec = parseSpec(buffer, header);
-  report?.('Mapping event arrays…');
-  await yieldToMain();
-  const arrays = parseArrays(buffer, header);
-  return { buffer, header, spec, arrays };
-}
-
-export function useTrace() {
-  return { parseTrace, parseTraceAsync };
 }

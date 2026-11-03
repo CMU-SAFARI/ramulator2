@@ -12,6 +12,9 @@ Usage:
     python -m ramulator visualize                        # start the trace visualizer
     python -m ramulator visualize --port 4000            # custom port
     python -m ramulator visualize --dev                  # development server with hot-reload
+    python -m ramulator visualize --traces runs/         # list the .ram2bin files in runs/
+    python -m ramulator visualize --host 0.0.0.0         # accept other machines
+    python -m ramulator visualize --no-token             # no access token (this machine only)
 """
 
 import runpy
@@ -67,7 +70,7 @@ def visualize_main(args):
     """Start the trace visualizer server."""
     import argparse
 
-    from ramulator.visualizer import VisualizerServer
+    from ramulator.visualizer import VisualizerError, VisualizerServer
 
     parser = argparse.ArgumentParser(
         prog="python -m ramulator visualize",
@@ -75,17 +78,38 @@ def visualize_main(args):
     )
     parser.add_argument("-p", "--port", type=int, default=None, help="Port (default: 3000 or RAMULATOR_VISUALIZER_PORT)")
     parser.add_argument("--dev", action="store_true", help="Run the dev server with hot-reload instead of the production build")
+    parser.add_argument(
+        "--host",
+        default=None,
+        help="Address to listen on (default 127.0.0.1: this machine only; forward the port over SSH to "
+        "use it from elsewhere), e.g. 0.0.0.0 for other machines. Open the printed link: it carries the access token.",
+    )
+    parser.add_argument("--traces", metavar="DIR", default=None, help="List the .ram2bin files in DIR on the start page")
+    parser.add_argument(
+        "--no-token",
+        action="store_true",
+        help="Do not require the access token (this machine only; every user of it can then connect)",
+    )
     opts = parser.parse_args(args)
 
-    server = VisualizerServer(port=opts.port, dev=opts.dev)
-    server.start()
-    server.wait()
+    try:
+        server = VisualizerServer(port=opts.port, dev=opts.dev, host=opts.host, traces=opts.traces, token=not opts.no_token)
+        server.start()
+    except (VisualizerError, FileNotFoundError) as e:
+        print(f"error: {e}", file=sys.stderr)
+        sys.exit(1)
+    except KeyboardInterrupt:
+        sys.exit(130)
+    sys.exit(server.wait())
 
 
 def main():
     if len(sys.argv) < 2:
         print(__doc__.strip(), file=sys.stderr)
         sys.exit(1)
+    if sys.argv[1] in ("-h", "--help"):
+        print(__doc__.strip())
+        sys.exit(0)
 
     cmd = sys.argv[1]
     if cmd == "export":

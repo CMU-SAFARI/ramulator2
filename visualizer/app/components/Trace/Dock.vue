@@ -25,7 +25,7 @@
 // (useDockDrag) inserts a view at the gap nearest the pointer. An overlay draws the leader lines
 // between a selected request and its commands across panels.
 import { VIEW_LABELS, type ViewMode } from '~/stores/ui';
-import { steadyClock, type LinkedSelection } from '~/composables/useTimeline';
+import { steadyClock, type LinkAnchor, type LinkedSelection } from '~/composables/useTimeline';
 import { PAPER } from '~/utils/theme';
 
 /** Smallest panel height a splitter drag can leave (px). */
@@ -57,6 +57,7 @@ watch(() => [...uiStore.stack], (now, prev) => {
         return;
       }
       opening[v] = Math.max(0.001, 1 - Math.pow(1 - t, 3));
+      tl.frames.invalidate();
       requestAnimationFrame(step);
     };
     requestAnimationFrame(step);
@@ -65,12 +66,11 @@ watch(() => [...uiStore.stack], (now, prev) => {
 
 // ── Leader lines: a vertical line at each command's time, from its bar to its request's bar ──
 
-let linksRaf = 0;
 let linksDrawn = false;
+let removeLinks: (() => void) | null = null;
 
+/** Drawn with the panels, after them, in every frame of the timeline's scheduler. */
 function drawLinks() {
-  linksRaf = requestAnimationFrame(drawLinks);
-  tl.advance();
   const cv = links.value;
   const dock = root.value;
   if (!cv || !dock) return;
@@ -82,7 +82,8 @@ function drawLinks() {
   const groups: [LinkedSelection, string, number[]][] = [];
   if (pv && pv.req >= 0 && !(sel && sel.req === pv.req)) groups.push([pv, PAPER.muted, [3, 3]]);
   if (sel && sel.req >= 0) groups.push([sel, PAPER.accent, []]);
-  if (!geo.cmd || !geo.req || groups.length === 0) {
+  // Lines need two panels to join: of Commands, Requests and Bank state.
+  if ([geo.cmd, geo.req, geo.bank].filter(Boolean).length < 2 || groups.length === 0) {
     if (linksDrawn) {
       // Hide as well as clear: a clear queued in the frame that tears down a panel's WebGL context
       // can be dropped, which would leave stale leaders on screen.
@@ -105,33 +106,44 @@ function drawLinks() {
   ctx.clearRect(rect.left, rect.top, rect.width, rect.height);
   linksDrawn = true;
   cv.style.visibility = '';
+  const clamp = (y: number, a: LinkAnchor) => Math.max(a.clipTop, Math.min(a.clipBottom, y));
   for (const [g, color, dash] of groups) {
-    const r = geo.req(g.req);
-    if (!r) continue;
+    const r = geo.req?.(g) ?? null;
     for (const i of g.cmds) {
-      const c = geo.cmd(i);
-      if (!c) continue;
-      const below = r.top >= c.bottom;
-      const clamp = (y: number, a: { clipTop: number; clipBottom: number }) => Math.max(a.clipTop, Math.min(a.clipBottom, y));
-      const y1 = clamp(below ? c.bottom + 2 : c.top - 2, c);
-      const y2 = clamp(below ? r.top - 2 : r.bottom + 2, r);
-      const x = Math.round(c.x) + 0.5;
-      if (x < rect.left || x > rect.right || Math.abs(y2 - y1) < 1) continue;
-      ctx.setLineDash(dash);
-      ctx.lineWidth = 3;
-      ctx.strokeStyle = '#ffffff';
-      ctx.beginPath();
-      ctx.moveTo(x, y1);
-      ctx.lineTo(x, y2);
-      ctx.stroke();
-      ctx.lineWidth = 1;
-      ctx.strokeStyle = color;
-      ctx.stroke();
-      ctx.setLineDash([]);
-      ctx.fillStyle = color;
-      ctx.beginPath();
-      ctx.arc(x, y2, 2.2, 0, Math.PI * 2);
-      ctx.fill();
+      const c = geo.cmd?.(i) ?? null;
+      const b = geo.bank?.(i) ?? null;
+      const at = c ?? b;
+      if (!at) continue;
+      const x = Math.round(at.x) + 0.5;
+      // Only over the plots: a bar scrolled off the side would otherwise draw over the lane labels.
+      if (x < at.clipLeft || x > at.clipRight) continue;
+      // Join what is on screen of the request's bar, the command's bar and its bank marker, top to
+      // bottom, at the command's time; the dot marks the request or, without it, the bank marker.
+      const chain = [r, c, b].filter((a): a is LinkAnchor => a !== null).sort((p, q) => p.top - q.top);
+      for (let k = 1; k < chain.length; k++) {
+        const upper = chain[k - 1]!;
+        const lower = chain[k]!;
+        const y1 = clamp(upper.bottom + 2, upper);
+        const y2 = clamp(lower.top - 2, lower);
+        if (y2 - y1 < 1) continue;
+        ctx.setLineDash(dash);
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.moveTo(x, y1);
+        ctx.lineTo(x, y2);
+        ctx.stroke();
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = color;
+        ctx.stroke();
+        ctx.setLineDash([]);
+        const dotEnd = upper === r ? y1 : lower === r ? y2 : lower === b ? y2 : upper === b ? y1 : null;
+        if (dotEnd === null) continue;
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(x, dotEnd, 2.2, 0, Math.PI * 2);
+        ctx.fill();
+      }
     }
   }
 }
@@ -193,11 +205,11 @@ function equalize(i: number) {
 
 onMounted(() => {
   drag.setZone('dock', root.value);
-  linksRaf = requestAnimationFrame(drawLinks);
+  removeLinks = tl.frames.add(drawLinks);
 });
 onUnmounted(() => {
   drag.setZone('dock', null);
-  cancelAnimationFrame(linksRaf);
+  removeLinks?.();
 });
 </script>
 
