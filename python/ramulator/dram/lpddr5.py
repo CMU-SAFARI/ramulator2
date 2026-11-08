@@ -39,7 +39,9 @@ class LPDDR5(DRAMStandard):
         # nBL_min = BL/n_min(BL16); nBL_max = BL/n_max(BL16)
         # (JESD209-5C Table 339).
         "rate", "nBL_min", "nBL_max",
-        "nCL", "nRCD", "nRP", "nRPab", "nRAS", "nRC",
+        # nRCD: ACT-2 to READ; nRCDW: ACT-2 to WRITE (equal on LPDDR5, JESD209-5C Table 381;
+        # shorter on LPDDR5X, Table 396 note 1).
+        "nCL", "nRCD", "nRCDW", "nRP", "nRPab", "nRAS", "nRC",
         "nWR", "nRTP", "nCWL", "nPPD",
         "nCCDS", "nCCDL", "nCCDS_WR", "nCCDL_WR",
         "nRRDS", "nRRDL",
@@ -116,7 +118,8 @@ class LPDDR5(DRAMStandard):
 
         # Bank — single-bank timing (JESD209-5C Tables 340 and 353; measured from ACT-2).
         TimingConstraint(level="Bank", preceding=["ACT2"], following=["ACT2"], latency="nRC"),
-        TimingConstraint(level="Bank", preceding=["ACT2"], following=["RD", "RDA", "WR", "WRA"], latency="nRCD"),
+        TimingConstraint(level="Bank", preceding=["ACT2"], following=["RD", "RDA"], latency="nRCD"),
+        TimingConstraint(level="Bank", preceding=["ACT2"], following=["WR", "WRA"], latency="nRCDW"),
         TimingConstraint(level="Bank", preceding=["ACT2"], following=["PREpb"], latency="nRAS"),
         TimingConstraint(level="Bank", preceding=["PREpb"], following=["ACT2"], latency="nRP"),
         TimingConstraint(level="Bank", preceding=["RD"], following=["PREpb"], latency="nRTP"),
@@ -156,9 +159,16 @@ class LPDDR5(DRAMStandard):
         if bank_mode != "BG" or org_dict["dq"] != 16:
             for name in ("nCCDS", "nCCDL", "nCCDS_WR", "nCCDL_WR", "nWTRS", "nWTRL", "nBL_min", "nBL_max", "nCL", "nWR"):
                 timing_dict[name] = -1
-        timing_dict["nRRDS"] = cls._resolve_nRRDS(timing_dict["tCK_ps"], bank_mode)
-        timing_dict["nRRDL"] = cls._resolve_nRRDL(timing_dict["tCK_ps"], bank_mode)
-        timing_dict["nFAW"] = cls._resolve_nFAW(timing_dict["tCK_ps"], bank_mode)
+        # LPDDR5X presets carry nRRDS, nRRDL and nFAW from JESD209-5C Table 396 (BG and 16B mode, Table 397);
+        # LPDDR5X has no 8B mode (JESD209-5C 9.3).
+        if "nFAW" in timing_dict:
+            if bank_mode not in ("BG", "16B"):
+                for name in ("nRRDS", "nRRDL", "nFAW"):
+                    timing_dict[name] = -1
+        else:
+            timing_dict["nRRDS"] = cls._resolve_nRRDS(timing_dict["tCK_ps"], bank_mode)
+            timing_dict["nRRDL"] = cls._resolve_nRRDL(timing_dict["tCK_ps"], bank_mode)
+            timing_dict["nFAW"] = cls._resolve_nFAW(timing_dict["tCK_ps"], bank_mode)
         timing_dict["nRFC"] = cls._resolve_nRFC(org_dict["die_density"], timing_dict["tCK_ps"])
         timing_dict["nRFCpb"] = cls._resolve_nRFCpb(org_dict["die_density"], timing_dict["tCK_ps"])
         timing_dict["nREFI"] = cls._resolve_nREFI(timing_dict["tCK_ps"])
@@ -277,7 +287,7 @@ LPDDR5.timing_presets = {
     # LPDDR5-5500: x16 BG mode, CKR 4:1, RL Set 0, WL Set A
     "LPDDR5_5500": {
         "rate": 5500, "nBL_min": 2, "nBL_max": 4, "nCL": 15,
-        "nRCD": 13, "nRP": 13, "nRPab": 15,
+        "nRCD": 13, "nRCDW": 13, "nRP": 13, "nRPab": 15,
         "nRAS": 29, "nRC": 42, "nWR": 24, "nRTP": 6, "nCWL": 8, "nPPD": 2,
         "nCCDS": 2, "nCCDL": 4, "nCCDS_WR": 2, "nCCDL_WR": 4,
         "nWTRS": 5, "nWTRL": 9, "nWCKPST": 1, "nCAS": 0,
@@ -293,7 +303,7 @@ LPDDR5.timing_presets = {
         # JESD209-5C Table 339: BG mode, CKR 4:1, WCK > 1600 MHz:
         # nBL_min = BL/n_min(BL16) = 2; nBL_max = BL/n_max(BL16) = 4.
         "rate": 6400, "nBL_min": 2, "nBL_max": 4, "nCL": 17,
-        "nRCD": 15, "nRP": 15, "nRPab": 17,
+        "nRCD": 15, "nRCDW": 15, "nRP": 15, "nRPab": 17,
         "nRAS": 34, "nRC": 49, "nWR": 28, "nRTP": 6, "nCWL": 9, "nPPD": 2,
         "nCCDS": 2, "nCCDL": 4, "nCCDS_WR": 2, "nCCDL_WR": 4,
         "nWTRS": 5, "nWTRL": 10, "nWCKPST": 1, "nCAS": 0,
@@ -303,5 +313,42 @@ LPDDR5.timing_presets = {
         "nCS": 2,
         # =============================
         "tCK_ps": 1250,
+    },
+
+    # ---- LPDDR5X (JESD209-5C 9.3, MR8 OP[1:0] = 01B): x16 BG mode, CKR 4:1, RL Set 0, WL Set A ----
+    # tCK_ps = 1 / upper CK limit of the speed bin (Table 225), rounded up to 1 ps.
+    # nCL, nRTP = BL/n_min (2) + nRBTP: Table 225; nCWL: Table 229; nWR (x16): Table 230;
+    # Table 396: tRCD max(18ns, 2nCK) to READ, max(8ns, 2nCK) to WRITE (note 1), tRPpb max(18ns, 2nCK),
+    # tRPab max(21ns, 2nCK), tRAS max(42ns, 3nCK), tRRD max(3.75ns, 2nCK), tFAW 15ns,
+    # tWTR_S max(6.25ns, 4nCK), tWTR_L max(12ns, 4nCK), tPPD 2nCK; BL/n: Table 339.
+    # LPDDR5X-7500 (MR2 OP[3:0] = 1100B, CK <= 937.5 MHz)
+    "LPDDR5X_7500": {
+        "rate": 7500, "nBL_min": 2, "nBL_max": 4, "nCL": 20,
+        "nRCD": 17, "nRCDW": 8, "nRP": 17, "nRPab": 20,
+        "nRAS": 40, "nRC": 57, "nWR": 32, "nRTP": 8, "nCWL": 11, "nPPD": 2,
+        "nCCDS": 2, "nCCDL": 4, "nCCDS_WR": 2, "nCCDL_WR": 4,
+        "nRRDS": 4, "nRRDL": 4, "nFAW": 15,
+        "nWTRS": 6, "nWTRL": 12, "nWCKPST": 1, "nCAS": 0,
+        # JESD209-5C Section 7.3.1: ACTIVATE-2 must follow within 8 nCK.
+        "nAAD": 8,
+        # === Ramulator Guesstimate ===
+        "nCS": 2,
+        # =============================
+        "tCK_ps": 1067,
+    },
+    # LPDDR5X-8533 (MR2 OP[3:0] = 1101B, CK <= 1066.5 MHz)
+    "LPDDR5X_8533": {
+        "rate": 8533, "nBL_min": 2, "nBL_max": 4, "nCL": 23,
+        "nRCD": 20, "nRCDW": 9, "nRP": 20, "nRPab": 23,
+        "nRAS": 45, "nRC": 65, "nWR": 37, "nRTP": 8, "nCWL": 12, "nPPD": 2,
+        "nCCDS": 2, "nCCDL": 4, "nCCDS_WR": 2, "nCCDL_WR": 4,
+        "nRRDS": 4, "nRRDL": 4, "nFAW": 16,
+        "nWTRS": 7, "nWTRL": 13, "nWCKPST": 1, "nCAS": 0,
+        # JESD209-5C Section 7.3.1: ACTIVATE-2 must follow within 8 nCK.
+        "nAAD": 8,
+        # === Ramulator Guesstimate ===
+        "nCS": 2,
+        # =============================
+        "tCK_ps": 938,
     },
 }
