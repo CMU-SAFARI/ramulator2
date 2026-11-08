@@ -41,6 +41,7 @@ class LPDDR5 : public DRAMSpec {
       nBL_max,
       nCL,
       nRCD,
+      nRCDW,
       nRP,
       nRPab,
       nRAS,
@@ -90,10 +91,10 @@ class LPDDR5 : public DRAMSpec {
               {"ACT1", "ACT2", "PREpb", "PREab", "CAS_RD", "CAS_WR", "RD", "WR", "RDA", "WRA", "REFab", "REFpb"});
     set_names(states, state_names, {"Opened", "Closed", "Activating", "N_A"});
     set_names(timings, timing_names,
-              {"rate",  "nBL_min", "nBL_max", "nCL",    "nRCD",     "nRP",     "nRPab",    "nRAS",     "nRC",
-               "nWR",   "nRTP",    "nCWL",    "nPPD",   "nCCDS",    "nCCDL",   "nCCDS_WR", "nCCDL_WR", "nRRDS",
-               "nRRDL", "nWTRS",   "nWTRL",   "nFAW",   "nRFC",     "nRFCpb",  "nREFI",    "nREFIpb",  "nWCKPST",
-               "nCAS",  "nAAD",    "nCS",     "tCK_ps", "nPBR2PBR", "nPBR2ACT"});
+              {"rate",    "nBL_min", "nBL_max", "nCL",   "nRCD",   "nRCDW",    "nRP",     "nRPab",    "nRAS",
+               "nRC",     "nWR",     "nRTP",    "nCWL",  "nPPD",   "nCCDS",    "nCCDL",   "nCCDS_WR", "nCCDL_WR",
+               "nRRDS",   "nRRDL",   "nWTRS",   "nWTRL", "nFAW",   "nRFC",     "nRFCpb",  "nREFI",    "nREFIpb",
+               "nWCKPST", "nCAS",    "nAAD",    "nCS",   "tCK_ps", "nPBR2PBR", "nPBR2ACT"});
 
     // Static spec data
     internal_prefetch_size = 16;

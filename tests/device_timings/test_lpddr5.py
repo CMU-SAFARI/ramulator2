@@ -54,3 +54,18 @@ def test_lpddr5_per_bank_refresh_consumes_the_four_activate_window():
     following = _addr(dut, bankgroup=2, bank=0, row=2)
     dut.issue("ACT1", following, clk=next_clk)
     dut.assert_earliest_ready_at("ACT2", following, clks[1] + dut.timings["nFAW"])
+
+
+@pytest.mark.parametrize("timing_preset", ["LPDDR5_6400", "LPDDR5X_8533"])
+def test_lpddr5_ras_to_cas_delay_differs_for_read_and_write(timing_preset):
+    # JESD209-5C Table 396 note 1: on LPDDR5X tRCD from ACT-2 to WRITE is max(8ns, 2nCK); to READ it stays
+    # max(18ns, 2nCK). LPDDR5 has one tRCD (Table 381).
+    dram = ramulator.dram.LPDDR5(org_preset="LPDDR5_16Gb_x16", timing_preset=timing_preset)
+    dut = device_timings.DeviceUnderTest(dram)
+    row = _addr(dut, bankgroup=0, bank=0, row=0)
+    dut.issue("ACT1", row, clk=0)
+    dut.issue("ACT2", row, clk=1)
+    dut.assert_earliest_ready_at("RD", row, 1 + dut.timings["nRCD"])
+    dut.assert_earliest_ready_at("WR", row, 1 + dut.timings["nRCDW"])
+    if timing_preset == "LPDDR5X_8533":
+        assert dut.timings["nRCDW"] < dut.timings["nRCD"]
