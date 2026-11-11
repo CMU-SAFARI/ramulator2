@@ -112,6 +112,26 @@ def test_frfcfs_rowhit_keeps_same_bank_row_hits_before_conflict_close():
     assert [item.command for item in history].count("PREpb") == 1
 
 
+@pytest.mark.parametrize("cap", [0, -1])
+def test_closedcap_rejects_non_positive_cap(cap):
+    with pytest.raises(RuntimeError, match="ClosedCAP: cap must be positive"):
+        make_dut(row_policy=ramulator.row_policy.ClosedCAP(cap=cap))
+
+
+@pytest.mark.parametrize("cap", [1, 4, None])
+def test_closedcap_positive_and_default_cap_complete_read(cap):
+    policy = (
+        ramulator.row_policy.ClosedCAP() if cap is None else ramulator.row_policy.ClosedCAP(cap=cap)
+    )
+    dut = make_dut(row_policy=policy)
+    a = dut.addr_vec(Rank=0, BankGroup=0, Bank=0, Row=0, Column=0)
+
+    dut.send_request("Read", a)
+    history = dut.run_until_idle(max_ticks=256)
+
+    dut.assert_commands(["ACT", "RD"], history=history)
+
+
 def test_closedcap_upgrades_second_access_to_rda():
     dut = make_dut(row_policy=ramulator.row_policy.ClosedCAP(cap=1))
     a = dut.addr_vec(Rank=0, BankGroup=0, Bank=0, Row=0, Column=0)

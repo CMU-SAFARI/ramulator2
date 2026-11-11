@@ -36,6 +36,9 @@ class ClosedCAPRowPolicy : public IRowPolicy, public Implementation {
     m_device = &m_ctrl->m_device;
     m_spec = m_device->m_spec;
     RAMULATOR_PARSE_PARAM(m_cap, int, "cap").default_val(4);
+    if (m_cap <= 0) {
+      throw std::runtime_error("ClosedCAP: cap must be positive");
+    }
 
     auto find_command = [&](std::initializer_list<const char*> names, bool required) {
       for (const char* name : names) {
