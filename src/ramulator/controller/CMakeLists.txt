@@ -63,6 +63,9 @@ target_sources(
   impl/gddr7_controller.cpp
   impl/prac_controller.cpp
   impl/blockhammer_controller.cpp
+  impl/smd_controller.cpp
+  smd/maintenance.h
+  smd/variable_refresh.h
 )
 
 target_link_libraries(
