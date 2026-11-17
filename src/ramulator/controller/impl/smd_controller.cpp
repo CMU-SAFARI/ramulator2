@@ -14,6 +14,7 @@
 #include "ramulator/controller/refresh/i_refresh_manager.h"
 #include "ramulator/controller/rowpolicy/i_row_policy.h"
 #include "ramulator/controller/smd/maintenance.h"
+#include "ramulator/controller/smd/rowhammer.h"
 #include "ramulator/controller/smd/variable_refresh.h"
 #include "ramulator/dram/dram_spec.h"
 
@@ -60,6 +61,13 @@ public:
         RAMULATOR_PARSE_PARAM(m_vr_weak_row_percentage, float, "smd_variable_refresh_weak_row_percentage").default_val(0.05f);
         RAMULATOR_PARSE_PARAM(m_vr_bloom_size, int, "smd_variable_refresh_bloom_filter_size").default_val(8192);
         RAMULATOR_PARSE_PARAM(m_vr_bloom_hashes, int, "smd_variable_refresh_bloom_filter_hashes").default_val(6);
+        // RowHammer protection: "Graphene" (deterministic) or "PARA" (probabilistic)
+        RAMULATOR_PARSE_PARAM(m_rh_enabled, bool, "smd_rh_protection_enabled").default_val(false);
+        RAMULATOR_PARSE_PARAM(m_rh_mode, std::string, "smd_rh_protection_mode").default_val("Graphene");
+        RAMULATOR_PARSE_PARAM(m_rh_mac, int, "smd_rh_protection_mac").default_val(8192);
+        RAMULATOR_PARSE_PARAM(m_rh_neighbor_refresh_pct, float, "smd_rh_neighbor_refresh_pct").default_val(1.0f);
+        RAMULATOR_PARSE_PARAM(m_rh_blast_radius, int, "smd_rh_blast_radius").default_val(1);
+        RAMULATOR_PARSE_PARAM(m_rh_queue_size, int, "smd_rh_protection_neighbor_ref_queue_size").default_val(1024);
     }
 
     void setup(IFrontEnd* frontend, IMemorySystem* memory_system) override {
@@ -67,10 +75,16 @@ public:
 
         if (m_ref_policy == "Disabled") {
             m_enabled = false;
-        } else if (m_ref_policy == "FixedRate" || m_ref_policy == "VariableRefresh") {
+        } else if (m_ref_policy == "FixedRate" || m_ref_policy == "VariableRefresh" || m_ref_policy == "NoRefresh") {
             m_enabled = true;
         } else {
-            throw std::invalid_argument("SMDController: unknown smd_ref_policy \"" + m_ref_policy + "\" (expected FixedRate, VariableRefresh or Disabled)");
+            throw std::invalid_argument("SMDController: unknown smd_ref_policy \"" + m_ref_policy + "\" (expected FixedRate, VariableRefresh, NoRefresh, or Disabled)");
+        }
+        if (m_rh_enabled && m_rh_mode != "Graphene" && m_rh_mode != "PARA") {
+            throw std::invalid_argument("SMDController: unsupported smd_rh_protection_mode \"" + m_rh_mode + "\" (expected Graphene or PARA)");
+        }
+        if (m_rh_enabled && !m_enabled) {
+            throw std::invalid_argument("SMDController: RowHammer protection needs SMD (smd_ref_policy is Disabled)");
         }
 
         auto* spec = m_device.m_spec;
@@ -81,6 +95,9 @@ public:
         m_cmd_act = spec->get_command_id("ACT");
         m_cmd_act_nack = spec->get_command_id("ACT_NACK");
         m_subarray_level = spec->get_level_id("Subarray");
+        m_row_level = spec->get_level_id("Row");
+        m_num_ranks = spec->get_level_size("Rank");
+        m_banks_per_rank = m_device.m_bank_nodes.size() / m_num_ranks;
         m_nACTtoNACK = spec->get_timing_value("nACTtoNACK");
 
         const int num_banks = m_device.m_bank_nodes.size();
@@ -96,6 +113,8 @@ public:
         m_stats.add("smd_maintenance_ops", s_maintenance_ops);
         m_stats.add("smd_rows_refreshed", s_rows_refreshed);
         m_stats.add("smd_max_pending_maintenance", s_max_pending);
+        m_stats.add("smd_neighbor_refs_issued", s_neighbor_refs_issued);
+        m_stats.add("smd_neighbor_refs_done", s_neighbor_refs_done);
 
         if (!m_enabled) {
             return;
@@ -120,9 +139,11 @@ public:
         cfg.worst_case_distribution = m_worst_case_distribution;
 
         const bool variable = m_ref_policy == "VariableRefresh";
-        // Chips differ (and need their won locks) only when they refresh different rows or are staggered
+        const bool refreshing = m_ref_policy != "NoRefresh";
+        const bool para = m_rh_enabled && m_rh_mode == "PARA";
+        // Chips differ (and need their own locks) only when they refresh different rows or are staggered, or draw their own random numbers
         const int chips_per_rank = spec->channel_width / spec->organization.dq;
-        m_num_chips = (variable || m_worst_case_distribution) ? chips_per_rank : 1;
+        m_num_chips = (variable || m_worst_case_distribution || para) ? chips_per_rank : 1;
 
         m_state_opened = spec->get_state_id("Opened");
         auto is_sa_active = [this](int bank, int sa) {
@@ -138,9 +159,37 @@ public:
         // The sweep time in ms, for the retention-time distribution (tCK in ps)
         vc.refresh_period_ms = std::ceil(m_refresh_period * (m_tCK_ps / 1000.0) / 1e6);
 
+        SMD::RowHammerConfig rc;
+        if (m_rh_enabled) {
+            rc.mode = m_rh_mode == "PARA" ? SMD::RowHammerConfig::Mode::PARA : SMD::RowHammerConfig::Mode::Graphene;
+            rc.banks_per_rank = cfg.banks_per_rank;
+            rc.rows_per_sa = cfg.rows_per_sa;
+            rc.neighbor_refresh_pct = m_rh_neighbor_refresh_pct;
+            rc.latency = m_latency > 0 ? m_latency : cfg.auto_latency;
+            rc.blast_radius = m_rh_blast_radius;
+            rc.queue_size = m_rh_queue_size;
+            rc.refresh_window = m_refresh_period;
+            // Graphene sizes its counter tables for the activations a bank can serve in a refresh window
+            const float nRFC = spec->get_timing_value("nRFC");
+            const float nREFI = spec->get_timing_value("nREFI");
+            const uint32_t nRC = spec->get_timing_value("nRC");
+            const auto acts_per_window = static_cast<uint32_t>(
+                std::floor((static_cast<uint32_t>(m_refresh_period) * (1 - nRFC / nREFI)) / nRC)
+            );
+            rc.act_threshold = m_rh_mac / 2;
+            rc.num_counters = rc.act_threshold > 0 ? acts_per_window / rc.act_threshold : 0;
+        }
+
         for (int chip = 0; chip < m_num_chips; chip++) {
             m_locks.push_back(std::make_unique<SMD::LockTable>(num_banks));
             for (int rank = 0; rank < cfg.num_ranks; rank++) {
+                if (m_rh_enabled) {
+                    rc.seed = rank * chips_per_rank + chip;
+                    m_rh.push_back(std::make_unique<SMD::RowHammerProtection>(rc, rank, *m_locks[chip], is_sa_active));
+                }
+                if (!refreshing) {
+                    continue;
+                }
                 if (variable) {
                     vc.seed = rank * chips_per_rank + chip;
                     auto policy = std::make_unique<SMD::VariableRefreshPolicy>(vc, cfg, rank);
@@ -152,7 +201,10 @@ public:
                 m_engines.push_back(std::make_unique<SMD::RankEngine>(cfg, rank, chip, *m_locks[chip], is_sa_active, *m_policies.back()));
             }
         }
-        m_force_precharge_after = static_cast<int64_t>(std::floor(m_engines[0]->ref_interval() * m_timeout_to_interval_ratio)) * m_max_row_open_intervals;
+        const int64_t ref_interval =
+            m_refresh_period / (static_cast<int64_t>(cfg.rows_per_sa) * cfg.num_sas) * cfg.granularity;
+        m_force_precharge_after = 
+            static_cast<int64_t>(std::floor(ref_interval * m_timeout_to_interval_ratio)) * m_max_row_open_intervals;
     }
 
     void tick() override;
@@ -172,6 +224,11 @@ public:
         s_maintenance_ops = ops - m_ops_base;
         s_rows_refreshed = rows - m_rows_base;
         s_max_pending = pending;
+        s_neighbor_refs_issued = s_neighbor_refs_done = 0;
+        for (size_t i = 0; i < m_rh.size() / std::max(m_num_chips, 1); i++) {
+            s_neighbor_refs_issued += m_rh[i]->num_issued();
+            s_neighbor_refs_done += m_rh[i]->num_done();
+        }
         s_bloom_positives = s_bloom_false_positives = 0;
         for (auto* vr : m_vr_policies) {
             s_bloom_positives += vr->filter().positives();
@@ -195,6 +252,10 @@ public:
         for (auto* vr : m_vr_policies) {
             vr->reset_stats();
         }
+        for (auto& rh : m_rh) {
+            rh->reset_stats();
+        }
+        s_neighbor_refs_issued = s_neighbor_refs_done = 0;
     }
 
 private:
@@ -217,6 +278,12 @@ private:
     float m_vr_weak_row_percentage = 0;
     int m_vr_bloom_size = 0;
     int m_vr_bloom_hashes = 0;
+    bool m_rh_enabled = false;
+    std::string m_rh_mode;
+    int m_rh_mac = 0;
+    float m_rh_neighbor_refresh_pct = 0;
+    int m_rh_blast_radius = 0;
+    int m_rh_queue_size = 0;
     bool m_enabled = false;
     int m_num_chips = 1;
 
@@ -224,6 +291,9 @@ private:
     int m_cmd_act = -1;
     int m_cmd_act_nack = -1;
     int m_subarray_level = -1;
+    int m_row_level = -1;
+    int m_num_ranks = 1;
+    int m_banks_per_rank = 1;
     int m_state_opened = -1;
     int m_nACTtoNACK = 0;
     int m_cmd_prepb = -1;
@@ -233,6 +303,7 @@ private:
     std::vector<std::unique_ptr<SMD::RefreshPolicy>> m_policies;
     std::vector<SMD::VariableRefreshPolicy*> m_vr_policies;
     std::vector<std::unique_ptr<SMD::RankEngine>> m_engines;
+    std::vector<std::unique_ptr<SMD::RowHammerProtection>> m_rh;
 
     std::deque<PendingNack> m_pending_nacks;
     std::vector<Clk_t> m_act_clk;
@@ -241,6 +312,8 @@ private:
 
     // Stats
     size_t s_act_nacks = 0;
+    size_t s_neighbor_refs_issued = 0;
+    size_t s_neighbor_refs_done = 0;
     size_t s_act_partial_nacks = 0;
     size_t s_bloom_positives = 0;
     size_t s_bloom_false_positives = 0;
@@ -304,6 +377,9 @@ void SMDController::tick() {
     for (auto& engine : m_engines) {
         engine->tick();
     }
+    for (auto& rh : m_rh) {
+        rh->tick();
+    }
 
     m_refresh->tick();
     if (m_enabled) {
@@ -346,6 +422,12 @@ void SMDController::tick() {
         m_device.issue_command(command, cand.it->addr_vec, m_clk);
         if (is_act) {
             m_act_clk[bank] = m_clk;
+        }
+        if (is_act && !m_rh.empty() && busy_chips == 0) {
+            const int rank = bank / m_banks_per_rank;
+            for (int chip = 0; chip < m_num_chips; chip++) {
+                m_rh[chip * m_num_ranks + rank]->on_activation(bank % m_banks_per_rank, cand.it->addr_vec[m_subarray_level], cand.it->addr_vec[m_row_level]);
+            }
         }
         if (nacked) {
             m_pending_nacks.push_back({m_clk + m_nACTtoNACK, cand.it->addr_vec});

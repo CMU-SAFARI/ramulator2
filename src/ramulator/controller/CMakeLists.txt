@@ -66,6 +66,7 @@ target_sources(
   impl/smd_controller.cpp
   smd/maintenance.h
   smd/variable_refresh.h
+  smd/rowhammer.h
 )
 
 target_link_libraries(
