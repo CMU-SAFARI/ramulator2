@@ -11,6 +11,13 @@ frontend = ramulator.frontend.SimpleO3(
 
 org, timing = "DDR4_16Gb_x8", "DDR4_3200AA"
 
+mechanisms = [
+    ramulator.smd_mechanism.FixedRateRefresh(
+        refresh_period=51_200_000,  # cycles: 32 ms at 1600 MHz
+        num_ref_machines=16,
+    ),
+]
+
 ctrl = ramulator.controller.SMD(
     # DDR4 with a Subarray level (8192 rows each) and the ACT_NACK command
     dram=ramulator.dram.DDR4_SMD(org_preset=org, timing_preset=timing, rank=2, rows_per_subarray=8192),
@@ -18,9 +25,7 @@ ctrl = ramulator.controller.SMD(
     refresh_manager=ramulator.refresh_manager.NoRefresh(),  # DRAM refreshes it self
     row_policy=ramulator.row_policy.Open(),
     addr_mapper=ramulator.addr_mapper.RoBaRaCoCh(),
-    smd_ref_policy="FixedRate",  # or "VariableRefresh"
-    smd_refresh_period=51_200_000,  # cycles: 32ms at 1600MHz
-    smd_num_ref_machines=16,
+    smd_mechanisms=mechanisms,
 )
 
 mem = ramulator.memory_system.GenericDRAM(

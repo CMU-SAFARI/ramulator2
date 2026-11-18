@@ -15,11 +15,11 @@ GRANULARITY = 8
 INTERVAL = 81 * GRANULARITY
 BUSY = LATENCY * GRANULARITY
 
-SMD_PARAMS = {
-    "smd_refresh_period": 81 * ROWS_PER_BANK,
-    "smd_num_ref_machines": 16,
-    "smd_single_ref_latency": LATENCY,
-    "smd_row_refresh_granularity": GRANULARITY,
+REFRESH_PARAMS = {
+    "refresh_period": 81 * ROWS_PER_BANK,
+    "num_ref_machines": 16,
+    "single_ref_latency": LATENCY,
+    "row_refresh_granularity": GRANULARITY,
 }
 
 def make_dram():
@@ -30,8 +30,15 @@ def make_dram():
         rows_per_subarray=ROWS_PER_SUBARRAY,
     )
 
-def make_dut(**params):
-    return cs.ControllerUnderTest.make_smd(make_dram(), **{**SMD_PARAMS, **params})
+def fixed_rate_refresh(**params):
+    return ramulator.smd_mechanism.FixedRateRefresh(**{**REFRESH_PARAMS, **params})
+
+def make_dut(mechanisms=None, **refresh_params):
+    """SMD controller. By default one fixed-rate refresh mechanism, turned by `refresh_params`. 
+       `mechanisms` replace it (an empty list: the DRAM maintains nothing)."""
+    if mechanisms is None:
+        mechanisms = [fixed_rate_refresh(**refresh_params)]
+    return cs.ControllerUnderTest.make_smd(make_dram(), smd_mechanisms=mechanisms)
 
 def av(dut, *, subarray=0, row=5, bank=0, bankgroup=0, column=0):
     return dut.addr_vec(Rank=0, BankGroup=bankgroup, Bank=bank, Subarray=subarray, Row=row, Column=column)
@@ -186,7 +193,7 @@ def test_a_row_open_for_less_than_the_limit_stays_open():
     assert dut.stats()["smd_forced_precharges"] == 0
 
 def test_maintenance_that_cannot_keep_up_is_reported():
-    dut = make_dut(smd_max_row_open_intervals=10**6)
+    dut = make_dut(max_row_open_intervals=10**6)
     dut.send_request("Read", av(dut, subarray=0, row=5))
     dut.run_until_idle(max_ticks=128)
 
@@ -197,8 +204,8 @@ def test_maintenance_that_cannot_keep_up_is_reported():
 # Configuration
 # -------------------------------------------------------------------
 
-def test_disabled_smd_never_nacks():
-    dut = make_dut(smd_ref_policy="Disabled")
+def test_smd_without_mechanisms_never_nacks():
+    dut = make_dut(mechanisms=[])
     tick_until_lock(dut)
 
     dut.send_request("Read", av(dut))
@@ -210,15 +217,11 @@ def test_disabled_smd_never_nacks():
 
 def test_refresh_interval_must_exceed_the_maintenance_latency():
     with pytest.raises(Exception, match="must be shorter than the interval"):
-        make_dut(smd_refresh_period=ROWS_PER_BANK * LATENCY)
+        make_dut(refresh_period=ROWS_PER_BANK * LATENCY)
 
 def test_machine_count_must_divide_the_banks():
     with pytest.raises(Exception, match="must divide"):
-        make_dut(smd_num_ref_machines=3)
-
-def test_unknown_policy_is_rejected():
-    with pytest.raises(Exception, match="smd_ref_policy"):
-        make_dut(smd_ref_policy="Bogus")
+        make_dut(num_ref_machines=3)
 
 def test_standard_without_act_nack_is_rejected():
     dram = ramulator.dram.DDR4(org_preset="DDR4_8Gb_x8", timing_preset="DDR4_2400R", rank=1)
@@ -239,7 +242,7 @@ def _trace(make_dut_fn, requests):
     history = dut.run_until_idle(max_ticks=4096)
     return [(h.clk, h.command) for h in history]
 
-def test_disabled_smd_schedules_like_plain_ddr4():
+def test_smd_without_mechanisms_schedules_like_plain_ddr4():
     # (type, bankgroup, bank, row, column)
     requests = [
         ("Read", 0, 0, 5, 0),
@@ -252,7 +255,7 @@ def test_disabled_smd_schedules_like_plain_ddr4():
 
     def smd():
         dram = ramulator.dram.DDR4_SMD(org_preset="DDR4_8Gb_x8", timing_preset="DDR4_2400R", rank=1)
-        return cs.ControllerUnderTest.make_smd(dram, smd_ref_policy="Disabled")
+        return cs.ControllerUnderTest.make_smd(dram, smd_mechanisms=[])
 
     def plain():
         dram = ramulator.dram.DDR4(org_preset="DDR4_8Gb_x8", timing_preset="DDR4_2400R", rank=1)
@@ -264,14 +267,13 @@ def test_disabled_smd_schedules_like_plain_ddr4():
 # Variable-rate refresh (SMD-VR)
 # -------------------------------------------------------------------
 
-BIG_BLOOM_FILTER = {"smd_variable_refresh_bloom_filter_size": 1 << 20}
+BIG_BLOOM_FILTER = {"bloom_filter_size": 1 << 20}
 
 def make_vr_dut(weak_row_percentage, **params):
-    return make_dut(
-        smd_ref_policy="VariableRefresh",
-        smd_variable_refresh_weak_row_percentage=weak_row_percentage,
-        **params,
-    )
+    return make_dut(mechanisms=[
+        ramulator.smd_mechanism.VariableRefresh(
+            **{**REFRESH_PARAMS, "weak_row_percentage": weak_row_percentage, **params}),
+    ])
 
 def test_vr_without_weak_rows_defers_all_maintenance():
     dut = make_vr_dut(0.0)
@@ -332,20 +334,20 @@ def test_vr_chips_with_different_weak_rows_give_partial_nacks():
     assert stats["num_read_reqs_served"] == 16
 
 def test_vr_normal_distribution_runs():
-    dut = make_vr_dut(0.1, smd_variable_refresh_distribution="normal")
+    dut = make_vr_dut(0.1, distribution="normal")
     tick_n(dut, 3 * INTERVAL)
     dut.stats()
 
 def test_vr_rejects_unknown_distribution():
-    with pytest.raises(Exception, match="smd_variable_refresh_distribution"):
-        make_vr_dut(0.1, smd_variable_refresh_distribution="bogus")
+    with pytest.raises(Exception, match="distribution"):
+        make_vr_dut(0.1, distribution="bogus")
 
 def test_vr_bloom_filter_size_must_be_a_power_of_two():
     with pytest.raises(Exception, match="power of two"):
-        make_vr_dut(0.1, smd_variable_refresh_bloom_filter_size=1000)
+        make_vr_dut(0.1, bloom_filter_size=1000)
 
 def test_worst_case_distribution_staggers_the_chips():
-    dut = make_dut(smd_worst_case_ref_distribution=True)
+    dut = make_dut(worst_case_ref_distribution=True)
     tick_until_lock(dut)
 
     dut.send_request("Read", av(dut))

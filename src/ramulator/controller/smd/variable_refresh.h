@@ -107,7 +107,7 @@ public:
         std::discrete_distribution<uint64_t> discrete({100 - vc.weak_row_percentage, vc.weak_row_percentage});
         const bool use_discrete = vc.distribution == "discrete";
         if (!use_discrete && vc.distribution != "normal") {
-            throw std::invalid_argument("SMD: unknown smd_variable_refresh_distribution \"" + vc.distribution + "\" (expected discrete or normal)");
+            throw std::invalid_argument("SMD: unknown distribution \"" + vc.distribution + "\" (expected discrete or normal)");
         }
 
         for (int bank = 0; bank < ec.banks_per_rank; bank++) {

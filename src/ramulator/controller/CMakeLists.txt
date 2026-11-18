@@ -64,9 +64,15 @@ target_sources(
   impl/prac_controller.cpp
   impl/blockhammer_controller.cpp
   impl/smd_controller.cpp
+  smd/i_smd_mechanism.h
   smd/maintenance.h
+  smd/refresh_engines.h
   smd/variable_refresh.h
   smd/rowhammer.h
+  smd/impl/fixed_rate_refresh.cpp
+  smd/impl/variable_refresh.cpp
+  smd/impl/graphene.cpp
+  smd/impl/para.cpp
 )
 
 target_link_libraries(
