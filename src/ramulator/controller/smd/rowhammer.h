@@ -35,8 +35,9 @@ struct RowAddr {
 
 class GrapheneCounterTable {
 public:
-    GrapheneCounterTable(uint32_t num_counters, uint32_t act_threshold)
-        : m_num_counters(num_counters), m_act_threshold(act_threshold) {}
+    // `legacy_eviction` reproduces the replacement rule of the previous SMD simulator (see smallest_entry())
+    GrapheneCounterTable(uint32_t num_counters, uint32_t act_threshold, bool legacy_eviction = false)
+        : m_num_counters(num_counters), m_act_threshold(act_threshold), m_legacy_eviction(legacy_eviction) {}
     
     bool increment(uint32_t row_id) {
         auto it = m_counters.find(row_id);
@@ -68,24 +69,29 @@ public:
 
 private:
     std::map<uint32_t, uint32_t>::iterator smallest_entry() {
-        return std::min_element(m_counters.begin(), m_counters.end());
+        if (m_legacy_eviction) {
+            return std::min_element(m_counters.begin(), m_counters.end());
+        }
+        return std::min_element(m_counters.begin(), m_counters.end(),
+                                [](const auto& a, const auto& b) { return a.second < b.second; });
     }
 
     uint32_t m_spillover = 0;
     std::map<uint32_t, uint32_t> m_counters;
     uint32_t m_num_counters;
     uint32_t m_act_threshold;
+    bool m_legacy_eviction;
 };
 
 // Detector of one rank on one chip: Graphene.
 class GrapheneDetector {
 public:
-    GrapheneDetector(int banks_per_rank, int rows_per_sa, uint32_t num_counters, uint32_t act_threshold, int64_t refresh_window)
+    GrapheneDetector(int banks_per_rank, int rows_per_sa, uint32_t num_counters, uint32_t act_threshold, int64_t refresh_window, bool legacy_eviction = false)
                     : m_rows_per_sa(rows_per_sa), m_refresh_window(refresh_window) {
         if (act_threshold == 0) {
             throw std::invalid_argument("SMD: Graphene's mac must be at least 2");
         }
-        m_tables.assign(banks_per_rank, GrapheneCounterTable(num_counters, act_threshold));
+        m_tables.assign(banks_per_rank, GrapheneCounterTable(num_counters, act_threshold, legacy_eviction));
     }
 
     bool on_activation(int bank_in_rank, int sa, int row) {

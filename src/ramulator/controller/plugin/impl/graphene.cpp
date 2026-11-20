@@ -29,6 +29,8 @@ class Graphene : public IControllerPlugin, public Implementation {
   int m_rank_level = -1;
   int m_bank_level = -1;
   int m_row_level = -1;
+  int m_subarray_level = -1;
+  int m_num_rows_per_subarray = -1;
   int m_num_rows_per_bank = -1;
 
   // Per-bank activation count table
@@ -62,7 +64,12 @@ class Graphene : public IControllerPlugin, public Implementation {
     m_row_level = spec->get_level_id("Row");
 
     int num_banks = m_ctrl->m_device.m_bank_nodes.size();
-    m_num_rows_per_bank = spec->get_level_size("Row");
+    m_num_rows_per_subarray = spec->get_level_size("Row");
+    m_num_rows_per_bank = m_num_rows_per_subarray;
+    if (spec->has_level("Subarray")) {
+      m_subarray_level = spec->get_level_id("Subarray");
+      m_num_rows_per_bank *= spec->get_level_size("Subarray");
+    }
 
     // Initialize per-bank tables with dummy entries (negative row IDs)
     for (int i = 0; i < num_banks; i++) {
@@ -98,6 +105,9 @@ class Graphene : public IControllerPlugin, public Implementation {
 
     int bank_id = m_ctrl->m_device.get_flat_bank_id(req.addr_vec);
     int row_id = req.addr_vec[m_row_level];
+    if (m_subarray_level >= 0) {
+      row_id += req.addr_vec[m_subarray_level] * m_num_rows_per_subarray;
+    }
 
     if (m_is_debug) {
       std::cout << "Graphene: ACT on row " << row_id << std::endl;

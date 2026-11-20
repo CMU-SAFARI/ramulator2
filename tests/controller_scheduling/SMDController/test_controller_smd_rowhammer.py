@@ -228,3 +228,38 @@ def test_mechanisms_run_in_the_order_given_and_share_one_lock_table():
         read(dut, row=6)
     tick_n(dut, 6 * BUSY)
     assert dut.stats()["num_read_reqs_served"] == 12
+
+# -------------------------------------------------------------------
+# Graphene's replacement rule
+# -------------------------------------------------------------------    
+
+def activate_each(dut, rows):
+    for row in rows:
+        read(dut, row=row)
+        tick_n(dut, 100)
+
+# Rows A, B, C = 5, 6, 7 with two counters and threshold 4, A A A B C C C C A:
+#   C replaces B (the entry whose count equals the spillover count) and reaches the threshold,
+#   A (3 activations) is kept and reaches it on its fourth: two aggressors.
+HAMMERING = [5, 5, 5, 6, 7, 7, 7, 7, 5]
+
+def test_graphene_replaces_the_entry_with_the_smallest_count():
+    dut = make_dut([graphene_mechanism(mac=8, num_counters=2, legacy_eviction=False)])
+    activate_each(dut, HAMMERING)
+    tick_n(dut, 4 * BUSY)
+
+    assert dut.stats()["smd_neighbor_refs_issued"] == 2
+
+def test_graphene_llegacy_eviction_reproduces_the_original_simulator():
+    dut = make_dut([graphene_mechanism(mac=8, num_counters=2, legacy_eviction=True)])
+    activate_each(dut, HAMMERING)
+    tick_n(dut, 4 * BUSY)
+
+    assert dut.stats()["smd_neighbor_refs_issued"] == 1
+
+def test_graphene_follows_the_paper_by_default():
+    dut = make_dut([graphene_mechanism(mac=8, num_counters=2)])
+    activate_each(dut, HAMMERING)
+    tick_n(dut, 4 * BUSY)
+
+    assert dut.stats()["smd_neighbor_refs_issued"] == 2

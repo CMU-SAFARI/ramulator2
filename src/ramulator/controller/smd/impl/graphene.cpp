@@ -18,6 +18,8 @@ public:
         RAMULATOR_PARSE_PARAM(m_blast_radius, int, "blast_radius").default_val(1);
         RAMULATOR_PARSE_PARAM(m_queue_size, int, "neighbor_ref_queue_size").default_val(1024);
         RAMULATOR_PARSE_PARAM(m_latency, int, "single_ref_latency").default_val(80);
+        RAMULATOR_PARSE_PARAM(m_num_counters_param, int, "num_counters").default_val(0);
+        RAMULATOR_PARSE_PARAM(m_legacy_eviction, bool, "legacy_eviction").default_val(false);
         m_cfg = {m_latency, m_blast_radius, m_queue_size};
     }
 
@@ -31,10 +33,13 @@ public:
             std::floor((static_cast<uint32_t>(m_refresh_window) * (1 - nRFC / nREFI)) / nRC)
         );
         const uint32_t act_threshold = m_mac / 2;
-        const uint32_t num_counters = act_threshold > 0 ? acts_per_window / act_threshold : 0;
+        uint32_t num_counters = act_threshold > 0 ? acts_per_window / act_threshold : 0;
+        if (m_num_counters_param > 0) {
+            num_counters = m_num_counters_param;
+        }
 
         m_chips.build(ctx, m_cfg, [&](int,int) {
-            return SMD::GrapheneDetector(ctx.banks_per_rank, ctx.rows_per_sa, num_counters, act_threshold, m_refresh_window);
+            return SMD::GrapheneDetector(ctx.banks_per_rank, ctx.rows_per_sa, num_counters, act_threshold, m_refresh_window, m_legacy_eviction);
         });
     }
 
@@ -48,6 +53,8 @@ private:
     int m_blast_radius = 0;
     int m_queue_size = 0;
     int m_mac = 0;
+    int m_num_counters_param = 0;
+    bool m_legacy_eviction = false;
     int64_t m_refresh_window = 0;
     SMD::NeighborRefreshConfig m_cfg;
     SMD::RowHammerChips<SMD::GrapheneDetector> m_chips;

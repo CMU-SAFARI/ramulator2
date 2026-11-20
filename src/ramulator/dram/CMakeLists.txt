@@ -32,6 +32,7 @@ target_sources(
   impl/DDR4.cpp
   impl/DDR4_PUM.cpp
   impl/DDR4_SMD.cpp
+  impl/DDR4_VRR_SMD.cpp
   impl/DDR4_VRR.cpp
   impl/DDR5.cpp
   impl/DDR5_VRR.cpp

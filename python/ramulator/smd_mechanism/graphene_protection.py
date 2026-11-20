@@ -17,3 +17,5 @@ class GrapheneProtection(Component):
     blast_radius = Param(int, default=1)
     neighbor_ref_queue_size = Param(int, default=1024)
     single_ref_latency = Param(int, default=80)
+    num_counters = Param(int, default=0)
+    legacy_eviction = Param(bool, default=False)
