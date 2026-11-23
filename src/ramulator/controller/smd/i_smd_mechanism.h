@@ -26,7 +26,8 @@ struct SMDContext {
     int num_chips = 1;
 
     std::vector<SMD::LockTable*> locks;
-    SMD::RankEngine::ActiveFn is_sa_active;
+    SMD::RankEngine::ActiveFn is_sa_active;    // Does an open row sit in this subarray of this bank? A region holding one cannot be locked.
+    SMD::RankEngine::BankOpenFn is_bank_open;  // Does the bank hold an open row, in any subarray?
 
     int auto_latency() const {
         const double rows_per_bank = static_cast<double>(num_sas) * rows_per_sa;

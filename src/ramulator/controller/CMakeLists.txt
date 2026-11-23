@@ -73,6 +73,7 @@ target_sources(
   smd/impl/variable_refresh.cpp
   smd/impl/graphene.cpp
   smd/impl/para.cpp
+  smd/impl/ecc_scrubbing.cpp
 )
 
 target_link_libraries(

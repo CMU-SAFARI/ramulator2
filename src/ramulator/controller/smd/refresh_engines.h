@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <functional>
 #include <memory>
+#include <string>
 #include <vector>
 
 #include "ramulator/controller/smd/i_smd_mechanism.h"
@@ -22,6 +23,9 @@ struct RefreshParams {
     int max_row_open_intervals = 8;
     float timeout_to_interval_ratio = 0.5f;
     bool worst_case_distribution = false;
+    std::string stat_ops = "maintenance_ops";
+    std::string stat_rows = "rows_refreshed";
+    std::string stat_pending = "max_pending_maintenance";
 };
 
 class RefreshEngines {
@@ -29,6 +33,7 @@ public:
     using PolicyFactory = std::function<std::unique_ptr<RefreshPolicy>(int rank, int chip, const EngineConfig&)>;
 
     void build(const SMDContext& ctx, const RefreshParams& p, const PolicyFactory& make_policy) {
+        m_params = p;
         m_num_chips = ctx.num_chips;
         m_num_ranks = ctx.num_ranks;
 
@@ -48,7 +53,7 @@ public:
         for (int chip = 0; chip < ctx.num_chips; chip++) {
             for (int rank = 0; rank < ctx.num_ranks; rank++) {
                 m_policies.push_back(make_policy(rank, chip, cfg));
-                m_engines.push_back(std::make_unique<RankEngine>(cfg, rank, chip, *ctx.locks[chip], ctx.is_sa_active, *m_policies.back()));
+                m_engines.push_back(std::make_unique<RankEngine>(cfg, rank, chip, *ctx.locks[chip], ctx.is_sa_active, ctx.is_bank_open, *m_policies.back()));
             }
         }
 
@@ -74,9 +79,9 @@ public:
             }
             pending = std::max<uint64_t>(pending, m_engines[i]->max_pending());
         }
-        out["maintenance_ops"] += ops - m_ops_base;
-        out["rows_refreshed"] += rows - m_rows_base;
-        out["max_pending_maintenance"] = std::max(out["max_pending_maintenance"], pending);
+        out[m_params.stat_ops] += ops - m_ops_base;
+        out[m_params.stat_rows] += rows - m_rows_base;
+        out[m_params.stat_pending] = std::max(out[m_params.stat_pending], pending);
     }
 
     void reset() {
@@ -88,6 +93,7 @@ public:
     }
 
 private:
+    RefreshParams m_params;
     int m_num_chips = 1;
     int m_num_ranks = 1;
     std::vector<std::unique_ptr<RefreshPolicy>> m_policies;

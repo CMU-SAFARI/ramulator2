@@ -90,6 +90,15 @@ public:
     virtual ~RefreshPolicy() = default;
     virtual uint32_t rows_to_refresh(const MaintenanceCounter& mc, uint32_t granularity) = 0;
     virtual void on_maintenance(const MaintenanceCounter& mc, uint32_t rows) {}
+    virtual bool blocked_by_open_row(const MaintenanceCounter& mc, const std::function<bool(int bank, int sa)>& sa_active, const std::function<bool(int bank)>& bank_open) const {
+        return sa_active(mc.bank, mc.sa_counter);
+    }
+    virtual bool locks_entire_bank() const {
+        return false;
+    }
+    virtual int initial_sa(int num_sas) const {
+        return 0;
+    }
 };
 
 class FixedRatePolicy : public RefreshPolicy {
@@ -102,8 +111,9 @@ public:
 class RankEngine {
 public:
     using ActiveFn = std::function<bool(int bank, int sa)>;
-    RankEngine(const EngineConfig& cfg, int rank, int chip, LockTable& locks, ActiveFn is_sa_active, RefreshPolicy& policy)
-              : m_cfg(cfg), m_locks(locks), m_is_sa_active(std::move(is_sa_active)), m_policy(policy) {
+    using BankOpenFn = std::function<bool(int bank)>;
+    RankEngine(const EngineConfig& cfg, int rank, int chip, LockTable& locks, ActiveFn is_sa_active, BankOpenFn is_bank_open, RefreshPolicy& policy)
+              : m_cfg(cfg), m_locks(locks), m_is_sa_active(std::move(is_sa_active)), m_is_bank_open(std::move(is_bank_open)), m_policy(policy) {
         m_latency = cfg.latency > 0 ? cfg.latency : cfg.auto_latency;
         
         int64_t rows_total = static_cast<int64_t>(cfg.rows_per_sa) * cfg.num_sas;
@@ -126,9 +136,7 @@ public:
         for (int b = 0; b < cfg.banks_per_rank; b++) {
             MaintenanceCounter mc;
             mc.bank = rank * cfg.banks_per_rank + b;
-            if (cfg.worst_case_distribution) {
-                mc.sa_counter = chip % cfg.num_sas;
-            }
+            mc.sa_counter = (cfg.worst_case_distribution ? chip : policy.initial_sa(cfg.num_sas)) % cfg.num_sas;
             m_machines[b % cfg.num_machines].counters.push_back(mc);
         }
     }
@@ -186,11 +194,11 @@ private:
 
         uint32_t rows = m_policy.rows_to_refresh(mc, m_cfg.granularity);
         if (rows != 0) {
-            if (m_is_sa_active(mc.bank, mc.sa_counter) || m_locks.has_lock(mc.bank)) {
+            if (m_policy.blocked_by_open_row(mc, m_is_sa_active, m_is_bank_open) || m_locks.has_lock(mc.bank)) {
                 m.completion_clk = 0;
                 return;
             }
-            m_locks.lock(mc.bank, mc.sa_counter);
+            m_locks.lock(mc.bank, mc.sa_counter, m_policy.locks_entire_bank());
             m.locked_region = mc;
             m.completion_clk = m_clk + static_cast<int64_t>(m_latency) * rows;
             m_num_ops++;
@@ -205,6 +213,7 @@ private:
     EngineConfig m_cfg;
     LockTable& m_locks;
     ActiveFn m_is_sa_active;
+    BankOpenFn m_is_bank_open;
     RefreshPolicy& m_policy;
 
     int m_latency = 0;

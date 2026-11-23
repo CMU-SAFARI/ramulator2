@@ -89,6 +89,10 @@ public:
             return subarray->m_state == m_state_opened;
         };
 
+        ctx.is_bank_open = [this](int bank) {
+            return m_device.m_bank_nodes[bank]->m_state == m_state_opened;
+        };
+
         m_num_ranks = ctx.num_ranks;
         for (auto* mechanism : m_mechanisms) {
             mechanism->attach(ctx);
@@ -103,7 +107,8 @@ public:
         m_stats.add("smd_forced_precharges", s_forced_precharges);
 
         for (const char* name : {"maintenance_ops", "rows_refreshed", "max_pending_maintenance", "bloom_positives",
-                                 "bloom_false_positives", "neighbor_refs_issued", "neighbor_refs_done"}) {
+                                 "bloom_false_positives", "neighbor_refs_issued", "neighbor_refs_done",
+                                 "scrub_ops", "rows_scrubbed", "max_pending_scrubs"}) {
             m_smd_stats[name] = 0;
         }
         SMDStatMap reported;
