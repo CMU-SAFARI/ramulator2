@@ -16,3 +16,4 @@ class PARAProtection(Component):
     blast_radius = Param(int, default=1)
     neighbor_ref_queue_size = Param(int, default=1024)
     single_ref_latency = Param(int, default=80)
+    marked_rows_table = Param(bool, default=True)

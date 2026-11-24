@@ -108,7 +108,7 @@ public:
 
         for (const char* name : {"maintenance_ops", "rows_refreshed", "max_pending_maintenance", "bloom_positives",
                                  "bloom_false_positives", "neighbor_refs_issued", "neighbor_refs_done",
-                                 "scrub_ops", "rows_scrubbed", "max_pending_scrubs"}) {
+                                 "scrub_ops", "rows_scrubbed", "max_pending_scrubs", "neighbor_marks_dropped"}) {
             m_smd_stats[name] = 0;
         }
         SMDStatMap reported;

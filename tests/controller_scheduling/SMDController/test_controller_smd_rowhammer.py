@@ -168,6 +168,46 @@ def test_para_with_zero_probability_never_refreshes():
 
     assert dut.stats()["smd_neighbor_refs_issued"] == 0
 
+def mark_two_rows_of_one_region_while_the_machine_is_busy(**params):
+    """The chip'sone machine refreshes bank 0; two rows of one region of bank 1 get marked."""
+    dut = para(100.0, **params)
+    read(dut, bank=0, row=5)
+    read(dut, bank=1, row=7)
+    read(dut, bank=1, row=9)
+    tick_n(dut, 4 * BUSY)
+    return dut.stats()
+
+def test_para_marked_rows_table_holds_one_marked_row_per_region():
+    stats = mark_two_rows_of_one_region_while_the_machine_is_busy()
+    assert stats["smd_neighbor_refs_issued"] == 2
+    assert stats["smd_neighbor_marks_dropped"] == 1
+    assert stats["smd_neighbor_refs_done"] == 2
+
+def test_para_fifo_queues_every_marked_row():
+    stats = mark_two_rows_of_one_region_while_the_machine_is_busy(marked_rows_table=False)
+    assert stats["smd_neighbor_refs_issued"] == 3
+    assert stats["smd_neighbor_marks_dropped"] == 0
+    assert stats["smd_neighbor_refs_done"] == 3
+
+def test_para_marked_row_stays_marked_until_its_neighbors_are_refreshed():
+    dut= para(100.0)
+    read(dut, row=5)
+    tick_n(dut, BUSY // 2)  # still refreshing
+    stats = dut.stats()
+    assert stats["smd_neighbor_refs_issued"] == 1
+    assert stats["smd_neighbor_refs_done"] == 0
+
+
+def test_para_marks_of_different_regions_are_independent():
+    dut = para(100.0)
+    for subarray in range(4):
+        read(dut, subarray=subarray, row=5)
+    tick_n(dut, 8 * BUSY)
+    stats = dut.stats()
+    assert stats["smd_neighbor_refs_issued"] == 4
+    assert stats["smd_neighbor_marks_dropped"] == 0
+    assert stats["smd_neighbor_refs_done"] == 4
+
 def test_para_partial_nacks_arise_from_chips_drawing_different_numbers():
     dut = para(50.0)
 
@@ -250,7 +290,7 @@ def test_graphene_replaces_the_entry_with_the_smallest_count():
 
     assert dut.stats()["smd_neighbor_refs_issued"] == 2
 
-def test_graphene_llegacy_eviction_reproduces_the_original_simulator():
+def test_graphene_legacy_eviction_reproduces_the_original_simulator():
     dut = make_dut([graphene_mechanism(mac=8, num_counters=2, legacy_eviction=True)])
     activate_each(dut, HAMMERING)
     tick_n(dut, 4 * BUSY)

@@ -133,8 +133,8 @@ struct NeighborRefreshConfig {
 
 class NeighborRefresher {
 public:
-    NeighborRefresher(const NeighborRefreshConfig& cfg, int rank, int banks_per_rank, LockTable& locks, RankEngine::ActiveFn is_sa_active)
-        : m_cfg(cfg), m_bank_base(rank * banks_per_rank), m_locks(locks), m_is_sa_active(std::move(is_sa_active)), m_rows_per_op(cfg.blast_radius * 2) {}
+    NeighborRefresher(const NeighborRefreshConfig& cfg, int rank, const SMDContext& ctx, LockTable& locks)
+        : m_cfg(cfg), m_bank_base(rank * ctx.banks_per_rank), m_locks(locks), m_is_sa_active(ctx.is_sa_active), m_rows_per_op(cfg.blast_radius * 2) {}
 
     void enqueue(const RowAddr& aggressor) {
         if (std::find(m_queue.begin(), m_queue.end(), aggressor) != m_queue.end()) {
@@ -177,6 +177,7 @@ public:
 
     uint64_t num_issued() const { return m_num_issued; }
     uint64_t num_done() const { return m_num_done; }
+    uint64_t num_dropped() const { return 0; }
     void reset_stats() { m_num_issued = m_num_done = 0; }
 
 private:
@@ -195,7 +196,89 @@ private:
     uint64_t m_num_done = 0;
 };
 
-template <class Detector>
+/* MRT of SMD-PRP: per bank, one entry per lock region holding the marked aggressor row and a valid bit.
+   A marked row stays in the table until its neighbors are refreshed: the region is locked, the neighbors
+   refreshed, the region unlocked and the row unmarked. Marking a region that already holds a marked row
+   is dropped. Unlike FIFO of NeighborRefresher, regions are independent: a marked row whose region cannot
+   be locked now does not hold back the ones behind it.
+*/
+class MarkedRowsRefresher {
+public:
+    MarkedRowsRefresher(const NeighborRefreshConfig& cfg, int rank, const SMDContext& ctx, LockTable& locks)
+                        : m_cfg(cfg), m_bank_base(rank * ctx.banks_per_rank), m_num_sas(ctx.num_sas), m_locks(locks),
+                          m_is_sa_active(ctx.is_sa_active), m_rows_per_op(cfg.blast_radius * 2), m_table(static_cast<size_t>(ctx.banks_per_rank) * ctx.num_sas) {}
+
+    void enqueue(const RowAddr& aggressor) {
+        const int index = aggressor.bank * m_num_sas + aggressor.sa;
+        Entry& entry = m_table[index];
+        if (entry.valid) {
+            if (entry.row != aggressor.row) {
+                m_num_dropped++;
+            }
+            return;
+        }
+        entry = {true, aggressor.row};
+        m_pending.push_back(index);
+        m_num_issued++;
+    }
+
+    void tick() {
+        m_clk++;
+        if (m_completion_clk > m_clk) {
+            return;  // busy
+        }
+        if (m_completion_clk == m_clk) {
+            m_locks.release(m_locked_bank + m_bank_base, m_locked_sa);
+            m_table[m_locked_bank * m_num_sas + m_locked_sa].valid = false;
+            m_num_done++;
+        }
+        for (auto it = m_pending.begin(); it != m_pending.end(); ++it) {
+            const int bank = *it / m_num_sas;
+            const int sa = *it % m_num_sas;
+            if (m_is_sa_active(bank + m_bank_base, sa) || m_locks.has_lock(bank + m_bank_base)) {
+                continue;
+            }
+            m_locks.lock(bank + m_bank_base, sa);
+            m_locked_bank = bank;
+            m_locked_sa = sa;
+            m_completion_clk = m_clk + static_cast<int64_t>(m_cfg.latency) * m_rows_per_op;
+            m_pending.erase(it);
+            return;
+        }
+        m_completion_clk = 0;
+    }
+
+    uint64_t num_issued() const { return m_num_issued; }
+    uint64_t num_done() const { return m_num_done; }
+    uint64_t num_dropped() const { return m_num_dropped; }
+    void reset_stats() { m_num_issued = m_num_done = m_num_dropped = 0; }
+
+private:
+    struct Entry {
+        bool valid = false;
+        int row = 0;
+    };
+
+    NeighborRefreshConfig m_cfg;
+    int m_bank_base;
+    int m_num_sas;
+    LockTable& m_locks;
+    RankEngine::ActiveFn m_is_sa_active;
+    int m_rows_per_op;
+
+    int64_t m_clk = 0;
+    std::vector<Entry> m_table;
+    std::deque<int> m_pending;
+    int64_t m_completion_clk = -1;
+    int m_locked_bank = 0;
+    int m_locked_sa = 0;
+
+    uint64_t m_num_issued = 0;
+    uint64_t m_num_done = 0;
+    uint64_t m_num_dropped = 0;
+};
+
+template <class Detector, class Refresher = NeighborRefresher>
 class RowHammerChips {
 public:
     template <class MakeDetector>
@@ -204,7 +287,7 @@ public:
         m_banks_per_rank = ctx.banks_per_rank;
         for (int chip = 0; chip < ctx.num_chips; chip++) {
             for (int rank = 0; rank < ctx.num_ranks; rank++) {
-                m_chips.push_back({make_detector(rank, chip), NeighborRefresher(cfg, rank, ctx.banks_per_rank, *ctx.locks[chip], ctx.is_sa_active)});
+                m_chips.push_back({make_detector(rank, chip), Refresher(cfg, rank, ctx, *ctx.locks[chip])});
             }
         }
     }
@@ -232,6 +315,7 @@ public:
         for (int rank = 0; rank < m_num_ranks && rank < static_cast<int>(m_chips.size()); rank++) {
             out["neighbor_refs_issued"] += m_chips[rank].refresher.num_issued();
             out["neighbor_refs_done"] += m_chips[rank].refresher.num_done();
+            out["neighbor_marks_dropped"] += m_chips[rank].refresher.num_dropped();
         }
     }
 
@@ -244,7 +328,7 @@ public:
 private:
     struct Chip {
         Detector detector;
-        NeighborRefresher refresher;
+        Refresher refresher;
     };
 
     int m_num_ranks = 1;
