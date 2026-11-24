@@ -17,6 +17,8 @@ class SMD(Component):
     read_buffer_size = Param(int, default=32)
     write_buffer_size = Param(int, default=32)
     priority_buffer_size = Param(int, default=1568)
+    open_bitline = Param(bool, default=False)
+    physical_subarray_rows = Param(int, default=512)
     scheduler = Child("scheduler")
     refresh_manager = Child("refresh_manager")
     row_policy = Child("row_policy")

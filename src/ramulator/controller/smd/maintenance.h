@@ -25,6 +25,29 @@ public:
         return (l.locked && l.sa_id == sa) || l.bank_locked;
     }
 
+    void set_adjacency(int rows_per_sa, int physical_rows) {
+        m_rows_per_sa = rows_per_sa;
+        m_physical_rows = physical_rows;
+    }
+
+    // Is an ACT to this row (within its region sa) rejected?
+    bool blocks_act(int bank, int sa, int row) const {
+        if (under_maintenance(bank, sa)) {
+            return true;
+        }
+        const RegionLock& l = m_locks[bank];
+        if (m_physical_rows == 0 || !l.locked) {
+            return false;
+        }
+        if (sa + 1 == l.sa_id) {
+            return row + m_physical_rows >= m_rows_per_sa;
+        }
+        if (sa == l.sa_id + 1) {
+            return row < m_physical_rows;
+        }
+        return false;
+    }
+
     bool has_lock(int bank) const {
         return m_locks[bank].locked;
     }
@@ -48,6 +71,8 @@ public:
 
 private:
     std::vector<RegionLock> m_locks;
+    int m_rows_per_sa = 0;
+    int m_physical_rows = 0;  // 0: adjacent_subarrays are not blocked
 };
 
 struct MaintenanceCounter {

@@ -44,6 +44,10 @@ public:
         init_base();
 
         RAMULATOR_CREATE_OPTIONAL_CHILD_LIST(m_mechanisms, ISMDMechanism);
+        // Open-bitline DRAM: an ACT to the physical subarray adjacent to a locked region is NACKed too
+        RAMULATOR_PARSE_PARAM(m_open_bitline, bool, "open_bitline").default_val(false);
+        // Rows of one physical subarray
+        RAMULATOR_PARSE_PARAM(m_physical_subarray_rows, int, "physical_subarray_rows").default_val(512);
     }
 
     void setup(IFrontEnd* frontend, IMemorySystem* memory_system) override {
@@ -82,6 +86,12 @@ public:
 
         for (int chip = 0; chip < m_num_chips; chip++) {
             m_locks.push_back(std::make_unique<SMD::LockTable>(num_banks));
+            if (m_open_bitline) {
+                if (m_physical_subarray_rows <= 0) {
+                    throw std::invalid_argument("SMD: physical_subarray_rows must be positive");
+                }
+                m_locks.back()->set_adjacency(ctx.rows_per_sa, std::min(m_physical_subarray_rows, ctx.rows_per_sa));
+            }
             ctx.locks.push_back(m_locks.back().get());
         }
         ctx.is_sa_active = [this](int bank, int sa) {
@@ -172,6 +182,8 @@ private:
 
     // The regions under maintenance, per simulated chip
     std::vector<std::unique_ptr<SMD::LockTable>> m_locks;
+    bool m_open_bitline = false;
+    int m_physical_subarray_rows = 512;
     
     std::deque<PendingNack> m_pending_nacks;
     std::vector<Clk_t> m_act_clk;
@@ -185,10 +197,10 @@ private:
     std::map<std::string, size_t> m_smd_stats;  // reported by the mechanisms, as smd_<name>
 
     // The chips whose maintenance holds the subarray
-    int count_busy_chips(int bank, int sa) const {
+    int count_busy_chips(int bank, int sa, int row) const {
         int busy = 0;
         for (const auto& locks : m_locks) {
-            busy += locks->under_maintenance(bank, sa);
+            busy += locks->blocks_act(bank, sa, row);
         }
         return busy;
     }
@@ -274,7 +286,7 @@ void SMDController::tick() {
         const int bank = m_device.get_flat_bank_id(cand.it->addr_vec);
         const int sa = cand.it->addr_vec[m_subarray_level];
         const bool is_act = command == m_cmd_act;
-        const int busy_chips = is_act ? count_busy_chips(bank, sa) : 0;
+        const int busy_chips = is_act ? count_busy_chips(bank, sa, cand.it->addr_vec[m_row_level]) : 0;
 
         m_device.issue_command(command, cand.it->addr_vec, m_clk);
         if (is_act) {
