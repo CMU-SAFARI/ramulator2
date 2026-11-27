@@ -79,6 +79,30 @@ class ControllerUnderTest:
         return cls(controller, num_cores=num_cores)
 
     @classmethod
+    def make_smd(
+        cls,
+        dram,
+        *,
+        scheduler=None,
+        row_policy=None,
+        refresh_manager=None,
+        addr_mapper=None,
+        controller_plugins=None,
+        num_cores: int = 1,
+        **kwargs,
+    ):
+        controller = ramulator.controller.SMD(
+            scheduler=scheduler or ramulator.scheduler.FRFCFS(),
+            refresh_manager=refresh_manager or ramulator.refresh_manager.NoRefresh(),
+            row_policy=row_policy or ramulator.row_policy.Open(),
+            addr_mapper=addr_mapper or ramulator.addr_mapper.PassThroughAddrMapper(),
+            dram=dram,
+            controller_plugins=controller_plugins or [],
+            **kwargs,
+        )
+        return cls(controller, num_cores=num_cores)
+
+    @classmethod
     def make_hbm(
         cls,
         dram,

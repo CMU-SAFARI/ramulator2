@@ -19,6 +19,7 @@ from ramulator import memory_system
 from ramulator import refresh_manager
 from ramulator import row_policy
 from ramulator import scheduler
+from ramulator import smd_mechanism
 from ramulator import translation
 
 # Hand-written integration modules
@@ -62,4 +63,4 @@ class Simulation:
         return self._sim.get_stats_yaml()
 
 
-__all__ = ['dram', 'addr_mapper', 'channel_mapper', 'controller', 'controller_plugin', 'frontend', 'memory_system', 'refresh_manager', 'row_policy', 'scheduler', 'translation', 'gem5', 'Simulation']
+__all__ = ['dram', 'addr_mapper', 'channel_mapper', 'controller', 'controller_plugin', 'frontend', 'memory_system', 'refresh_manager', 'row_policy', 'scheduler', 'smd_mechanism', 'translation', 'gem5', 'Simulation']

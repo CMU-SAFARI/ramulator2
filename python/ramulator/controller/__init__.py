@@ -13,5 +13,6 @@ from .lpddr5 import LPDDR5
 from .lpddr6 import LPDDR6
 from .prac import PRAC
 from .pum import PUM
+from .smd import SMD
 
-__all__ = ['BlockHammer', 'GDDR7', 'GenericDDR', 'HBM12', 'HBM34', 'LPDDR5', 'LPDDR6', 'PRAC', 'PUM']
+__all__ = ['BlockHammer', 'GDDR7', 'GenericDDR', 'HBM12', 'HBM34', 'LPDDR5', 'LPDDR6', 'PRAC', 'PUM', 'SMD']
